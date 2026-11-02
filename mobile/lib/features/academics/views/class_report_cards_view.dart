@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../core/theme/app_colors.dart';
 import '../bloc/exams_bloc.dart';
 import '../models/exam_model.dart';
 
@@ -55,11 +56,11 @@ class _ClassReportCardsViewState extends State<ClassReportCardsView> {
       appBar: AppBar(
         title: Text('${widget.examName} - Report Cards'),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.primaryText,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: AppColors.primaryAccent),
             onPressed: () {
               context.read<ExamsBloc>().add(
                     LoadClassReportCardsEvent(widget.examId, widget.classId, widget.sectionId),
@@ -69,19 +70,19 @@ class _ClassReportCardsViewState extends State<ClassReportCardsView> {
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: Colors.grey.shade200, height: 1.0),
+          child: Container(color: AppColors.border, height: 1.0),
         ),
       ),
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.scaffoldBackground,
       body: BlocConsumer<ExamsBloc, ExamsState>(
         listener: (context, state) {
           if (state is ExamOperationSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.black87),
+              SnackBar(content: Text(state.message), backgroundColor: AppColors.primaryText),
             );
           } else if (state is ExamsError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.red.shade700),
+              SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
             );
           }
         },
@@ -102,22 +103,24 @@ class _ClassReportCardsViewState extends State<ClassReportCardsView> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.assignment_outlined, size: 48, color: Colors.grey.shade400),
+                              Icon(Icons.assessment_outlined, size: 48, color: AppColors.tertiaryText),
                               const SizedBox(height: 12),
-                              Text(
-                                'No report cards generated yet.',
-                                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                              const Text(
+                                'No report cards generated yet for this class.',
+                                style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
                               ),
                               const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: _generateCards,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black87,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
+                              if (!widget.isCoordinator)
+                                ElevatedButton.icon(
+                                  onPressed: _generateCards,
+                                  icon: const Icon(Icons.bolt, size: 16),
+                                  label: const Text('Generate Report Cards'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primaryAccent,
+                                    foregroundColor: AppColors.surface,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
                                 ),
-                                child: const Text('Generate Class Report Cards'),
-                              ),
                             ],
                           ),
                         )
@@ -126,8 +129,7 @@ class _ClassReportCardsViewState extends State<ClassReportCardsView> {
                           itemCount: cards.length,
                           separatorBuilder: (_, _) => const SizedBox(height: 10),
                           itemBuilder: (context, index) {
-                            final card = cards[index];
-                            return _buildReportCardTile(card);
+                            return _buildReportCardTile(cards[index]);
                           },
                         ),
                 ),
@@ -142,42 +144,60 @@ class _ClassReportCardsViewState extends State<ClassReportCardsView> {
   }
 
   Widget _buildActionBanner(List<ReportCardModel> cards) {
-    if (cards.isEmpty) return const SizedBox.shrink();
-
-    final allApproved = cards.every((c) => c.status == 'APPROVED');
+    final bool hasCards = cards.isNotEmpty;
+    final bool allApproved = hasCards && cards.every((c) => c.status == 'APPROVED');
 
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.white,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.between,
         children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: _generateCards,
-              icon: const Icon(Icons.refresh, size: 16, color: Colors.black87),
-              label: const Text('Re-calculate', style: TextStyle(color: Colors.black87)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.black87),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Total Students: ${cards.length}',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primaryText),
               ),
-            ),
-          ),
-          if (widget.isCoordinator && !allApproved) ...[
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _approveCards,
-                icon: const Icon(Icons.check_circle_outline, size: 16),
-                label: const Text('Approve All'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              const SizedBox(height: 2),
+              Text(
+                allApproved ? 'All Report Cards Approved' : 'Pending Approval / Generation',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: allApproved ? AppColors.success : AppColors.secondaryText,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
+            ],
+          ),
+          if (widget.isCoordinator && !allApproved && hasCards)
+            ElevatedButton.icon(
+              onPressed: _approveCards,
+              icon: const Icon(Icons.approval, size: 15),
+              label: const Text('Approve All'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryAccent,
+                foregroundColor: AppColors.surface,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            )
+          else if (!widget.isCoordinator)
+            OutlinedButton.icon(
+              onPressed: _generateCards,
+              icon: const Icon(Icons.refresh, size: 15),
+              label: const Text('Re-Generate'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryAccent,
+                side: const BorderSide(color: AppColors.indigo200),
+                backgroundColor: AppColors.indigo50,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
             ),
-          ],
         ],
       ),
     );
@@ -189,33 +209,52 @@ class _ClassReportCardsViewState extends State<ClassReportCardsView> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: Colors.grey.shade100,
-            child: Text(
-              card.rollNumber ?? '-',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  card.studentName ?? 'Student',
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                Row(
+                  children: [
+                    Text(
+                      card.studentName ?? 'Student',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primaryText),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isApproved ? AppColors.successLight : AppColors.warningLight,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: isApproved ? AppColors.successBorder : AppColors.warningBorder),
+                      ),
+                      child: Text(
+                        card.status,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: isApproved ? AppColors.success : AppColors.warning,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
-                  '${card.totalMarksObtained.toStringAsFixed(1)} / ${card.totalMaxMarks.toStringAsFixed(1)} marks',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  'Roll: ${card.rollNumber ?? "-"} • Adm: ${card.admissionNumber ?? "-"}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
                 ),
               ],
             ),
@@ -225,24 +264,12 @@ class _ClassReportCardsViewState extends State<ClassReportCardsView> {
             children: [
               Text(
                 '${card.percentage.toStringAsFixed(1)}%',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primaryAccent),
               ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isApproved ? Colors.green.shade50 : Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: isApproved ? Colors.green.shade200 : Colors.blue.shade200),
-                ),
-                child: Text(
-                  card.status,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: isApproved ? Colors.green.shade800 : Colors.blue.shade800,
-                  ),
-                ),
+              const SizedBox(height: 2),
+              Text(
+                '${card.totalMarksObtained.toStringAsFixed(0)} / ${card.totalMaxMarks.toStringAsFixed(0)}',
+                style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
               ),
             ],
           ),

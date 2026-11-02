@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../core/theme/app_colors.dart';
 import '../bloc/exams_bloc.dart';
 import '../models/exam_model.dart';
 
@@ -32,11 +33,11 @@ class _CoordinatorMarksReviewViewState extends State<CoordinatorMarksReviewView>
       appBar: AppBar(
         title: const Text('Marks Verification & Review'),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.primaryText,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: AppColors.primaryAccent),
             onPressed: () {
               context.read<ExamsBloc>().add(
                     LoadDatesheetSummaryEvent(widget.examId, widget.datesheetId),
@@ -46,19 +47,19 @@ class _CoordinatorMarksReviewViewState extends State<CoordinatorMarksReviewView>
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: Colors.grey.shade200, height: 1.0),
+          child: Container(color: AppColors.border, height: 1.0),
         ),
       ),
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.scaffoldBackground,
       body: BlocConsumer<ExamsBloc, ExamsState>(
         listener: (context, state) {
           if (state is ExamOperationSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.black87),
+              SnackBar(content: Text(state.message), backgroundColor: AppColors.primaryText),
             );
           } else if (state is ExamsError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.red.shade700),
+              SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
             );
           }
         },
@@ -92,9 +93,16 @@ class _CoordinatorMarksReviewViewState extends State<CoordinatorMarksReviewView>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x080F172A),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,140 +110,144 @@ class _CoordinatorMarksReviewViewState extends State<CoordinatorMarksReviewView>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      summary.subjectName,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: Text(
+                        summary.subjectName,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primaryText),
+                      ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isVerified
-                            ? Colors.green.shade50
-                            : (summary.status == 'SUBMITTED' ? Colors.blue.shade50 : Colors.amber.shade50),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: isVerified
-                              ? Colors.green.shade200
-                              : (summary.status == 'SUBMITTED' ? Colors.blue.shade200 : Colors.amber.shade200),
-                        ),
+                        color: isVerified ? AppColors.successLight : AppColors.warningLight,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: isVerified ? AppColors.successBorder : AppColors.warningBorder),
                       ),
                       child: Text(
                         summary.status,
                         style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isVerified
-                              ? Colors.green.shade800
-                              : (summary.status == 'SUBMITTED' ? Colors.blue.shade800 : Colors.amber.shade800),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isVerified ? AppColors.success : AppColors.warning,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Max Marks: ${summary.maxMarks.toStringAsFixed(0)}',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                const SizedBox(height: 12),
+                const Divider(color: AppColors.borderLight, height: 1),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildStatCol('Max Marks', summary.maxMarks.toStringAsFixed(0)),
+                    _buildStatCol('Total Students', '${summary.totalStudents}'),
+                    _buildStatCol('Entered', '${summary.enteredCount}'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildStatCol('Absent', '${summary.absentCount}', color: AppColors.warning),
+                    _buildStatCol('Missing', '${summary.missingCount}', color: hasMissing ? AppColors.error : AppColors.success),
+                    _buildStatCol('Average', summary.averageMarks != null ? '${summary.averageMarks!.toStringAsFixed(1)}%' : '-'),
+                  ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
 
-          // Missing marks alert
-          if (hasMissing)
-            Container(
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${summary.missingCount} student(s) have missing marks or unentered records.',
-                      style: TextStyle(fontSize: 13, color: Colors.amber.shade900),
-                    ),
-                  ),
-                ],
-              ),
+          // Analysis Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
             ),
-
-          // Statistics Grid
-          GridView.count(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.8,
-            children: [
-              _buildStatCard('Total Students', summary.totalStudents.toString(), Icons.people_outline),
-              _buildStatCard('Marks Entered', summary.enteredCount.toString(), Icons.edit_note_outlined),
-              _buildStatCard('Absent Students', summary.absentCount.toString(), Icons.event_busy_outlined),
-              _buildStatCard(
-                'Class Average',
-                summary.averageMarks != null ? summary.averageMarks!.toStringAsFixed(1) : '-',
-                Icons.trending_up_outlined,
-              ),
-              _buildStatCard(
-                'Highest Mark',
-                summary.highestMarks != null ? summary.highestMarks!.toStringAsFixed(1) : '-',
-                Icons.emoji_events_outlined,
-              ),
-              _buildStatCard(
-                'Lowest Mark',
-                summary.lowestMarks != null ? summary.lowestMarks!.toStringAsFixed(1) : '-',
-                Icons.insights_outlined,
-              ),
-            ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Performance Analytics',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primaryText),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildAnalyticTile(
+                        'Highest Marks',
+                        summary.highestMarks != null ? '${summary.highestMarks!.toStringAsFixed(1)}' : '-',
+                        Icons.trending_up,
+                        AppColors.success,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildAnalyticTile(
+                        'Lowest Marks',
+                        summary.lowestMarks != null ? '${summary.lowestMarks!.toStringAsFixed(1)}' : '-',
+                        Icons.trending_down,
+                        AppColors.warning,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
 
-          // Action Button
+          // Verify Button Action
           if (!isVerified)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  context.read<ExamsBloc>().add(
-                        VerifyMarksEvent(widget.examId, widget.datesheetId),
-                      );
-                },
-                icon: const Icon(Icons.check_circle_outline, size: 18),
-                label: const Text('Verify Marks as Coordinator'),
+                onPressed: hasMissing
+                    ? () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Cannot verify marks while some students have missing entries.'),
+                            backgroundColor: AppColors.warning,
+                          ),
+                        );
+                      }
+                    : () {
+                        context.read<ExamsBloc>().add(
+                              VerifyMarksEvent(widget.examId, widget.datesheetId),
+                            );
+                      },
+                icon: const Icon(Icons.verified_outlined, size: 18),
+                label: const Text('Verify Marks & Lock'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87,
-                  foregroundColor: Colors.white,
+                  backgroundColor: hasMissing ? AppColors.slate400 : AppColors.primaryAccent,
+                  foregroundColor: AppColors.surface,
                   padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                 ),
               ),
             )
           else
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.green.shade200),
+                color: AppColors.successLight,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.successBorder),
               ),
-              alignment: Alignment.center,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.verified, size: 18, color: Colors.green.shade800),
-                  const SizedBox(width: 8),
+                children: const [
+                  Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                  SizedBox(width: 8),
                   Text(
-                    'Marks Verified by Coordinator',
-                    style: TextStyle(color: Colors.green.shade900, fontWeight: FontWeight.w600),
+                    'Marks Verified and Locked by Coordinator',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.success, fontSize: 13),
                   ),
                 ],
               ),
@@ -245,29 +257,36 @@ class _CoordinatorMarksReviewViewState extends State<CoordinatorMarksReviewView>
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon) {
+  Widget _buildStatCol(String label, String value, {Color color = AppColors.primaryText}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.secondaryText)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
+  }
+
+  Widget _buildAnalyticTile(String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.scaffoldBackground,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Row(
         children: [
-          Row(
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 16, color: Colors.grey.shade600),
-              const SizedBox(width: 6),
-              Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              Text(label, style: const TextStyle(fontSize: 11, color: AppColors.secondaryText)),
+              const SizedBox(height: 2),
+              Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryText)),
             ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
           ),
         ],
       ),

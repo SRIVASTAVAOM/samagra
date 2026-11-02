@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../core/theme/app_colors.dart';
 import '../bloc/exams_bloc.dart';
 import '../models/exam_model.dart';
 
@@ -83,7 +84,7 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
                 content: Text(
                   'Invalid marks for ${s.fullName}. Must be between 0 and ${datesheet.maxMarks.toStringAsFixed(0)}.',
                 ),
-                backgroundColor: Colors.red.shade700,
+                backgroundColor: AppColors.error,
               ),
             );
             return;
@@ -116,23 +117,23 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
       appBar: AppBar(
         title: const Text('Marks Entry'),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.primaryText,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: Colors.grey.shade200, height: 1.0),
+          child: Container(color: AppColors.border, height: 1.0),
         ),
       ),
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.scaffoldBackground,
       body: BlocConsumer<ExamsBloc, ExamsState>(
         listener: (context, state) {
           if (state is ExamOperationSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.black87),
+              SnackBar(content: Text(state.message), backgroundColor: AppColors.primaryText),
             );
           } else if (state is ExamsError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.red.shade700),
+              SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
             );
           }
         },
@@ -179,7 +180,10 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      color: Colors.white,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -188,18 +192,18 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
             children: [
               Text(
                 datesheet.subjectName ?? 'Subject',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryText),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.blue.shade200),
+                  color: AppColors.indigo50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.indigo100),
                 ),
                 child: Text(
                   'Max: ${datesheet.maxMarks.toStringAsFixed(0)}',
-                  style: TextStyle(fontSize: 12, color: Colors.blue.shade800, fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontSize: 12, color: AppColors.primaryAccent, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -207,7 +211,7 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
           const SizedBox(height: 4),
           Text(
             '${datesheet.className ?? "Class"} • Date: ${datesheet.examDate} • ${roster.length} Students',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
           ),
         ],
       ),
@@ -219,13 +223,13 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFFDE68A)),
+        color: AppColors.warningLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.warningBorder),
       ),
-      child: const Row(
-        children: [
-          Icon(Icons.lock_outline, size: 18, color: Color(0xFFD97706)),
+      child: Row(
+        children: const [
+          Icon(Icons.lock_outline, size: 18, color: AppColors.warning),
           SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -233,7 +237,7 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF92400E),
+                color: AppColors.warning,
               ),
             ),
           ),
@@ -252,11 +256,18 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
     final remarksCtrl = _remarksControllers[student.studentId];
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,10 +276,10 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: Colors.grey.shade100,
+                backgroundColor: AppColors.indigo50,
                 child: Text(
                   student.rollNumber,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryAccent),
                 ),
               ),
               const SizedBox(width: 12),
@@ -278,11 +289,11 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
                   children: [
                     Text(
                       student.fullName,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primaryText),
                     ),
                     Text(
                       'Adm: ${student.admissionNumber}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
                     ),
                   ],
                 ),
@@ -292,6 +303,7 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
                 children: [
                   Checkbox(
                     value: isAbsent,
+                    activeColor: AppColors.primaryAccent,
                     onChanged: isLocked
                         ? null
                         : (val) {
@@ -303,12 +315,12 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
                             });
                           },
                   ),
-                  Text('Absent', style: TextStyle(fontSize: 12, color: isLocked ? Colors.grey.shade400 : Colors.grey.shade700)),
+                  Text('Absent', style: TextStyle(fontSize: 12, color: isLocked ? AppColors.tertiaryText : AppColors.secondaryText)),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -321,13 +333,14 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
                     labelText: 'Marks (out of ${datesheet.maxMarks.toStringAsFixed(0)})',
                     labelStyle: const TextStyle(fontSize: 12),
                     border: const OutlineInputBorder(),
+                    focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: AppColors.primaryAccent)),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     filled: isAbsent || isLocked,
-                    fillColor: (isAbsent || isLocked) ? Colors.grey.shade100 : Colors.white,
+                    fillColor: (isAbsent || isLocked) ? AppColors.scaffoldBackground : AppColors.surface,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 flex: 3,
                 child: TextFormField(
@@ -337,9 +350,8 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
                     labelText: 'Remarks (optional)',
                     labelStyle: const TextStyle(fontSize: 12),
                     border: const OutlineInputBorder(),
+                    focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: AppColors.primaryAccent)),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    filled: isLocked,
-                    fillColor: isLocked ? Colors.grey.shade100 : Colors.white,
                   ),
                 ),
               ),
@@ -350,40 +362,27 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
     );
   }
 
-  Widget _buildBottomBar(
-    ExamDatesheetModel datesheet,
-    List<StudentMarkRosterModel> roster,
-    bool isLocked,
-  ) {
+  Widget _buildBottomBar(ExamDatesheetModel datesheet, List<StudentMarkRosterModel> roster, bool isLocked) {
     if (isLocked) {
       return Container(
-        width: double.infinity,
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.border)),
         ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.lock, size: 16, color: Colors.grey.shade600),
-              const SizedBox(width: 8),
-              Text(
-                'Marks Entry Locked (Read-Only)',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-            ],
+        child: SafeArea(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.scaffoldBackground,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Text(
+              'Marks Verification Completed',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.secondaryText),
+            ),
           ),
         ),
       );
@@ -391,38 +390,42 @@ class _TeacherMarksEntryViewState extends State<TeacherMarksEntryView> {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => _submitMarks(datesheet, roster, false),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                side: const BorderSide(color: Colors.black87),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _submitMarks(datesheet, roster, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primaryAccent,
+                  side: const BorderSide(color: AppColors.indigo200),
+                  backgroundColor: AppColors.indigo50,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Save Draft'),
               ),
-              child: const Text('Save Draft', style: TextStyle(color: Colors.black87)),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () => _submitMarks(datesheet, roster, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black87,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                elevation: 0,
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _submitMarks(datesheet, roster, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryAccent,
+                  foregroundColor: AppColors.surface,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Submit & Verify'),
               ),
-              child: const Text('Submit for Verification'),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

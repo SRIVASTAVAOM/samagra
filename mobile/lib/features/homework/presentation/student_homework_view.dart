@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../core/theme/app_colors.dart';
 import '../bloc/homework_bloc.dart';
 import '../models/homework_model.dart';
 
@@ -25,14 +26,14 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
       appBar: AppBar(
         title: const Text('My Homework & Assignments'),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.primaryText,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: Colors.grey.shade200, height: 1.0),
+          child: Container(color: AppColors.border, height: 1.0),
         ),
       ),
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.scaffoldBackground,
       body: BlocConsumer<HomeworkBloc, HomeworkState>(
         listener: (context, state) {
           if (state is HomeworkOperationSuccess) {
@@ -41,12 +42,12 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
                 content: Text(state.downloadUrl != null
                     ? '${state.message}: ${state.attachmentName ?? "File"}'
                     : state.message),
-                backgroundColor: Colors.black87,
+                backgroundColor: AppColors.primaryText,
               ),
             );
           } else if (state is HomeworkError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.red.shade700),
+              SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
             );
           }
         },
@@ -85,6 +86,10 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
           return Center(
             child: ElevatedButton(
               onPressed: () => context.read<HomeworkBloc>().add(const LoadStudentHomeworkEvent()),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryAccent,
+                foregroundColor: AppColors.surface,
+              ),
               child: const Text('Load Homework'),
             ),
           );
@@ -99,7 +104,7 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      color: Colors.white,
+      color: AppColors.surface,
       child: Row(
         children: [
           _filterChip('ALL', 'All (${allItems.length})'),
@@ -120,10 +125,10 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.black87 : Colors.grey.shade100,
+          color: isSelected ? AppColors.primaryAccent : AppColors.scaffoldBackground,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: isSelected ? Colors.black87 : Colors.grey.shade300,
+            color: isSelected ? AppColors.primaryAccent : AppColors.border,
             width: 1,
           ),
         ),
@@ -132,7 +137,7 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: isSelected ? Colors.white : Colors.black87,
+            color: isSelected ? AppColors.surface : AppColors.primaryText,
           ),
         ),
       ),
@@ -144,9 +149,16 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -158,28 +170,28 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.grey.shade300),
+                  color: AppColors.indigo50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.indigo100),
                 ),
                 child: Text(
                   hw.subjectName ?? 'Subject',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryAccent),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isDone ? Colors.green.shade50 : Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: isDone ? Colors.green.shade200 : Colors.amber.shade200),
+                  color: isDone ? AppColors.successLight : AppColors.warningLight,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: isDone ? AppColors.successBorder : AppColors.warningBorder),
                 ),
                 child: Text(
                   isDone ? 'Completed' : 'Pending',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: isDone ? Colors.green.shade800 : Colors.amber.shade800,
+                    color: isDone ? AppColors.success : AppColors.warning,
                   ),
                 ),
               ),
@@ -188,29 +200,29 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
           const SizedBox(height: 10),
           Text(
             hw.title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryText),
           ),
           const SizedBox(height: 6),
           Text(
             hw.description,
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.4),
+            style: const TextStyle(fontSize: 14, color: AppColors.secondaryText, height: 1.4),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey.shade600),
+              const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.secondaryText),
               const SizedBox(width: 4),
               Text(
                 'Due: ${hw.dueDate}',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey.shade700),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
               ),
               if (hw.teacherName != null) ...[
                 const SizedBox(width: 12),
-                Icon(Icons.person_outline, size: 14, color: Colors.grey.shade600),
+                const Icon(Icons.person_outline, size: 14, color: AppColors.secondaryText),
                 const SizedBox(width: 4),
                 Text(
                   hw.teacherName!,
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
                 ),
               ],
             ],
@@ -228,18 +240,19 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
                 icon: Icon(
                   isDone ? Icons.undo_outlined : Icons.check_circle_outline,
                   size: 16,
-                  color: isDone ? Colors.black87 : Colors.green.shade700,
+                  color: isDone ? AppColors.primaryText : AppColors.success,
                 ),
                 label: Text(
                   isDone ? 'Mark as Pending' : 'Mark Completed',
                   style: TextStyle(
-                    color: isDone ? Colors.black87 : Colors.green.shade700,
+                    color: isDone ? AppColors.primaryText : AppColors.success,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: Colors.grey.shade300),
+                  side: const BorderSide(color: AppColors.border),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
               if (hw.hasAttachment) ...[
@@ -251,10 +264,10 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
                           DownloadHomeworkAttachmentEvent(hw.id),
                         );
                   },
-                  icon: const Icon(Icons.download_outlined, size: 16, color: Colors.black87),
+                  icon: const Icon(Icons.download_outlined, size: 16, color: AppColors.primaryAccent),
                   label: Text(
                     hw.attachmentName ?? 'Attachment',
-                    style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w500),
+                    style: const TextStyle(color: AppColors.primaryAccent, fontWeight: FontWeight.w500),
                   ),
                 ),
               ],
@@ -270,11 +283,11 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.assignment_turned_in_outlined, size: 48, color: Colors.grey.shade400),
+          Icon(Icons.assignment_turned_in_outlined, size: 48, color: AppColors.tertiaryText),
           const SizedBox(height: 12),
-          Text(
+          const Text(
             'No homework assignments found',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
           ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../bloc/exams_bloc.dart';
 import '../models/exam_model.dart';
 
@@ -30,11 +31,11 @@ class _StudentResultViewState extends State<StudentResultView> {
       appBar: AppBar(
         title: Text('${widget.examName} Result'),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.primaryText,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: AppColors.primaryAccent),
             onPressed: () {
               context.read<ExamsBloc>().add(LoadStudentResultEvent(widget.examId));
             },
@@ -42,15 +43,15 @@ class _StudentResultViewState extends State<StudentResultView> {
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: Colors.grey.shade200, height: 1.0),
+          child: Container(color: AppColors.border, height: 1.0),
         ),
       ),
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.scaffoldBackground,
       body: BlocConsumer<ExamsBloc, ExamsState>(
         listener: (context, state) {
           if (state is ExamsError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.red.shade700),
+              SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
             );
           }
         },
@@ -71,12 +72,12 @@ class _StudentResultViewState extends State<StudentResultView> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.lock_outline, size: 48, color: Colors.grey.shade400),
+                    Icon(Icons.lock_outline, size: 48, color: AppColors.tertiaryText),
                     const SizedBox(height: 12),
                     Text(
                       state.message,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+                      style: const TextStyle(color: AppColors.secondaryText, fontSize: 14),
                     ),
                   ],
                 ),
@@ -100,45 +101,55 @@ class _StudentResultViewState extends State<StudentResultView> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade200),
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x080F172A),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        card.studentName ?? 'Student Result',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Roll No: ${card.rollNumber ?? "-"} • ${card.className ?? ""} ${card.sectionName ?? ""}',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          card.studentName ?? 'Student Result',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primaryText),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Roll No: ${card.rollNumber ?? "-"} • ${card.className ?? ""} ${card.sectionName ?? ""}',
+                          style: const TextStyle(color: AppColors.secondaryText, fontSize: 13),
+                        ),
+                      ],
+                    ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.green.shade200),
+                      color: AppColors.successLight,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.successBorder),
                     ),
-                    child: Text(
+                    child: const Text(
                       'APPROVED',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.success),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              Divider(color: Colors.grey.shade100),
+              const Divider(color: AppColors.borderLight, height: 1),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -153,21 +164,21 @@ class _StudentResultViewState extends State<StudentResultView> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.grey.shade200),
+                    color: AppColors.indigo50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.indigo100),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'Teacher Remarks:',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryText),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         card.classTeacherRemarks!,
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade700, fontStyle: FontStyle.italic),
+                        style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, fontStyle: FontStyle.italic),
                       ),
                     ],
                   ),
@@ -181,7 +192,7 @@ class _StudentResultViewState extends State<StudentResultView> {
         // Section Title
         const Text(
           'Subject-wise Breakdown',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primaryText),
         ),
         const SizedBox(height: 10),
 
@@ -194,11 +205,11 @@ class _StudentResultViewState extends State<StudentResultView> {
   Widget _buildMetric(String label, String value) {
     return Column(
       children: [
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.secondaryText)),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryText),
         ),
       ],
     );
@@ -209,9 +220,16 @@ class _StudentResultViewState extends State<StudentResultView> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -221,18 +239,18 @@ class _StudentResultViewState extends State<StudentResultView> {
               children: [
                 Text(
                   sub.subjectName,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.primaryText),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Code: ${sub.subjectCode} • Max: ${sub.maxMarks.toStringAsFixed(0)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
                 ),
                 if (sub.remarks != null) ...[
                   const SizedBox(height: 4),
                   Text(
                     sub.remarks!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontStyle: FontStyle.italic),
+                    style: const TextStyle(fontSize: 12, color: AppColors.secondaryText, fontStyle: FontStyle.italic),
                   ),
                 ],
               ],
@@ -242,13 +260,13 @@ class _StudentResultViewState extends State<StudentResultView> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.red.shade200),
+                color: AppColors.errorLight,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppColors.errorBorder),
               ),
-              child: Text(
+              child: const Text(
                 'ABSENT',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red.shade800),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.error),
               ),
             )
           else if (sub.marksObtained != null)
@@ -257,22 +275,22 @@ class _StudentResultViewState extends State<StudentResultView> {
               children: [
                 Text(
                   '${sub.marksObtained!.toStringAsFixed(1)} / ${sub.maxMarks.toStringAsFixed(0)}',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primaryText),
                 ),
                 Text(
                   sub.marksObtained! >= sub.passingMarks ? 'Pass' : 'Needs Improvement',
                   style: TextStyle(
                     fontSize: 11,
-                    color: sub.marksObtained! >= sub.passingMarks ? Colors.green.shade700 : Colors.red.shade700,
+                    color: sub.marksObtained! >= sub.passingMarks ? AppColors.success : AppColors.error,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             )
           else
-            Text(
+            const Text(
               'Pending',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+              style: TextStyle(fontSize: 13, color: AppColors.tertiaryText, fontStyle: FontStyle.italic),
             ),
         ],
       ),

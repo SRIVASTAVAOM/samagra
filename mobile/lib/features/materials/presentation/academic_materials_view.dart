@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../core/theme/app_colors.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
 import '../bloc/materials_bloc.dart';
@@ -56,11 +57,11 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
       appBar: AppBar(
         title: Text('${widget.subjectName ?? "Subject"} Study Materials'),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.primaryText,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: AppColors.primaryAccent),
             onPressed: () {
               if (widget.classId.isNotEmpty && widget.subjectId.isNotEmpty) {
                 context.read<MaterialsBloc>().add(
@@ -72,24 +73,24 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: Colors.grey.shade200, height: 1.0),
+          child: Container(color: AppColors.border, height: 1.0),
         ),
       ),
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.scaffoldBackground,
       floatingActionButton: isTeacher
           ? FloatingActionButton.extended(
               key: const Key('upload_material_fab'),
               onPressed: () => _showUploadDialog(context),
-              backgroundColor: Colors.black87,
-              icon: const Icon(Icons.upload_file, color: Colors.white),
-              label: const Text('Upload Material', style: TextStyle(color: Colors.white)),
+              backgroundColor: AppColors.primaryAccent,
+              icon: const Icon(Icons.upload_file, color: AppColors.surface),
+              label: const Text('Upload Material', style: TextStyle(color: AppColors.surface)),
             )
           : null,
       body: (widget.classId.isEmpty || widget.subjectId.isEmpty)
           ? const Center(
               child: Text(
                 'Please select a class and subject to view study materials.',
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: AppColors.secondaryText),
               ),
             )
           : BlocConsumer<MaterialsBloc, MaterialsState>(
@@ -100,12 +101,12 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
                 content: Text(state.downloadUrl != null
                     ? 'Download link ready: ${state.fileName ?? "Document"}'
                     : state.message),
-                backgroundColor: Colors.black87,
+                backgroundColor: AppColors.primaryText,
               ),
             );
           } else if (state is MaterialsError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.red.shade700),
+              SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
             );
           }
         },
@@ -121,11 +122,15 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    LinearProgressIndicator(value: state.progress, minHeight: 6),
+                    const LinearProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryAccent),
+                      backgroundColor: AppColors.indigo100,
+                      minHeight: 6,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       state.statusText,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.primaryText),
                     ),
                   ],
                 ),
@@ -140,11 +145,11 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.folder_open_outlined, size: 48, color: Colors.grey.shade400),
+                    Icon(Icons.folder_open_outlined, size: 48, color: AppColors.tertiaryText),
                     const SizedBox(height: 12),
-                    Text(
+                    const Text(
                       'No study materials uploaded yet',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.grey.shade600),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
                     ),
                   ],
                 ),
@@ -168,6 +173,10 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
                       LoadClassMaterialsEvent(widget.classId, widget.subjectId),
                     );
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryAccent,
+                foregroundColor: AppColors.surface,
+              ),
               child: const Text('Load Materials'),
             ),
           );
@@ -179,9 +188,16 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
   Widget _buildMaterialCard(AcademicMaterialModel item) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -192,12 +208,13 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(6),
+                  color: AppColors.indigo50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.indigo100),
                 ),
                 child: Icon(
                   item.contentType.contains('pdf') ? Icons.picture_as_pdf : Icons.image,
-                  color: Colors.black87,
+                  color: AppColors.primaryAccent,
                   size: 24,
                 ),
               ),
@@ -208,12 +225,12 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
                   children: [
                     Text(
                       item.title,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primaryText),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       item.fileName,
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -222,12 +239,13 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(4),
+                  color: AppColors.scaffoldBackground,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: Text(
                   item.formattedSize,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
                 ),
               ),
             ],
@@ -236,7 +254,7 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
             const SizedBox(height: 10),
             Text(
               item.description!,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+              style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
             ),
           ],
           const SizedBox(height: 12),
@@ -245,7 +263,7 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
             children: [
               Text(
                 'By ${item.teacherName ?? "Teacher"}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
               ),
               OutlinedButton.icon(
                 key: Key('download_material_${item.id}'),
@@ -255,8 +273,10 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
                 icon: const Icon(Icons.download_outlined, size: 16),
                 label: const Text('Download Document'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.black87,
-                  side: BorderSide(color: Colors.grey.shade300),
+                  foregroundColor: AppColors.primaryAccent,
+                  side: const BorderSide(color: AppColors.indigo200),
+                  backgroundColor: AppColors.indigo50,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 ),
               ),
@@ -318,7 +338,9 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Upload Study Material'),
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Upload Study Material', style: TextStyle(color: AppColors.primaryText)),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -328,7 +350,11 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
               TextFormField(
                 key: const Key('material_title_field'),
                 controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Title *', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'Title *',
+                  border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primaryAccent)),
+                ),
                 validator: (val) => val == null || val.trim().isEmpty ? 'Title is required' : null,
               ),
               const SizedBox(height: 12),
@@ -336,18 +362,22 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
                 key: const Key('material_desc_field'),
                 controller: _descController,
                 maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primaryAccent)),
+                ),
               ),
               const SizedBox(height: 12),
               // Camera / Gallery / Device Picker Container
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.grey.shade300),
+                  color: AppColors.scaffoldBackground,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.border),
                 ),
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -356,11 +386,11 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.attach_file, size: 15, color: Colors.black54),
+                            Icon(Icons.attach_file, size: 15, color: AppColors.secondaryText),
                             SizedBox(width: 4),
                             Text(
                               'Choose / Capture Document',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primaryText),
                             ),
                           ],
                         ),
@@ -368,16 +398,16 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEFF6FF),
+                              color: AppColors.successLight,
                               borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: const Color(0xFFBFDBFE)),
+                              border: Border.all(color: AppColors.successBorder),
                             ),
                             child: Text(
                               _pickedDocumentSource!,
                               style: const TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF1D4ED8),
+                                color: AppColors.success,
                               ),
                             ),
                           ),
@@ -416,7 +446,10 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
                         style: TextStyle(fontSize: 11),
                       ),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey.shade300),
+                        foregroundColor: AppColors.primaryAccent,
+                        side: const BorderSide(color: AppColors.indigo200),
+                        backgroundColor: AppColors.indigo50,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       ),
                     ),
@@ -427,13 +460,21 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
               TextFormField(
                 key: const Key('material_filename_field'),
                 controller: _fileNameController,
-                decoration: const InputDecoration(labelText: 'File Name *', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'File Name *',
+                  border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primaryAccent)),
+                ),
                 validator: (val) => val == null || val.trim().isEmpty ? 'File name is required' : null,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _selectedContentType,
-                decoration: const InputDecoration(labelText: 'MIME Type', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'MIME Type',
+                  border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.primaryAccent)),
+                ),
                 items: const [
                   DropdownMenuItem(value: 'application/pdf', child: Text('PDF Document (.pdf)')),
                   DropdownMenuItem(value: 'image/jpeg', child: Text('JPEG Image (.jpg)')),
@@ -450,13 +491,13 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
+          style: TextButton.styleFrom(foregroundColor: AppColors.secondaryText),
           child: const Text('Cancel'),
         ),
         ElevatedButton(
           key: const Key('confirm_upload_btn'),
           onPressed: () {
             if (_formKey.currentState!.validate()) {
-              // Simulated 1.5MB file bytes for upload workflow verification
               final sampleBytes = List<int>.filled(1024 * 100, 65);
               widget.onSubmitted(
                 UploadMaterialEvent(
@@ -471,7 +512,11 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
               );
             }
           },
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.black87, foregroundColor: Colors.white),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryAccent,
+            foregroundColor: AppColors.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
           child: const Text('Upload to S3'),
         ),
       ],

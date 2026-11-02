@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../core/theme/app_colors.dart';
 import '../bloc/curriculum_bloc.dart';
 import '../models/curriculum_model.dart';
 
@@ -50,11 +51,11 @@ class _CurriculumViewState extends State<CurriculumView> {
       appBar: AppBar(
         title: Text('${widget.subjectName ?? "Subject"} Syllabus & Curriculum'),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.primaryText,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: AppColors.primaryAccent),
             onPressed: () {
               if (widget.classId.isNotEmpty && widget.subjectId.isNotEmpty) {
                 context.read<CurriculumBloc>().add(
@@ -66,22 +67,22 @@ class _CurriculumViewState extends State<CurriculumView> {
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: Colors.grey.shade200, height: 1.0),
+          child: Container(color: AppColors.border, height: 1.0),
         ),
       ),
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.scaffoldBackground,
       body: (widget.classId.isEmpty || widget.subjectId.isEmpty)
           ? const Center(
               child: Text(
                 'Please select a class and subject to view curriculum.',
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: AppColors.secondaryText),
               ),
             )
           : BlocConsumer<CurriculumBloc, CurriculumState>(
         listener: (context, state) {
           if (state is CurriculumError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.red.shade700),
+              SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
             );
           }
         },
@@ -97,11 +98,11 @@ class _CurriculumViewState extends State<CurriculumView> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.menu_book_outlined, size: 48, color: Colors.grey.shade400),
+                    Icon(Icons.menu_book_outlined, size: 48, color: AppColors.tertiaryText),
                     const SizedBox(height: 12),
-                    Text(
+                    const Text(
                       'No curriculum units defined yet',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.grey.shade600),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
                     ),
                   ],
                 ),
@@ -125,6 +126,10 @@ class _CurriculumViewState extends State<CurriculumView> {
                       LoadCurriculumUnitsEvent(widget.classId, widget.subjectId),
                     );
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryAccent,
+                foregroundColor: AppColors.surface,
+              ),
               child: const Text('Load Curriculum'),
             ),
           );
@@ -136,9 +141,16 @@ class _CurriculumViewState extends State<CurriculumView> {
   Widget _buildUnitCard(CurriculumUnitModel unit) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -148,23 +160,23 @@ class _CurriculumViewState extends State<CurriculumView> {
             initiallyExpanded: true,
             tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
-              backgroundColor: Colors.grey.shade100,
+              backgroundColor: AppColors.indigo50,
               radius: 18,
               child: Text(
                 '${unit.unitNumber}',
-                style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 13),
+                style: const TextStyle(color: AppColors.primaryAccent, fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
           title: Text(
             unit.title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primaryText),
           ),
           subtitle: unit.description != null
               ? Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     unit.description!,
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                    style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
                   ),
                 )
               : null,
@@ -174,17 +186,17 @@ class _CurriculumViewState extends State<CurriculumView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Divider(height: 1),
+                  const Divider(color: AppColors.borderLight, height: 1),
                   const SizedBox(height: 12),
                   const Text(
                     'Topics & Learning Objectives',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondaryText),
                   ),
                   const SizedBox(height: 8),
                   if (unit.topics.isEmpty)
-                    Text(
+                    const Text(
                       'No sub-topics added to this unit yet.',
-                      style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Colors.grey.shade500),
+                      style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: AppColors.tertiaryText),
                     )
                   else
                     ...unit.topics.map((t) => _buildTopicTile(t)),
@@ -207,13 +219,13 @@ class _CurriculumViewState extends State<CurriculumView> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: AppColors.scaffoldBackground,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: AppColors.border),
             ),
             child: Text(
               '${topic.topicNumber}',
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryText),
             ),
           ),
           const SizedBox(width: 10),
@@ -223,13 +235,13 @@ class _CurriculumViewState extends State<CurriculumView> {
               children: [
                 Text(
                   topic.title,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryText),
                 ),
                 if (topic.learningObjectives != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     'Objective: ${topic.learningObjectives!}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
                   ),
                 ],
               ],
