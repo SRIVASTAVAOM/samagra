@@ -67,11 +67,13 @@ class StudentDashboardView extends StatefulWidget {
   State<StudentDashboardView> createState() => _StudentDashboardViewState();
 }
 
-class _StudentDashboardViewState extends State<StudentDashboardView> {
+class _StudentDashboardViewState extends State<StudentDashboardView> with SingleTickerProviderStateMixin {
   List<NoticeModel>? _cachedNotices;
   FeeOverviewModel? _cachedFeeOverview;
   List<String>? _customQuickLinkKeys;
+  bool _isLoadingData = true;
   final SecureStorageService _storageService = SecureStorageService();
+  late AnimationController _shimmerController;
 
   static const List<String> _defaultQuickLinkKeys = [
     'fee',
@@ -85,9 +87,20 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
   @override
   void initState() {
     super.initState();
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchInitialData();
     });
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchInitialData() async {
@@ -122,11 +135,14 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
           setState(() {
             _cachedNotices = results[0] as List<NoticeModel>;
             _cachedFeeOverview = results[1] as FeeOverviewModel;
+            _isLoadingData = false;
           });
         }
+      } else {
+        if (mounted) setState(() => _isLoadingData = false);
       }
     } catch (_) {
-      // Graceful fallback to Bloc states
+      if (mounted) setState(() => _isLoadingData = false);
     }
   }
 
@@ -489,7 +505,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: AppColors.border),
         ),
         titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
@@ -561,8 +577,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
           OutlinedButton(
             onPressed: () => Navigator.of(ctx).pop(),
             style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryText,
               side: const BorderSide(color: AppColors.border),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Close'),
           ),
@@ -606,8 +623,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
     final featuresState = context.watch<StudentFeaturesBloc>().state;
     if (featuresState is StudentNoticesLoaded) {
       _cachedNotices = featuresState.notices;
+      _isLoadingData = false;
     } else if (featuresState is StudentFeesLoaded) {
       _cachedFeeOverview = featuresState.overview;
+      _isLoadingData = false;
     }
 
     final notices = _cachedNotices ?? [];
@@ -621,39 +640,120 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
       onRefresh: () async {
         await _fetchInitialData();
       },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 1. Top Header Card
-            _buildTopHeaderCard(context, profile),
-            const SizedBox(height: 14),
+      child: _isLoadingData && _cachedNotices == null
+          ? _buildMasterpieceSkeletonLoader()
+          : SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 1. Top Header Card
+                  _buildTopHeaderCard(context, profile),
+                  const SizedBox(height: 14),
 
-            // 2. Overview Section (Row of 2 compact summary cards side-by-side)
-            _buildOverviewSection(
-              context: context,
-              attendancePercentage: attendancePercentage,
-              pendingHomework: pendingHomework,
-              outstanding: outstanding,
-              isFeeDue: isFeeDue,
+                  // 2. Overview Section (Row of 2 compact summary cards side-by-side)
+                  _buildOverviewSection(
+                    context: context,
+                    attendancePercentage: attendancePercentage,
+                    pendingHomework: pendingHomework,
+                    outstanding: outstanding,
+                    isFeeDue: isFeeDue,
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 3. Notices & Circulars Section
+                  _buildNoticesSection(context, notices),
+                  const SizedBox(height: 14),
+
+                  // 4. Quick Links Grid
+                  _buildQuickLinksSection(context, profile),
+                  const SizedBox(height: 24),
+
+                  // 5. Footer
+                  _buildFooter(profile),
+                ],
+              ),
+            ),
+    );
+  }
+
+  // --- SILKY SMOOTH SHIMMER SKELETON LOADER ---
+  Widget _buildMasterpieceSkeletonLoader() {
+    return AnimatedBuilder(
+      animation: _shimmerController,
+      builder: (context, child) {
+        final opacity = 0.3 + (_shimmerController.value * 0.4);
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Header Card Skeleton
+            Container(
+              height: 130,
+              decoration: BoxDecoration(
+                color: AppColors.indigo900.withValues(alpha: opacity),
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
             const SizedBox(height: 14),
-
-            // 3. Notices & Circulars Section
-            _buildNoticesSection(context, notices),
+            // Overview Cards Skeleton
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: AppColors.slate250?.withValues(alpha: opacity) ?? AppColors.slate200.withValues(alpha: opacity),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: AppColors.slate200.withValues(alpha: opacity),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 14),
-
-            // 4. Quick Links Grid
-            _buildQuickLinksSection(context, profile),
-            const SizedBox(height: 24),
-
-            // 5. Footer
-            _buildFooter(profile),
+            // Notices Card Skeleton
+            Container(
+              height: 180,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(width: 140, height: 16, color: AppColors.slate200.withValues(alpha: opacity)),
+                  const SizedBox(height: 20),
+                  Container(width: double.infinity, height: 14, color: AppColors.slate200.withValues(alpha: opacity)),
+                  const SizedBox(height: 10),
+                  Container(width: 220, height: 14, color: AppColors.slate200.withValues(alpha: opacity)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Quick Links Grid Skeleton
+            Container(
+              height: 220,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+            ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -864,6 +964,13 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.border),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x080F172A),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -883,9 +990,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFDCFCE7),
+                            color: AppColors.successLight,
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                            border: Border.all(color: AppColors.successBorder),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -943,6 +1050,13 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.border),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x080F172A),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -962,10 +1076,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                           decoration: BoxDecoration(
-                            color: isFeeDue ? const Color(0xFFFEF3C7) : const Color(0xFFDCFCE7),
+                            color: isFeeDue ? AppColors.warningLight : AppColors.successLight,
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                              color: isFeeDue ? const Color(0xFFFDE68A) : const Color(0xFFBBF7D0),
+                              color: isFeeDue ? AppColors.warningBorder : AppColors.successBorder,
                             ),
                           ),
                           child: Text(
@@ -1020,6 +1134,13 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1354,6 +1475,13 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1558,7 +1686,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                           },
                           child: const Text(
                             'Reset Default',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryAccent),
                           ),
                         ),
                       ],
@@ -1672,7 +1800,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                             );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryText,
+                            backgroundColor: AppColors.primaryAccent,
                             foregroundColor: AppColors.surface,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
