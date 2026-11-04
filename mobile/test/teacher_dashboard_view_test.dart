@@ -327,5 +327,23 @@ void main() {
 
       expect(find.text('Customize Quick Links'), findsNothing);
     });
+
+    testWidgets('Tapping View All opens Notices & Circulars modal with Month and Date filters', (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Notices & Circulars'), findsOneWidget);
+      final viewAll = find.text('View All');
+      expect(viewAll, findsOneWidget);
+
+      await tester.ensureVisible(viewAll);
+      await tester.tap(viewAll);
+      await tester.pumpAndSettle();
+
+      expect(find.text('School Circulars'), findsOneWidget);
+      expect(find.text('All Months'), findsOneWidget);
+      expect(find.text('Pick Date'), findsOneWidget);
+    });
   });
 }

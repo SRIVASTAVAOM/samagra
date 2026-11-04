@@ -2258,13 +2258,28 @@ export class AdminRepository {
         throw new Error('Employee Code is required.');
       }
       const identifier = (data.identifier || data.username || empCode).toString().trim();
+      const cleanEmail = (data.email && data.email.trim()) ? data.email.trim().toLowerCase() : null;
+      const cleanPhone = (data.phone && data.phone.trim()) ? data.phone.trim() : null;
 
       const userCheck = await client.query(
-        'SELECT id FROM users WHERE (LOWER(TRIM(identifier)) = LOWER($1) OR (email IS NOT NULL AND LOWER(TRIM(email)) = $2)) AND school_id = $3',
-        [identifier, data.email ? data.email.trim().toLowerCase() : null, schoolId]
+        `SELECT id, identifier, email, phone FROM users 
+         WHERE LOWER(TRIM(identifier)) = LOWER($1) 
+            OR ($2::text IS NOT NULL AND email IS NOT NULL AND LOWER(TRIM(email)) = LOWER($2))
+            OR ($3::text IS NOT NULL AND phone IS NOT NULL AND TRIM(phone) = $3)`,
+        [identifier, cleanEmail, cleanPhone]
       );
       if (userCheck.rows.length > 0) {
-        throw new Error('A user with this username/identifier or email already exists.');
+        const existing = userCheck.rows[0];
+        if (existing.identifier && existing.identifier.toLowerCase() === identifier.toLowerCase()) {
+          throw new Error(`A user with username/identifier "${identifier}" already exists.`);
+        }
+        if (cleanEmail && existing.email && existing.email.toLowerCase() === cleanEmail) {
+          throw new Error(`A user with email "${cleanEmail}" already exists.`);
+        }
+        if (cleanPhone && existing.phone && existing.phone.trim() === cleanPhone) {
+          throw new Error(`A user with phone number "${cleanPhone}" already exists.`);
+        }
+        throw new Error('A user with this username, email, or phone already exists.');
       }
 
       const empCheck = await client.query(
@@ -2272,7 +2287,7 @@ export class AdminRepository {
         [empCode]
       );
       if (empCheck.rows.length > 0) {
-        throw new Error('A staff member with this Employee Code already exists.');
+        throw new Error(`A staff member with Employee Code "${empCode}" already exists.`);
       }
 
       const password = (data.password && data.password.trim()) ? data.password.trim() : 'Staff@123';
@@ -2284,8 +2299,8 @@ export class AdminRepository {
         [
           schoolId,
           identifier,
-          data.email ? data.email.trim().toLowerCase() : null,
-          data.phone || null,
+          cleanEmail,
+          cleanPhone,
           passwordHash,
           true,
         ]
@@ -2316,12 +2331,12 @@ export class AdminRepository {
           data.employee_code.trim(),
           data.first_name.trim(),
           data.last_name ? data.last_name.trim() : '',
-          data.gender || null,
+          data.gender || 'MALE',
           parseSafeDate(data.date_of_birth),
           data.qualification || null,
           parseSafeDate(data.joining_date) || new Date().toISOString().split('T')[0],
           data.emergency_phone || null,
-          data.phone || null,
+          cleanPhone,
           data.blood_group || null,
           data.department || null,
           data.designation || null,

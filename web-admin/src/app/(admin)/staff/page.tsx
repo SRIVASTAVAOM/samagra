@@ -360,6 +360,7 @@ export default function StaffListPage() {
     });
     setErrorMessage(null);
     setSuccessMessage(null);
+    setIsAddModalOpen(true);
   };
 
   // Open Edit Modal
@@ -769,6 +770,13 @@ export default function StaffListPage() {
                 <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                 <p className="text-base font-semibold text-slate-700">No staff members found</p>
                 <p className="text-xs text-slate-400 mt-1">Try adjusting your search or filters.</p>
+                <button
+                  onClick={handleOpenAddModal}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow transition cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add New Staff
+                </button>
               </>
             )}
           </div>
@@ -1272,6 +1280,18 @@ export default function StaffListPage() {
             </div>
 
             <form onSubmit={handleCreateStaff} className="p-6 overflow-y-auto space-y-4">
+              {errorMessage && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2 text-rose-800 text-xs animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                  <button type="button" onClick={() => setErrorMessage(null)} className="text-rose-600 hover:text-rose-800">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* First Name */}
                 <div>
@@ -1533,6 +1553,44 @@ export default function StaffListPage() {
                     className="w-full text-sm px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
+
+                {/* Gender */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Gender
+                  </label>
+                  <select
+                    value={formData.gender}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    className="w-full text-sm px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800"
+                  >
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+
+                {/* Blood Group */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Blood Group
+                  </label>
+                  <select
+                    value={formData.blood_group}
+                    onChange={(e) => setFormData({ ...formData, blood_group: e.target.value })}
+                    className="w-full text-sm px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-slate-800"
+                  >
+                    <option value="">-- Select Blood Group --</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                  </select>
+                </div>
               </div>
 
               {/* Modal Footer */}
@@ -1587,6 +1645,18 @@ export default function StaffListPage() {
             </div>
 
             <form onSubmit={handleUpdateStaff} className="p-6 overflow-y-auto space-y-4">
+              {errorMessage && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2 text-rose-800 text-xs animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                  <button type="button" onClick={() => setErrorMessage(null)} className="text-rose-600 hover:text-rose-800">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* First Name */}
                 <div>

@@ -13,6 +13,7 @@ import '../../../profiles/bloc/profile_event.dart';
 import '../../../profiles/bloc/profile_state.dart';
 import '../../../profiles/models/staff_profile_model.dart';
 import '../../../student/models/student_features_model.dart';
+import '../../../student/repository/student_features_repository.dart';
 
 class _TeacherMenuItem {
   final String key;
@@ -85,6 +86,22 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
         }
       }
     } catch (_) {}
+
+    try {
+      if (!mounted) return;
+      StudentFeaturesRepository? repo;
+      try {
+        repo = context.read<StudentFeaturesRepository>();
+      } catch (_) {}
+      if (repo != null) {
+        final notices = await repo.getNotices();
+        if (mounted) {
+          setState(() {
+            _cachedNotices = notices;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _saveQuickLinks(List<String> keys) async {
@@ -111,6 +128,11 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
           body: RefreshIndicator(
             onRefresh: () async {
               context.read<ProfileBloc>().add(LoadStaffProfileEvent());
+              try {
+                final repo = context.read<StudentFeaturesRepository>();
+                final notices = await repo.getNotices();
+                if (mounted) setState(() => _cachedNotices = notices);
+              } catch (_) {}
               await Future.delayed(const Duration(milliseconds: 300));
             },
             child: SingleChildScrollView(
@@ -744,84 +766,17 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
       builder: (bCtx) {
         return DraggableScrollableSheet(
           expand: false,
-          initialChildSize: 0.7,
-          maxChildSize: 0.9,
+          initialChildSize: 0.8,
+          maxChildSize: 0.95,
           minChildSize: 0.4,
           builder: (_, scrollCtrl) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'School Circulars',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryText,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 20),
-                        onPressed: () => Navigator.of(bCtx).pop(),
-                      ),
-                    ],
-                  ),
-                  const Divider(color: AppColors.border),
-                  Expanded(
-                    child: notices.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No circulars available at this moment.',
-                              style: TextStyle(color: AppColors.secondaryText),
-                            ),
-                          )
-                        : ListView.separated(
-                            controller: scrollCtrl,
-                            itemCount: notices.length,
-                            separatorBuilder: (context, index) =>
-                                const Divider(height: 1, color: AppColors.border),
-                            itemBuilder: (context, idx) {
-                              final notice = notices[idx];
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(
-                                  notice.title,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.primaryText,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  notice.content,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.secondaryText,
-                                  ),
-                                ),
-                                trailing: Text(
-                                  notice.publishedAt,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: AppColors.secondaryText,
-                                  ),
-                                ),
-                                onTap: () {
-                                  Navigator.of(bCtx).pop();
-                                  _showNoticeDetail(context, notice);
-                                },
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
+            return _TeacherNoticesModalContent(
+              notices: notices,
+              scrollController: scrollCtrl,
+              onSelectNotice: (notice) {
+                Navigator.of(bCtx).pop();
+                _showNoticeDetail(context, notice);
+              },
             );
           },
         );
@@ -1383,3 +1338,458 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
     );
   }
 }
+
+class _TeacherNoticesModalContent extends StatefulWidget {
+  final List<NoticeModel> notices;
+  final ScrollController scrollController;
+  final void Function(NoticeModel) onSelectNotice;
+
+  const _TeacherNoticesModalContent({
+    required this.notices,
+    required this.scrollController,
+    required this.onSelectNotice,
+  });
+
+  @override
+  State<_TeacherNoticesModalContent> createState() =>
+      _TeacherNoticesModalContentState();
+}
+
+class _TeacherNoticesModalContentState
+    extends State<_TeacherNoticesModalContent> {
+  String? _selectedMonth;
+  DateTime? _selectedDate;
+
+  String _formatMonthYear(String yearMonth) {
+    final parts = yearMonth.split('-');
+    if (parts.length < 2) return yearMonth;
+    final year = parts[0];
+    final mInt = int.tryParse(parts[1]) ?? 1;
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final mName = (mInt >= 1 && mInt <= 12) ? months[mInt - 1] : parts[1];
+    return '$mName $year';
+  }
+
+  String _formatFullDate(DateTime date) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final day = date.day.toString().padLeft(2, '0');
+    final monthName = months[date.month - 1];
+    return '$day $monthName ${date.year}';
+  }
+
+  List<String> _getAvailableMonths(List<NoticeModel> notices) {
+    final monthsSet = <String>{};
+    final now = DateTime.now();
+    final curMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    monthsSet.add(curMonth);
+
+    for (final n in notices) {
+      final dateStr = n.publishedAt.split('T')[0].split(' ')[0].trim();
+      if (dateStr.length >= 7) {
+        monthsSet.add(dateStr.substring(0, 7));
+      }
+    }
+    final list = monthsSet.toList();
+    list.sort((a, b) => b.compareTo(a));
+    return list;
+  }
+
+  List<NoticeModel> _filterNotices(List<NoticeModel> notices) {
+    return notices.where((n) {
+      final dateStr = n.publishedAt.split('T')[0].split(' ')[0].trim();
+      if (_selectedDate != null) {
+        final dStr =
+            '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
+        if (dateStr != dStr) return false;
+      } else if (_selectedMonth != null) {
+        if (!dateStr.startsWith(_selectedMonth!)) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  Future<void> _pickDate(BuildContext context) async {
+    final now = DateTime.now();
+    DateTime initial = _selectedDate ?? now;
+    if (_selectedMonth != null && _selectedDate == null) {
+      final parts = _selectedMonth!.split('-');
+      if (parts.length == 2) {
+        final y = int.tryParse(parts[0]) ?? now.year;
+        final m = int.tryParse(parts[1]) ?? now.month;
+        initial = DateTime(y, m, 1);
+      }
+    }
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2024),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryAccent,
+              onPrimary: AppColors.surface,
+              surface: AppColors.surface,
+              onSurface: AppColors.primaryText,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _selectedMonth =
+            '${picked.year}-${picked.month.toString().padLeft(2, '0')}';
+      });
+    }
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _selectedMonth = null;
+      _selectedDate = null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final availableMonths = _getAvailableMonths(widget.notices);
+    final hasActiveFilter = _selectedMonth != null || _selectedDate != null;
+    final filtered = _filterNotices(widget.notices);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Text(
+                    'School Circulars',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryText,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.scaffoldBackground,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Text(
+                      '${filtered.length}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryAccent,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Filter bar
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    // Month dropdown
+                    Expanded(
+                      child: Container(
+                        height: 38,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.scaffoldBackground,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color:
+                                _selectedMonth != null && _selectedDate == null
+                                    ? AppColors.primaryAccent
+                                    : AppColors.border,
+                          ),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String?>(
+                            value: _selectedMonth,
+                            isExpanded: true,
+                            icon: const Icon(Icons.arrow_drop_down, size: 20),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primaryText,
+                            ),
+                            hint: const Row(
+                              children: [
+                                Icon(Icons.calendar_month_outlined,
+                                    size: 14, color: AppColors.secondaryText),
+                                SizedBox(width: 4),
+                                Text('All Months',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.primaryText)),
+                              ],
+                            ),
+                            items: [
+                              const DropdownMenuItem<String?>(
+                                value: null,
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.calendar_month_outlined,
+                                        size: 14,
+                                        color: AppColors.secondaryText),
+                                    SizedBox(width: 4),
+                                    Text('All Months',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.primaryText)),
+                                  ],
+                                ),
+                              ),
+                              ...availableMonths.map((m) {
+                                return DropdownMenuItem<String?>(
+                                  value: m,
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.calendar_today_outlined,
+                                          size: 13,
+                                          color: AppColors.secondaryText),
+                                      const SizedBox(width: 4),
+                                      Text(_formatMonthYear(m),
+                                          style:
+                                              const TextStyle(fontSize: 12)),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedMonth = val;
+                                if (_selectedDate != null && val != null) {
+                                  final dMonth =
+                                      '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}';
+                                  if (dMonth != val) {
+                                    _selectedDate = null;
+                                  }
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Date picker button
+                    InkWell(
+                      onTap: () => _pickDate(context),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        height: 38,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: _selectedDate != null
+                              ? AppColors.primaryAccent.withValues(alpha: 0.1)
+                              : AppColors.scaffoldBackground,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: _selectedDate != null
+                                ? AppColors.primaryAccent
+                                : AppColors.border,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.event_outlined,
+                              size: 15,
+                              color: _selectedDate != null
+                                  ? AppColors.primaryAccent
+                                  : AppColors.secondaryText,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _selectedDate != null
+                                  ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}'
+                                  : 'Pick Date',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _selectedDate != null
+                                    ? AppColors.primaryAccent
+                                    : AppColors.primaryText,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    if (hasActiveFilter) ...[
+                      const SizedBox(width: 6),
+                      InkWell(
+                        onTap: _clearFilters,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          height: 38,
+                          width: 34,
+                          decoration: BoxDecoration(
+                            color: AppColors.scaffoldBackground,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const Icon(Icons.close,
+                              size: 15, color: AppColors.secondaryText),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+
+                if (hasActiveFilter) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Text(
+                        'Filtered: ',
+                        style: TextStyle(
+                            fontSize: 10, color: AppColors.secondaryText),
+                      ),
+                      Text(
+                        _selectedDate != null
+                            ? _formatFullDate(_selectedDate!)
+                            : _formatMonthYear(_selectedMonth!),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryAccent,
+                        ),
+                      ),
+                      const Spacer(),
+                      InkWell(
+                        onTap: _clearFilters,
+                        child: const Text(
+                          'Clear',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primaryAccent,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: AppColors.border),
+
+          Expanded(
+            child: filtered.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.event_busy_outlined,
+                            size: 32, color: AppColors.secondaryText),
+                        const SizedBox(height: 8),
+                        Text(
+                          hasActiveFilter
+                              ? 'No circulars found for the selected filter.'
+                              : 'No circulars available at this moment.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.secondaryText),
+                        ),
+                        if (hasActiveFilter) ...[
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: _clearFilters,
+                            child: const Text('Reset Filter & View All',
+                                style: TextStyle(fontSize: 12)),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    controller: widget.scrollController,
+                    itemCount: filtered.length,
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1, color: AppColors.border),
+                    itemBuilder: (context, idx) {
+                      final notice = filtered[idx];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          notice.title,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primaryText,
+                          ),
+                        ),
+                        subtitle: Text(
+                          notice.content,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.secondaryText,
+                          ),
+                        ),
+                        trailing: Text(
+                          notice.publishedAt.split('T')[0],
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.secondaryText,
+                          ),
+                        ),
+                        onTap: () => widget.onSelectNotice(notice),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
