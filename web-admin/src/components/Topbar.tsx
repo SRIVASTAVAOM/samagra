@@ -6,8 +6,8 @@ import { Calendar, Menu, School } from 'lucide-react';
 
 const titleMap: Record<string, { title: string; subtitle: string }> = {
   '/dashboard': {
-    title: 'Command Center Dashboard',
-    subtitle: 'Real-time section attendance pills, homework feeds, and school KPIs',
+    title: 'Command Center',
+    subtitle: 'Attendance, homework and fee collection at a glance',
   },
   '/timetable': {
     title: 'Master Timetable Builder',
@@ -66,23 +66,23 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       </button>
 
       <div className="min-w-0 flex-1">
-        <h1 className="text-sm font-semibold text-slate-900 tracking-tight truncate">
+        <h1 className="text-base font-bold text-slate-900 tracking-tight truncate">
           {current.title}
         </h1>
         <p className="text-xs text-slate-500 font-normal truncate">{current.subtitle}</p>
       </div>
 
       <div className="hidden md:flex items-center gap-2.5 text-xs shrink-0">
+        {/* School Badge */}
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-indigo-50 border border-indigo-200/60 text-indigo-800 font-semibold">
+          <School className="w-3.5 h-3.5 text-indigo-600" />
+          <span>Little Angels Public School</span>
+        </div>
+
         {/* Date Display */}
         <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-slate-700 font-medium">
           <Calendar className="w-3.5 h-3.5 text-slate-400" />
           <span>{todayStr}</span>
-        </div>
-
-        {/* School Badge */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-indigo-50 border border-indigo-200/60 text-indigo-800 font-semibold">
-          <School className="w-3.5 h-3.5 text-indigo-600" />
-          <span>Springfield International</span>
         </div>
       </div>
     </header>
