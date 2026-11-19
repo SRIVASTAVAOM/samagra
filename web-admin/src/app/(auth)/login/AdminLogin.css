@@ -5,22 +5,22 @@
 
 /* ─── Tokens ─────────────────────────────────────────────────────────────── */
 .aln-root {
-  --c-bg-page:   #f0f4ff;
-  --c-bg-left:   linear-gradient(150deg, #eaf1ff 0%, #dce8fd 55%, #e6eeff 100%);
+  --c-bg-page:   #f4f6fa;
+  --c-bg-left:   linear-gradient(150deg, #fff7ec 0%, #f3f5f9 55%, #eef1f6 100%);
   --c-white:     #ffffff;
-  --c-primary:   #2563eb;
-  --c-primary-g: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  --c-navy:      #0f172a;
+  --c-primary:   #1b2f5c;
+  --c-primary-g: linear-gradient(135deg, #3f5179 0%, #1b2f5c 100%);
+  --c-navy:      #0f1d3a;
   --c-muted:     #64748b;
   --c-divider:   #e2e8f0;
   --c-input-bg:  #f8faff;
-  --c-focus:     rgba(37, 99, 235, 0.16);
+  --c-focus:     rgba(27, 47, 92, 0.16);
   --c-red:       #dc2626;
   --c-red-bg:    #fef2f2;
   --c-red-bd:    #fecaca;
-  --c-info-bg:   #eff6ff;
-  --c-info-bd:   #bfdbfe;
-  --c-info-tx:   #1e40af;
+  --c-info-bg:   #f1f4f9;
+  --c-info-bd:   #c6cfdf;
+  --c-info-tx:   #142449;
   --r-lg:        18px;
   --r-md:        12px;
   --r-sm:        8px;
@@ -76,7 +76,7 @@
   width: 44px;
   height: 44px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #1b2f5c 0%, #142449 100%);
   color: #fff;
   font-size: 15px;
   font-weight: 800;
@@ -85,7 +85,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(37,99,235,0.28);
+  box-shadow: 0 2px 8px rgba(27,47,92,0.28);
 }
 
 .aln-school-text {
@@ -125,11 +125,19 @@
   width: 44px;
   height: 44px;
   border-radius: 10px;
-  background: #0f172a;
+  background: #fff;
+  border: 1px solid var(--c-divider);
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.aln-samagra-badge-img {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
 }
 
 .aln-samagra-badge-letter {
@@ -183,7 +191,7 @@
 
 .aln-bg-icon {
   position: absolute;
-  color: #3b82f6;
+  color: #3f5179;
   display: inline-flex;
 }
 
@@ -309,7 +317,7 @@
   font-size: 36px;
   font-weight: 900;
   line-height: 1;
-  color: #3b82f6;
+  color: #3f5179;
   display: block;
   margin-bottom: -6px;
   font-family: Georgia, serif;
@@ -375,8 +383,8 @@
   width: 46px;
   height: 46px;
   border-radius: 13px;
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #e3e8f1;
+  color: #142449;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -545,13 +553,13 @@
   font-weight: 700;
   letter-spacing: 0.01em;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(37,99,235,0.32);
+  box-shadow: 0 4px 16px rgba(27,47,92,0.32);
   transition: opacity 0.2s, box-shadow 0.2s, transform 0.1s;
 }
 
 .aln-submit-btn:hover:not(:disabled) {
   opacity: 0.93;
-  box-shadow: 0 6px 22px rgba(37,99,235,0.40);
+  box-shadow: 0 6px 22px rgba(27,47,92,0.40);
 }
 
 .aln-submit-btn:active:not(:disabled) { transform: scale(0.985); }
@@ -593,7 +601,7 @@
   transition: color 0.15s;
 }
 
-.aln-link:hover { color: #1e40af; text-decoration: underline; }
+.aln-link:hover { color: #142449; text-decoration: underline; }
 .aln-link:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; border-radius: 3px; }
 
 /* Quick-test presets */
@@ -610,8 +618,8 @@
   color: var(--c-muted);
 }
 
-.aln-preset-super { color: #7c3aed; font-weight: 600; }
-.aln-preset-admin { color: #1d4ed8; font-weight: 600; }
+.aln-preset-super { color: #d4480a; font-weight: 600; }
+.aln-preset-admin { color: #142449; font-weight: 600; }
 
 /* ── Stats 2×2 ──────────────────────────────────────────────────────────── */
 .aln-stats {

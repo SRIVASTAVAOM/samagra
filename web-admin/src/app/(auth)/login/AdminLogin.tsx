@@ -27,9 +27,9 @@ const SCHOOL_ABBR    = 'LA';   // shown in the avatar when no logo is uploaded
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FEATURE_CARDS = [
-  { icon: Users,      iconColor: '#2563eb', iconBg: '#dbeafe', title: 'Unified Access',    desc: 'One login for all roles.'     },
+  { icon: Users,      iconColor: '#1b2f5c', iconBg: '#e3e8f1', title: 'Unified Access',    desc: 'One login for all roles.'     },
   { icon: ShieldCheck,iconColor: '#16a34a', iconBg: '#dcfce7', title: 'Secure & Reliable', desc: 'Your data is always safe.'    },
-  { icon: TrendingUp, iconColor: '#7c3aed', iconBg: '#ede9fe', title: 'Smart Insights',    desc: 'AI-powered decisions.'        },
+  { icon: TrendingUp, iconColor: '#d4480a', iconBg: '#ffe6d5', title: 'Smart Insights',    desc: 'AI-powered decisions.'        },
   { icon: Bell,       iconColor: '#d97706', iconBg: '#fef3c7', title: 'Real-time Updates', desc: 'Stay informed, always.'       },
 ];
 
@@ -103,7 +103,7 @@ export default function AdminLogin() {
         {/* SAMAGRA brand badge */}
         <div className="aln-header-samagra">
           <div className="aln-samagra-badge" aria-label="Samagra">
-            <span className="aln-samagra-badge-letter">S</span>
+            <img className="aln-samagra-badge-img" src="/samagra-mark.png" alt="" />
           </div>
           <span className="aln-samagra-text">SAMAGRA</span>
         </div>
@@ -151,22 +151,22 @@ export default function AdminLogin() {
               <svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg" className="aln-school-svg">
                 <rect x="0"   y="128" width="200" height="32" rx="4" fill="#d1e9c8" />
                 <rect x="30"  y="60"  width="100" height="70" rx="4" fill="url(#bwall)" />
-                <polygon points="25,60 130,60 77,28" fill="#1e40af" />
+                <polygon points="25,60 130,60 77,28" fill="#142449" />
                 <line x1="77" y1="28" x2="77" y2="10" stroke="#374151" strokeWidth="2" />
                 <polygon points="77,10 97,16 77,22" fill="#ef4444" />
-                <circle cx="77" cy="52" r="10" fill="white" stroke="#1e40af" strokeWidth="1.5" />
-                <line x1="77" y1="52" x2="77" y2="45" stroke="#1e40af" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="77" y1="52" x2="82" y2="52" stroke="#1e40af" strokeWidth="1.5" strokeLinecap="round" />
-                <rect x="65"  y="98"  width="22" height="32" rx="3" fill="#1d4ed8" />
+                <circle cx="77" cy="52" r="10" fill="white" stroke="#142449" strokeWidth="1.5" />
+                <line x1="77" y1="52" x2="77" y2="45" stroke="#142449" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="77" y1="52" x2="82" y2="52" stroke="#142449" strokeWidth="1.5" strokeLinecap="round" />
+                <rect x="65"  y="98"  width="22" height="32" rx="3" fill="#142449" />
                 <circle cx="83" cy="115" r="1.5" fill="white" />
-                <rect x="38"  y="74"  width="18" height="14" rx="2" fill="#bfdbfe" />
-                <rect x="62"  y="74"  width="18" height="14" rx="2" fill="#bfdbfe" />
-                <rect x="86"  y="74"  width="18" height="14" rx="2" fill="#bfdbfe" />
-                <rect x="110" y="74"  width="14" height="14" rx="2" fill="#bfdbfe" />
+                <rect x="38"  y="74"  width="18" height="14" rx="2" fill="#c6cfdf" />
+                <rect x="62"  y="74"  width="18" height="14" rx="2" fill="#c6cfdf" />
+                <rect x="86"  y="74"  width="18" height="14" rx="2" fill="#c6cfdf" />
+                <rect x="110" y="74"  width="14" height="14" rx="2" fill="#c6cfdf" />
                 <rect x="8"   y="88"  width="24" height="42" rx="3" fill="#60a5fa" />
-                <rect x="12"  y="96"  width="10" height="10" rx="1" fill="#bfdbfe" />
+                <rect x="12"  y="96"  width="10" height="10" rx="1" fill="#c6cfdf" />
                 <rect x="128" y="88"  width="24" height="42" rx="3" fill="#60a5fa" />
-                <rect x="138" y="96"  width="10" height="10" rx="1" fill="#bfdbfe" />
+                <rect x="138" y="96"  width="10" height="10" rx="1" fill="#c6cfdf" />
                 <circle cx="170" cy="120" r="14" fill="#22c55e" />
                 <rect x="168" y="128" width="4"  height="12" fill="#854d0e" />
                 <circle cx="185" cy="122" r="10" fill="#16a34a" />
@@ -175,8 +175,8 @@ export default function AdminLogin() {
                 <rect x="18"  y="128" width="4"  height="10" fill="#854d0e" />
                 <defs>
                   <linearGradient id="bwall" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%"   stopColor="#3b82f6" />
-                    <stop offset="100%" stopColor="#2563eb" />
+                    <stop offset="0%"   stopColor="#3f5179" />
+                    <stop offset="100%" stopColor="#1b2f5c" />
                   </linearGradient>
                 </defs>
               </svg>
@@ -306,7 +306,7 @@ export default function AdminLogin() {
           {/* Stats 2×2 grid */}
           <div className="aln-stats" role="list" aria-label="Platform statistics">
             <div className="aln-stat" role="listitem">
-              <span className="aln-stat-icon" style={{ color:'#2563eb', background:'#dbeafe' }} aria-hidden="true"><School size={18}/></span>
+              <span className="aln-stat-icon" style={{ color:'#1b2f5c', background:'#e3e8f1' }} aria-hidden="true"><School size={18}/></span>
               <div><span className="aln-stat-value">500+</span><span className="aln-stat-label">Schools</span></div>
             </div>
             <div className="aln-stat" role="listitem">
@@ -318,7 +318,7 @@ export default function AdminLogin() {
               <div><span className="aln-stat-value">1M+</span><span className="aln-stat-label">Students</span></div>
             </div>
             <div className="aln-stat" role="listitem">
-              <span className="aln-stat-icon" style={{ color:'#7c3aed', background:'#ede9fe' }} aria-hidden="true"><BarChart2 size={18}/></span>
+              <span className="aln-stat-icon" style={{ color:'#d4480a', background:'#ffe6d5' }} aria-hidden="true"><BarChart2 size={18}/></span>
               <div><span className="aln-stat-value">99.9%</span><span className="aln-stat-label">Uptime</span></div>
             </div>
           </div>

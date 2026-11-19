@@ -326,7 +326,7 @@ export default function HomeworkPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-2xl text-white shadow-xl border border-indigo-500/20">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 samagra-hero p-6 rounded-2xl text-white shadow-xl border border-indigo-500/20">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/30 text-indigo-300 border border-indigo-400/30 flex items-center gap-1.5">

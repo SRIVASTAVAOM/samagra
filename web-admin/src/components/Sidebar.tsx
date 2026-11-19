@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -118,7 +119,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         className={`no-print fixed inset-y-0 left-0 z-40 flex flex-col h-screen select-none shrink-0
           transition-transform duration-200 md:static md:translate-x-0
           ${open ? 'translate-x-0' : '-translate-x-full'}`}
-        style={{ width: 220, background: '#1e2235', borderRight: '1px solid rgba(255,255,255,0.07)' }}
+        style={{ width: 220, background: '#0f1d3a', borderRight: '1px solid rgba(255,255,255,0.07)' }}
       >
         {/* ── Brand header ──────────────────────────────────────────── */}
         <div style={{
@@ -130,15 +131,15 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
           borderBottom: '1px solid rgba(255,255,255,0.08)',
           flexShrink: 0,
         }}>
-          {/* "S" badge */}
+          {/* Samagra logo badge */}
           <div style={{
             width: 36, height: 36, borderRadius: 10,
-            background: 'linear-gradient(135deg,#635bff 0%,#4f46e5 100%)',
+            background: '#fff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-            boxShadow: '0 2px 10px rgba(99,91,255,0.4)',
+            flexShrink: 0, overflow: 'hidden',
+            boxShadow: '0 0 0 1px rgba(255,255,255,0.12)',
           }}>
-            <span style={{ color: '#fff', fontSize: 17, fontWeight: 800, lineHeight: 1 }}>S</span>
+            <Image src="/samagra-mark.png" alt="Samagra" width={32} height={32} priority />
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, letterSpacing: '-0.01em', lineHeight: 1.2 }}>
@@ -190,8 +191,8 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                       fontWeight: isActive ? 600 : 400,
                       textDecoration: 'none',
                       transition: 'background 0.15s, color 0.15s',
-                      background: isActive ? 'rgba(99,91,255,0.18)' : 'transparent',
-                      color: isActive ? '#a5b4fc' : 'rgba(255,255,255,0.58)',
+                      background: isActive ? 'rgba(247,146,12,0.12)' : 'transparent',
+                      color: isActive ? '#ffffff' : 'rgba(255,255,255,0.58)',
                       position: 'relative',
                     }}
                     onMouseEnter={e => {
@@ -208,12 +209,12 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                       <span style={{
                         position: 'absolute', left: 0, top: 6, bottom: 6,
                         width: 3, borderRadius: '0 3px 3px 0',
-                        background: '#818cf8',
+                        background: '#f7920c',
                       }} />
                     )}
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-                      <Icon size={15} style={{ flexShrink: 0, color: isActive ? '#818cf8' : 'rgba(255,255,255,0.35)' }} />
+                      <Icon size={15} style={{ flexShrink: 0, color: isActive ? '#fdaa24' : 'rgba(255,255,255,0.35)' }} />
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {item.name}
                       </span>
@@ -226,8 +227,8 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                         padding: '1px 6px',
                         borderRadius: 4,
                         flexShrink: 0,
-                        background: isActive ? 'rgba(129,140,248,0.25)' : 'rgba(255,255,255,0.08)',
-                        color: isActive ? '#a5b4fc' : 'rgba(255,255,255,0.45)',
+                        background: isActive ? 'rgba(247,146,12,0.2)' : 'rgba(255,255,255,0.08)',
+                        color: isActive ? '#ffbf4d' : 'rgba(255,255,255,0.45)',
                         letterSpacing: '0.04em',
                       }}>
                         {item.badge}
@@ -259,10 +260,10 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
               {/* Avatar */}
               <div style={{
                 width: 32, height: 32, borderRadius: '50%',
-                background: 'linear-gradient(135deg,#635bff,#4f46e5)',
+                background: '#f7920c',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
-                fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: '0.03em',
+                fontSize: 11, fontWeight: 700, color: '#0f1d3a', letterSpacing: '0.03em',
               }}>
                 {userInitials}
               </div>

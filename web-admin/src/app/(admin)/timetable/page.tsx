@@ -186,7 +186,7 @@ const TOTAL_PERIODS = DAYS.length * PERIOD_DEFAULTS.length;
 
 // Subject colours are assigned in legend order. Each colour is a hex value so
 // the card tint can be built with an alpha suffix.
-const SUBJECT_COLORS = ['#635BFF', '#16A34A', '#F59E0B', '#0EA5E9', '#F43F5E', '#8B5CF6', '#14B8A6', '#F97316'];
+const SUBJECT_COLORS = ['#1B2F5C', '#1FA64F', '#F7920C', '#1499C7', '#E11D48', '#D4480A', '#0D6386', '#6B7C9E'];
 const FALLBACK_SUBJECT_COLOR = '#94A3B8';
 
 export default function MasterTimetablePage() {

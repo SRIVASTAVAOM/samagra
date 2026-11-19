@@ -212,7 +212,7 @@ export default function SuperAdminPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Platform Owner Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-md relative overflow-hidden border border-slate-800">
+      <div className="samagra-hero text-white rounded-2xl p-6 sm:p-8 shadow-md relative overflow-hidden border border-slate-800">
         <div className="absolute right-0 top-0 bottom-0 w-96 opacity-10 pointer-events-none flex items-center justify-center">
           <Building2 className="w-80 h-80 text-indigo-300" />
         </div>
