@@ -703,7 +703,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
                   child: Container(
                     height: 100,
                     decoration: BoxDecoration(
-                      color: AppColors.slate250?.withValues(alpha: opacity) ?? AppColors.slate200.withValues(alpha: opacity),
+                      color: AppColors.slate200.withValues(alpha: opacity),
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),

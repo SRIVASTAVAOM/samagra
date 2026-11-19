@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../bloc/exams_bloc.dart';
 import '../models/exam_model.dart';
 
@@ -154,7 +154,7 @@ class _ClassReportCardsViewState extends State<ClassReportCardsView> {
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.between,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
