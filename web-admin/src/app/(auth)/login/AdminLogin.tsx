@@ -90,17 +90,23 @@ export default function AdminLogin({ isSuperAdminOnly = false }: AdminLoginProps
       return;
     }
 
-    const hostname = window.location.hostname;
+    const hostname = window.location.hostname.toLowerCase();
     const searchParams = new URLSearchParams(window.location.search);
     const querySchool = searchParams.get('school') || searchParams.get('portal');
 
-    // Extract subdomain (e.g. "admin.localhost" -> "admin", "apex.samagraerp.com" -> "apex")
-    const hostParts = hostname.split('.');
+    // Ignore platform domains like vercel.app, render, localhost so cloud URLs don't become school names
+    const isCloudHost = hostname.includes('vercel.app') || 
+                        hostname.includes('onrender.com') || 
+                        hostname.includes('netlify.app') || 
+                        hostname.includes('localhost') || 
+                        hostname === '127.0.0.1';
+
     let subdomain = '';
-    if (hostParts.length > 1 && hostParts[0] !== 'www' && hostParts[0] !== 'localhost') {
-      subdomain = hostParts[0].toLowerCase();
-    } else if (hostParts.length > 2 && hostParts[1] === 'localhost') {
-      subdomain = hostParts[0].toLowerCase();
+    if (!isCloudHost) {
+      const hostParts = hostname.split('.');
+      if (hostParts.length > 2 && hostParts[0] !== 'www') {
+        subdomain = hostParts[0];
+      }
     }
 
     const targetKey = querySchool?.toLowerCase() || subdomain;
@@ -115,6 +121,8 @@ export default function AdminLogin({ isSuperAdminOnly = false }: AdminLoginProps
         heroTitle: formattedName,
         heroSubtitle: 'Integrated School ERP platform powered by SAMAGRA SaaS Engine.',
       });
+    } else {
+      setBranding(DEFAULT_SCHOOL_BRANDING);
     }
   }, [isSuperAdminOnly]);
 
