@@ -1,4 +1,4 @@
-package com.schoolerp.mobile
+package com.samagrya.schoolerp
 
 import io.flutter.embedding.android.FlutterActivity
 
