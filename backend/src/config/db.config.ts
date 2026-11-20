@@ -11,7 +11,7 @@ if (env.DATABASE_URL) {
     env.DATABASE_URL.includes('sslmode=require') ||
     env.DATABASE_URL.includes('neon.tech') ||
     env.DATABASE_URL.includes('render.com') ||
-    env.DATABASE_URL.includes('supabase.co');
+    env.DATABASE_URL.includes('supabase');
 
   poolConfig = {
     connectionString: env.DATABASE_URL,

@@ -504,6 +504,17 @@ export const api = {
     getMaterialDownloadUrl: async (id: string): Promise<{ downloadUrl: string; fileName: string; isMock: boolean }> => {
       return request<{ downloadUrl: string; fileName: string; isMock: boolean }>(`/materials/${encodeURIComponent(id)}/download-url`);
     },
+
+    getTenantConfig: async (): Promise<any> => {
+      return request('/admin/tenant-config');
+    },
+
+    updateTenantConfig: async (payload: { name?: string; contactEmail?: string; contactPhone?: string; address?: string; branding?: any; features?: any }): Promise<any> => {
+      return request('/admin/tenant-config', {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+    },
   },
 
   // Academics & Exams Lookups
@@ -625,9 +636,46 @@ export const api = {
       amount_paid: number;
       payment_mode: 'CASH' | 'CHEQUE' | 'BANK_TRANSFER' | 'DEMAND_DRAFT' | 'ONLINE';
       transaction_reference?: string;
+      cheque_number?: string;
+      cheque_bank?: string;
+      cheque_date?: string;
+      idempotency_key?: string;
       remarks?: string;
     }): Promise<any> => {
       return request('/fees/admin/collect', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
+
+    getStudentCounterProfile: async (identifier: string): Promise<any> => {
+      return request(`/fees/admin/counter-profile/${encodeURIComponent(identifier)}`);
+    },
+
+    getPrintableReceipt: async (id: string): Promise<any> => {
+      return request(`/fees/admin/receipts/${encodeURIComponent(id)}/print`);
+    },
+
+    markChequeBounced: async (
+      id: string,
+      payload?: { penalty_amount?: number; reason?: string }
+    ): Promise<any> => {
+      return request(`/fees/admin/receipts/${encodeURIComponent(id)}/cheque-bounce`, {
+        method: 'POST',
+        body: JSON.stringify(payload || {}),
+      });
+    },
+
+    getCurrentShift: async (): Promise<any> => {
+      return request('/fees/admin/shifts/current');
+    },
+
+    closeCounterShift: async (payload: {
+      physical_cash: number;
+      denominations: Record<string, number>;
+      closing_notes?: string;
+    }): Promise<any> => {
+      return request('/fees/admin/shifts/close', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
@@ -657,6 +705,165 @@ export const api = {
       due_date: string;
     }): Promise<any> => {
       return request('/fees/admin/assign', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
+
+    // Fee Master & Configurable Structures
+    getFeeHeads: async (): Promise<any[]> => {
+      return request<any[]>('/fees/admin/heads');
+    },
+
+    createFeeHead: async (payload: {
+      name: string;
+      code: string;
+      type?: string;
+      is_optional?: boolean;
+      description?: string;
+    }): Promise<any> => {
+      return request('/fees/admin/heads', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
+
+    updateFeeHead: async (
+      id: string,
+      payload: { name?: string; type?: string; is_optional?: boolean; description?: string }
+    ): Promise<any> => {
+      return request(`/fees/admin/heads/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+    },
+
+    deleteFeeHead: async (id: string): Promise<any> => {
+      return request(`/fees/admin/heads/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+    },
+
+    getFeeCycles: async (): Promise<any[]> => {
+      return request<any[]>('/fees/admin/cycles');
+    },
+
+    createFeeCycle: async (payload: {
+      name: string;
+      cycle_type: string;
+      due_date: string;
+      grace_period_days?: number;
+      sequence_order?: number;
+    }): Promise<any> => {
+      return request('/fees/admin/cycles', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
+
+    getFeeStructures: async (): Promise<any[]> => {
+      return request<any[]>('/fees/admin/structures');
+    },
+
+    getFeeStructureById: async (id: string): Promise<any> => {
+      return request(`/fees/admin/structures/${encodeURIComponent(id)}`);
+    },
+
+    saveFeeStructure: async (payload: {
+      id?: string;
+      name: string;
+      class_id?: string;
+      items: Array<{ fee_head_id: string; fee_cycle_id: string; amount: number }>;
+      apply_to_students?: boolean;
+    }): Promise<any> => {
+      return request('/fees/admin/structures', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
+
+    // Concessions & Scholarships
+    getConcessions: async (studentId?: string): Promise<any[]> => {
+      const qs = studentId ? `?student_id=${encodeURIComponent(studentId)}` : '';
+      return request<any[]>(`/fees/admin/concessions${qs}`);
+    },
+
+    createConcession: async (payload: {
+      student_id: string;
+      fee_head_id?: string;
+      concession_type: 'PERCENTAGE' | 'FLAT_AMOUNT';
+      concession_value: number;
+      reason: string;
+    }): Promise<any> => {
+      return request('/fees/admin/concessions', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
+
+    deleteConcession: async (id: string): Promise<any> => {
+      return request(`/fees/admin/concessions/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+    },
+
+    // Reports: Defaulters & Day Book
+    getDefaulters: async (filters?: {
+      class_id?: string;
+      section_id?: string;
+      search?: string;
+      min_days?: number;
+    }): Promise<any[]> => {
+      const params = new URLSearchParams();
+      if (filters?.class_id) params.set('class_id', filters.class_id);
+      if (filters?.section_id) params.set('section_id', filters.section_id);
+      if (filters?.search) params.set('search', filters.search);
+      if (filters?.min_days) params.set('min_days', String(filters.min_days));
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      return request<any[]>(`/fees/admin/defaulters${qs}`);
+    },
+
+    getDayBook: async (date?: string): Promise<any> => {
+      const qs = date ? `?date=${encodeURIComponent(date)}` : '';
+      return request(`/fees/admin/day-book${qs}`);
+    },
+
+    // Standard ERP 20 Head Slots & Transport Definition
+    getFeeHeadSlots: async (): Promise<{
+      slots: Array<{ slot_number: number; head_name: string; is_active: boolean }>;
+      transport: { head_name: string; collection_method: string };
+    }> => {
+      return request('/fees/admin/slots');
+    },
+
+    saveFeeHeadSlots: async (payload: {
+      slots: Array<{ slot_number: number; head_name: string; is_active?: boolean }>;
+      transport?: { head_name?: string; collection_method?: string };
+    }): Promise<any> => {
+      return request('/fees/admin/slots', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
+
+    collectExtraFee: async (payload: {
+      student_id: string;
+      fee_category: string;
+      amount: number;
+      payment_mode: string;
+      remarks?: string;
+    }): Promise<any> => {
+      return request('/fees/admin/collect-extra', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
+
+    applyAnnualFeeCalculation: async (payload: {
+      class_id: string;
+      matrix: Record<string, number>;
+    }): Promise<any> => {
+      return request('/fees/admin/apply-annual-matrix', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
@@ -753,6 +960,13 @@ export const api = {
     restoreCredentials: async (): Promise<any> => {
       return request('/super-admin/restore-credentials', {
         method: 'POST',
+      });
+    },
+
+    updateSchoolConfig: async (schoolId: string, payload: { name?: string; branding?: any; features?: any; menuConfig?: any }): Promise<any> => {
+      return request(`/super-admin/schools/${encodeURIComponent(schoolId)}/config`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
       });
     },
   },

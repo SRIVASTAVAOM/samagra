@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { Topbar } from '@/components/Topbar';
 import { getCurrentUser } from '@/lib/api';
+import { TenantProvider } from '@/context/TenantContext';
 
 /**
  * Client-side admin shell. The auth check and the layout are unchanged; this lives in a
@@ -44,14 +45,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 font-sans antialiased text-slate-900">
-      <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Topbar onMenuClick={() => setNavOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-          <div className="max-w-7xl mx-auto">{children}</div>
-        </main>
+    <TenantProvider>
+      <div className="flex h-screen overflow-hidden bg-slate-50 font-sans antialiased text-slate-900">
+        <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          <Topbar onMenuClick={() => setNavOpen(true)} />
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+            <div className="max-w-7xl mx-auto">{children}</div>
+          </main>
+        </div>
       </div>
-    </div>
+    </TenantProvider>
   );
 }

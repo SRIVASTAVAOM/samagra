@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { AdminService } from './admin.service';
+import { pool } from '../../config/db.config';
 
 const saveGridSlotItemSchema = z.object({
   day_of_week: z.coerce.number().int().min(1).max(6).optional(),
@@ -569,6 +570,101 @@ export class AdminController {
       const { id } = req.params;
       const data = await AdminService.getTeacherInspection(user, id);
       res.status(200).json({ success: true, data });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ success: false, error: error.message });
+    }
+  }
+
+  // 23. Tenant Configuration (Dynamic Branding & Feature Switches)
+  static async getTenantConfig(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const schoolId = user.schoolId;
+      const { rows } = await pool.query(
+        'SELECT id, name, code, contact_email, contact_phone, address, menu_config, branding_config FROM schools WHERE id = $1',
+        [schoolId]
+      );
+      if (rows.length === 0) {
+        res.status(404).json({ success: false, error: 'School not found' });
+        return;
+      }
+      const s = rows[0];
+      res.status(200).json({
+        success: true,
+        data: {
+          id: s.id,
+          name: s.name,
+          code: s.code,
+          contactEmail: s.contact_email,
+          contactPhone: s.contact_phone,
+          address: s.address,
+          branding: {
+            name: s.name,
+            code: s.code,
+            platformBrand: 'SAMAGRA',
+            affiliation: s.branding_config?.affiliation || 'Affiliated to CBSE, New Delhi',
+            logoUrl: s.branding_config?.logoUrl || '/logo-icon.png',
+            tagline: 'The Complete School Platform',
+            address: s.address || '',
+            phone: s.contact_phone || '',
+            ...s.branding_config,
+          },
+          features: s.menu_config?.features || {
+            fees: true,
+            transport: true,
+            extra_fees: true,
+            annual_matrix: true,
+            cheque_management: true,
+            sibling_discount: true,
+            defaulters: true,
+          },
+          menuConfig: s.menu_config || {},
+        },
+      });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ success: false, error: error.message });
+    }
+  }
+
+  static async updateTenantConfig(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const schoolId = user.schoolId;
+      const { name, contactEmail, contactPhone, address, branding, features } = req.body;
+
+      const current = await pool.query('SELECT menu_config, branding_config FROM schools WHERE id = $1', [schoolId]);
+      if (current.rows.length === 0) {
+        res.status(404).json({ success: false, error: 'School not found' });
+        return;
+      }
+
+      const mergedBranding = {
+        ...current.rows[0].branding_config,
+        ...(branding || {}),
+      };
+
+      const mergedMenu = {
+        ...current.rows[0].menu_config,
+        features: {
+          ...(current.rows[0].menu_config?.features || {}),
+          ...(features || {}),
+        },
+      };
+
+      await pool.query(
+        `UPDATE schools 
+         SET name = COALESCE($1, name),
+             contact_email = COALESCE($2, contact_email),
+             contact_phone = COALESCE($3, contact_phone),
+             address = COALESCE($4, address),
+             branding_config = $5,
+             menu_config = $6,
+             updated_at = NOW()
+         WHERE id = $7`,
+        [name, contactEmail, contactPhone, address, JSON.stringify(mergedBranding), JSON.stringify(mergedMenu), schoolId]
+      );
+
+      res.status(200).json({ success: true, message: 'Tenant configuration updated successfully' });
     } catch (error: any) {
       res.status(error.statusCode || 500).json({ success: false, error: error.message });
     }

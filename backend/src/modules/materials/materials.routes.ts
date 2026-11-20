@@ -5,7 +5,10 @@ import { MaterialsController } from './materials.controller';
 
 const router = Router();
 
-// Development / Local S3 simulation endpoints (no token required, matching real S3 pre-signed URL behavior)
+// Cloudinary / Local storage simulation endpoints (no token required for pre-signed direct upload/download)
+router.all('/storage-upload', MaterialsController.storageUploadHandler);
+router.all('/mock-upload', MaterialsController.mockUploadHandler);
+router.all('/mock-download', MaterialsController.mockDownloadHandler);
 router.put('/mock-s3-upload', MaterialsController.mockUploadHandler);
 router.get('/mock-s3-download', MaterialsController.mockDownloadHandler);
 

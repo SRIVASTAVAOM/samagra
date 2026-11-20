@@ -5,9 +5,10 @@ import '../models/academic_material_model.dart';
 
 class MaterialsRepository {
   final DioClient _client;
-  final Dio _s3Dio;
+  final Dio _storageDio;
 
-  MaterialsRepository(this._client, {Dio? s3Dio}) : _s3Dio = s3Dio ?? Dio();
+  MaterialsRepository(this._client, {Dio? storageDio, Dio? s3Dio})
+      : _storageDio = storageDio ?? s3Dio ?? Dio();
 
   Future<List<AcademicMaterialModel>> getClassMaterials(
     String classId,
@@ -49,13 +50,13 @@ class MaterialsRepository {
     return PresignedUploadResponse.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
-  Future<void> uploadFileDirectlyToS3(
+  Future<void> uploadFileDirectly(
     String uploadUrl,
     List<int> fileBytes,
     String contentType, {
     void Function(int sent, int total)? onProgress,
   }) async {
-    await _s3Dio.put(
+    await _storageDio.put(
       uploadUrl,
       data: fileBytes,
       options: Options(
@@ -67,6 +68,14 @@ class MaterialsRepository {
       onSendProgress: onProgress,
     );
   }
+
+  /// Backward compatible alias for uploadFileDirectly
+  Future<void> uploadFileDirectlyToS3(
+    String uploadUrl,
+    List<int> fileBytes,
+    String contentType, {
+    void Function(int sent, int total)? onProgress,
+  }) => uploadFileDirectly(uploadUrl, fileBytes, contentType, onProgress: onProgress);
 
   Future<AcademicMaterialModel> verifyUpload(String materialId) async {
     final response = await _client.post(ApiEndpoints.verifyUpload(materialId));

@@ -53,6 +53,63 @@ export default function SuperAdminPage() {
   const [restoring, setRestoring] = useState(false);
   const [restoreSuccessModal, setRestoreSuccessModal] = useState<any[] | null>(null);
 
+  // SaaS Tenant Customizer State
+  const [configModalSchool, setConfigModalSchool] = useState<any | null>(null);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [configFeatures, setConfigFeatures] = useState<Record<string, boolean>>({
+    transport: true,
+    extra_fees: true,
+    annual_matrix: true,
+    cheque_management: true,
+    sibling_discount: true,
+    defaulters: true,
+  });
+  const [configBranding, setConfigBranding] = useState({
+    name: '',
+    affiliation: 'Affiliated to CBSE, New Delhi',
+    address: '',
+    phone: '',
+  });
+
+  const handleOpenConfigModal = (school: any) => {
+    setConfigModalSchool(school);
+    const existingFeatures = school.menu_config?.features || {
+      transport: true,
+      extra_fees: true,
+      annual_matrix: true,
+      cheque_management: true,
+      sibling_discount: true,
+      defaulters: true,
+    };
+    const existingBranding = school.branding_config || {};
+    setConfigFeatures(existingFeatures);
+    setConfigBranding({
+      name: school.name || '',
+      affiliation: existingBranding.affiliation || 'Affiliated to CBSE, New Delhi',
+      address: school.address || existingBranding.address || '',
+      phone: school.contact_phone || existingBranding.phone || '',
+    });
+  };
+
+  const handleSaveConfig = async () => {
+    if (!configModalSchool) return;
+    setSavingConfig(true);
+    try {
+      await api.superAdmin.updateSchoolConfig(configModalSchool.id, {
+        name: configBranding.name,
+        branding: configBranding,
+        features: configFeatures,
+      });
+      alert(`Configuration updated for "${configBranding.name}"!`);
+      setConfigModalSchool(null);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to save school config');
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
   const handleRestoreCredentials = async () => {
     if (!confirm('Reactivate all users and reset default demo credentials (admin, teacher, student)?')) {
       return;
@@ -545,6 +602,12 @@ export default function SuperAdminPage() {
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
+                            onClick={() => handleOpenConfigModal(school)}
+                            className="px-2.5 py-1 rounded text-xs font-bold bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 transition cursor-pointer"
+                          >
+                            🎨 Brand & Modules
+                          </button>
+                          <button
                             onClick={() => setSelectedSchool(school)}
                             className="px-2.5 py-1 rounded text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
                           >
@@ -994,6 +1057,130 @@ export default function SuperAdminPage() {
                 className="px-5 py-2.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer shadow-sm"
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* MODAL: BRANDING STUDIO & MODULAR FEATURE SWITCHBOARD                 */}
+      {/* =================================================================== */}
+      {configModalSchool && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <span>🎨</span> Customise School SaaS Portal
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Control branding & active service modules for <strong className="text-slate-800">{configModalSchool.name}</strong> ({configModalSchool.code})
+                </p>
+              </div>
+              <button onClick={() => setConfigModalSchool(null)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Section 1: Visual Branding Studio */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">1. School Identity & Receipts</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="text-xs font-semibold text-slate-700">Official School Display Name</label>
+                  <input
+                    type="text"
+                    value={configBranding.name}
+                    onChange={(e) => setConfigBranding({ ...configBranding, name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:border-teal-500"
+                    placeholder="e.g. Sanskar Global School Pratapgarh"
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="text-xs font-semibold text-slate-700">Affiliation & Board Tagline</label>
+                  <input
+                    type="text"
+                    value={configBranding.affiliation}
+                    onChange={(e) => setConfigBranding({ ...configBranding, affiliation: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 outline-none focus:border-teal-500"
+                    placeholder="e.g. Affiliated to CBSE, New Delhi | Affiliation No. 213000"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Address / City</label>
+                  <input
+                    type="text"
+                    value={configBranding.address}
+                    onChange={(e) => setConfigBranding({ ...configBranding, address: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 outline-none focus:border-teal-500"
+                    placeholder="e.g. Civil Lines, Pratapgarh, UP"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Accounts Contact Phone</label>
+                  <input
+                    type="text"
+                    value={configBranding.phone}
+                    onChange={(e) => setConfigBranding({ ...configBranding, phone: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 outline-none focus:border-teal-500"
+                    placeholder="e.g. +91 98765 43210"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Modular Feature Switchboard */}
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">2. Active Modular Services (Plan Control)</h4>
+              <p className="text-[11px] text-slate-400">
+                Disabled modules will be hidden automatically from this school&apos;s Web Admin and Mobile App.
+              </p>
+
+              <div className="space-y-2">
+                {[
+                  { key: 'transport', label: 'Transport Fleet & Route Billing', desc: 'Distance slabs, bus routes, and transport fee collection counter' },
+                  { key: 'extra_fees', label: 'Pay Extra & Misc Counter', desc: 'Late fines, uniform kits, book sets, and certificate fees' },
+                  { key: 'annual_matrix', label: 'Annual Fee Calculation Matrix', desc: 'Class-wise batch schedule calculator across all fee heads' },
+                  { key: 'cheque_management', label: 'Cheque Clearance & Dishonour', desc: 'Cheque number logging and 1-click bounce penalty reversals' },
+                  { key: 'sibling_discount', label: 'Automatic Sibling Concession', desc: 'Auto-detect siblings by parent phone and apply scholarship' },
+                  { key: 'defaulters', label: 'Fee Defaulters Directory', desc: 'Real-time overdue alerts and guardian contact directory' },
+                ].map((item) => {
+                  const isEnabled = configFeatures[item.key] !== false;
+                  return (
+                    <div
+                      key={item.key}
+                      onClick={() => setConfigFeatures({ ...configFeatures, [item.key]: !isEnabled })}
+                      className="p-3 rounded-xl border border-slate-200 flex items-center justify-between gap-3 hover:bg-slate-50 cursor-pointer transition"
+                    >
+                      <div>
+                        <strong className="text-xs text-slate-800 block">{item.label}</strong>
+                        <span className="text-[11px] text-slate-400">{item.desc}</span>
+                      </div>
+                      <div className={`w-11 h-6 flex items-center rounded-full p-1 transition ${isEnabled ? 'bg-[#10B981] justify-end' : 'bg-slate-200 justify-start'}`}>
+                        <div className="bg-white w-4 h-4 rounded-full shadow-xs" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setConfigModalSchool(null)}
+                className="px-4 py-2 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={savingConfig}
+                onClick={handleSaveConfig}
+                className="px-6 py-2 rounded-lg text-xs font-bold bg-[#023E8A] hover:bg-[#001938] text-white transition shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {savingConfig ? 'Saving...' : 'Save Configuration'}
               </button>
             </div>
           </div>

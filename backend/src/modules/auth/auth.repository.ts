@@ -4,6 +4,10 @@ import { UserRole } from '../../types/auth.types';
 export interface UserAuthRecord {
   id: string;
   school_id: string | null;
+  school_name?: string | null;
+  school_code?: string | null;
+  menu_config?: any;
+  branding_config?: any;
   school_status?: string | null;
   identifier: string;
   email: string | null;
@@ -39,6 +43,10 @@ export class AuthRepository {
         u.id,
         u.school_id,
         s.status AS school_status,
+        s.name AS school_name,
+        s.code AS school_code,
+        s.menu_config,
+        s.branding_config,
         u.identifier,
         u.email,
         u.phone,
@@ -76,7 +84,7 @@ export class AuthRepository {
         OR (stp.admission_number IS NOT NULL AND (LOWER(TRIM(stp.admission_number)) = LOWER($1) OR LOWER(TRIM(stp.admission_number)) = LOWER($2)))
         OR (stp.emergency_phone IS NOT NULL AND TRIM(stp.emergency_phone) = $1)
       )
-      GROUP BY u.id, s.status
+      GROUP BY u.id, s.status, s.name, s.code, s.menu_config, s.branding_config
       LIMIT 1;
     `;
 
@@ -88,6 +96,10 @@ export class AuthRepository {
       id: r.id,
       school_id: r.school_id,
       school_status: r.school_status,
+      school_name: r.school_name,
+      school_code: r.school_code,
+      menu_config: r.menu_config,
+      branding_config: r.branding_config,
       identifier: r.identifier,
       email: r.email,
       phone: r.phone,
@@ -110,6 +122,10 @@ export class AuthRepository {
         u.id,
         u.school_id,
         s.status AS school_status,
+        s.name AS school_name,
+        s.code AS school_code,
+        s.menu_config,
+        s.branding_config,
         u.identifier,
         u.email,
         u.phone,
@@ -138,7 +154,7 @@ export class AuthRepository {
       LEFT JOIN staff_assignments sa ON sp.id = sa.staff_id
       LEFT JOIN student_profiles stp ON u.id = stp.user_id
       WHERE u.id = $1
-      GROUP BY u.id, s.status
+      GROUP BY u.id, s.status, s.name, s.code, s.menu_config, s.branding_config
       LIMIT 1;
     `;
 
@@ -150,6 +166,10 @@ export class AuthRepository {
       id: r.id,
       school_id: r.school_id,
       school_status: r.school_status,
+      school_name: r.school_name,
+      school_code: r.school_code,
+      menu_config: r.menu_config,
+      branding_config: r.branding_config,
       identifier: r.identifier,
       email: r.email,
       phone: r.phone,

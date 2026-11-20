@@ -2,7 +2,9 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import { Calendar, Menu, School } from 'lucide-react';
+import Image from 'next/image';
+import { Calendar, Menu, School, AlertCircle, GitBranch } from 'lucide-react';
+import { useTenant } from '@/context/TenantContext';
 
 const titleMap: Record<string, { title: string; subtitle: string }> = {
   '/dashboard': {
@@ -42,6 +44,7 @@ type TopbarProps = {
 
 export function Topbar({ onMenuClick }: TopbarProps) {
   const pathname = usePathname();
+  const { branding } = useTenant();
   const current = titleMap[pathname] || {
     title: 'Administration Portal',
     subtitle: 'Integrated Management System',
@@ -65,24 +68,58 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         <Menu className="w-5 h-5" />
       </button>
 
-      <div className="min-w-0 flex-1">
-        <h1 className="text-sm font-semibold text-slate-900 tracking-tight truncate">
-          {current.title}
-        </h1>
-        <p className="text-xs text-slate-500 font-normal truncate">{current.subtitle}</p>
+      <div className="min-w-0 flex-1 flex items-center gap-4">
+        <div>
+          <h1 className="text-sm font-semibold text-slate-900 tracking-tight truncate">
+            {current.title}
+          </h1>
+          <p className="text-xs text-slate-500 font-normal truncate">{current.subtitle}</p>
+        </div>
       </div>
 
-      <div className="hidden md:flex items-center gap-2.5 text-xs shrink-0">
+      <div className="hidden lg:flex items-center gap-2.5 text-xs shrink-0">
         {/* Date Display */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-slate-700 font-medium">
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-slate-700 font-medium">
           <Calendar className="w-3.5 h-3.5 text-slate-400" />
           <span>{todayStr}</span>
         </div>
 
-        {/* School Badge */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-indigo-50 border border-indigo-200/60 text-indigo-800 font-semibold">
-          <School className="w-3.5 h-3.5 text-indigo-600" />
-          <span>Springfield International</span>
+        {/* Dynamic School Badge */}
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-900 font-bold truncate max-w-[220px]">
+          <School className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span className="truncate">{branding.name}</span>
+        </div>
+
+        {/* SAMAGRA SaaS Powered Badge */}
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 text-white font-semibold shadow-xs">
+          <Image
+            src="/logo-icon.png"
+            alt="SAMAGRA"
+            width={14}
+            height={14}
+            className="rounded-full"
+          />
+          <span className="tracking-tight text-[11px]">SAMAGRA ERP</span>
+        </div>
+
+        {/* Raise Complain Button (From reference image) */}
+        <button
+          type="button"
+          onClick={() => alert('Support ticket & grievance window will open')}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#023E8A] hover:bg-[#001938] text-white font-bold text-xs transition cursor-pointer shadow-xs"
+        >
+          <AlertCircle className="w-3.5 h-3.5" />
+          <span>Raise Complain</span>
+        </button>
+
+        {/* Switch Branch Dropdown */}
+        <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-slate-200 bg-white text-slate-700 text-xs font-semibold">
+          <GitBranch className="w-3 h-3 text-rose-500" />
+          <span className="text-[11px] text-slate-500">Branch:</span>
+          <select className="bg-transparent border-none outline-none cursor-pointer text-slate-900 font-bold text-xs pr-1">
+            <option value="main">Main Campus</option>
+            <option value="city">City Wing</option>
+          </select>
         </div>
       </div>
     </header>

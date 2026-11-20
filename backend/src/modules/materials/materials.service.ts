@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { pool } from '../../config/db.config';
 import { env } from '../../config/env.config';
 import { TokenPayload } from '../../types/auth.types';
-import { S3Service } from '../../services/s3.service';
+import { CloudinaryService } from '../../services/cloudinary.service';
 import { MaterialsRepository, AcademicMaterial } from './materials.repository';
 
 export class MaterialsService {
@@ -103,7 +103,7 @@ export class MaterialsService {
     });
 
     // 6. Generate Short-Lived Pre-Signed Upload URL (5 minutes)
-    const presigned = await S3Service.generatePresignedUploadUrl(serverFileKey, data.contentType, 300);
+    const presigned = await CloudinaryService.generatePresignedUploadUrl(serverFileKey, data.contentType, 300);
 
     return {
       uploadUrl: presigned.uploadUrl,
@@ -188,7 +188,7 @@ export class MaterialsService {
     }
 
     // Generate short-lived GET pre-signed URL (15 minutes)
-    const { downloadUrl, isMock } = await S3Service.generatePresignedDownloadUrl(material.s3_file_key, 900);
+    const { downloadUrl, isMock } = await CloudinaryService.generatePresignedDownloadUrl(material.s3_file_key, 900);
 
     return {
       downloadUrl,

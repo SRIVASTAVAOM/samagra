@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { MaterialsService } from './materials.service';
+import { CloudinaryService } from '../../services/cloudinary.service';
 
 const initiateUploadSchema = z.object({
   classId: z.string().uuid().optional(),
@@ -155,18 +156,48 @@ export class MaterialsController {
   }
 
   /**
-   * Safe local simulation handler for pre-signed PUT uploads when AWS credentials are not configured.
+   * Universal upload handler:
+   * If Cloudinary is configured, streams directly to Cloudinary.
+   * If unconfigured, performs safe local simulation.
    */
-  static mockUploadHandler(req: Request, res: Response): void {
-    console.info(`[AWS S3 Notice]: Mock PUT upload executed successfully for key: ${req.query.key}`);
-    res.status(200).json({ success: true, message: 'Mock S3 upload simulated successfully' });
+  static async storageUploadHandler(req: Request, res: Response): Promise<void> {
+    try {
+      const fileKey = (req.query.key as string) || `upload_${Date.now()}`;
+      if (CloudinaryService.isConfigured()) {
+        const chunks: Buffer[] = [];
+        req.on('data', (chunk) => chunks.push(chunk));
+        req.on('end', async () => {
+          try {
+            const buffer = Buffer.concat(chunks);
+            const uploadResult = await CloudinaryService.uploadBuffer(buffer, fileKey, req.headers['content-type'] as string);
+            res.status(200).json({ success: true, message: 'File uploaded to Cloudinary successfully', data: uploadResult });
+          } catch (uploadErr: any) {
+            console.error('[Cloudinary Upload Error]:', uploadErr);
+            res.status(500).json({ success: false, error: uploadErr.message || 'Cloudinary upload failed' });
+          }
+        });
+      } else {
+        console.info(`[Storage Notice]: Mock upload executed successfully for key: ${fileKey}`);
+        res.status(200).json({ success: true, message: 'Mock storage upload simulated successfully' });
+      }
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
   }
 
   /**
-   * Safe local simulation handler for pre-signed GET downloads when AWS credentials are not configured.
+   * Safe local simulation handler for uploads when Cloudinary credentials are not configured.
+   */
+  static mockUploadHandler(req: Request, res: Response): void {
+    console.info(`[Storage Notice]: Upload simulated successfully for key: ${req.query.key}`);
+    res.status(200).json({ success: true, message: 'Storage upload simulated successfully' });
+  }
+
+  /**
+   * Safe local simulation handler for GET downloads when Cloudinary credentials are not configured.
    */
   static mockDownloadHandler(req: Request, res: Response): void {
-    console.info(`[AWS S3 Notice]: Mock GET download accessed for key: ${req.query.key}`);
+    console.info(`[Storage Notice]: Download accessed for key: ${req.query.key}`);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="simulated_document.pdf"');
     res.status(200).send(Buffer.from('%PDF-1.4 Simulated ERP Academic Document Content'));

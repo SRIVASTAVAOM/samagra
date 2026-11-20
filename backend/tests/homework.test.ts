@@ -61,6 +61,7 @@ describe('Homework Management API Tests', () => {
           subjectId: mathSubjectId,
           title: 'Polynomial Division Worksheet',
           description: 'Complete questions 1 to 5 from page 48.',
+          assignedDate: '2026-10-25',
           dueDate: '2026-10-30',
           attachmentName: 'polynomial_worksheet.pdf',
           s3AttachmentKey: 'schools/APEX01/homework/poly_ws.pdf',

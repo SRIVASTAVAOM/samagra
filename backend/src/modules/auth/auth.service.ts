@@ -19,6 +19,7 @@ export interface LoginResult {
     wingId: string | null;
     classId: string | null;
     sectionId: string | null;
+    school?: any;
   };
 }
 
@@ -77,6 +78,28 @@ export class AuthService {
       expiresIn: env.JWT_EXPIRES_IN as any,
     });
 
+    const schoolFeatures = user.menu_config?.features || {
+      fees: true,
+      transport: true,
+      extra_fees: true,
+      annual_matrix: true,
+      cheque_management: true,
+      sibling_discount: true,
+      defaulters: true,
+    };
+
+    const schoolBranding = {
+      name: user.school_name || 'SAMAGRA Partner School',
+      code: user.school_code || 'SCHOOL',
+      platformBrand: 'SAMAGRA',
+      affiliation: user.branding_config?.affiliation || 'Affiliated to CBSE, New Delhi',
+      logoUrl: user.branding_config?.logoUrl || '/logo-icon.png',
+      tagline: 'The Complete School Platform',
+      address: user.branding_config?.address || '',
+      phone: user.branding_config?.phone || '',
+      ...user.branding_config,
+    };
+
     return {
       token,
       user: {
@@ -92,6 +115,13 @@ export class AuthService {
         wingId: user.wing_id,
         classId: user.class_id,
         sectionId: user.section_id,
+        school: {
+          id: user.school_id,
+          name: user.school_name || 'SAMAGRA Partner School',
+          code: user.school_code || 'SCHOOL',
+          branding: schoolBranding,
+          features: schoolFeatures,
+        },
       },
     };
   }
@@ -101,6 +131,28 @@ export class AuthService {
     if (!user) {
       throw new Error('USER_NOT_FOUND');
     }
+
+    const schoolFeatures = user.menu_config?.features || {
+      fees: true,
+      transport: true,
+      extra_fees: true,
+      annual_matrix: true,
+      cheque_management: true,
+      sibling_discount: true,
+      defaulters: true,
+    };
+
+    const schoolBranding = {
+      name: user.school_name || 'SAMAGRA Partner School',
+      code: user.school_code || 'SCHOOL',
+      platformBrand: 'SAMAGRA',
+      affiliation: user.branding_config?.affiliation || 'Affiliated to CBSE, New Delhi',
+      logoUrl: user.branding_config?.logoUrl || '/logo-icon.png',
+      tagline: 'The Complete School Platform',
+      address: user.branding_config?.address || '',
+      phone: user.branding_config?.phone || '',
+      ...user.branding_config,
+    };
 
     return {
       id: user.id,
@@ -115,6 +167,13 @@ export class AuthService {
       wingId: user.wing_id,
       classId: user.class_id,
       sectionId: user.section_id,
+      school: {
+        id: user.school_id,
+        name: user.school_name || 'SAMAGRA Partner School',
+        code: user.school_code || 'SCHOOL',
+        branding: schoolBranding,
+        features: schoolFeatures,
+      },
     };
   }
 

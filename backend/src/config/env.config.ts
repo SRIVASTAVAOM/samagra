@@ -14,10 +14,12 @@ const envSchema = z.object({
   DB_NAME: z.string().default('school_erp_db'),
   JWT_SECRET: z.string().default('super_secret_dev_school_erp_jwt_key_2026_m1'),
   JWT_EXPIRES_IN: z.string().default('8h'),
-  AWS_REGION: z.string().default('ap-south-1'),
-  AWS_S3_BUCKET_NAME: z.string().default('school-erp-dev-private-storage'),
-  AWS_ACCESS_KEY_ID: z.string().optional(),
-  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  // Cloudinary Storage Configuration
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
+  CLOUDINARY_URL: z.string().optional(),
+  CLOUDINARY_FOLDER: z.string().default('school_erp'),
   MAX_UPLOAD_SIZE_BYTES: z.string().default('10485760'), // Provisional 10MB default
   ALLOWED_MIME_TYPES: z.string().default('application/pdf,image/jpeg,image/png'),
 }).refine((data) => {

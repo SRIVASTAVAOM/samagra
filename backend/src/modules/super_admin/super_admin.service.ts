@@ -344,6 +344,41 @@ export class SuperAdminService {
     return rows[0];
   }
 
+  static async updateSchoolConfig(id: string, data: { name?: string; branding?: any; features?: any; menuConfig?: any }) {
+    const current = await pool.query('SELECT menu_config, branding_config FROM schools WHERE id = $1', [id]);
+    if (current.rows.length === 0) {
+      throw new Error('SCHOOL_NOT_FOUND');
+    }
+    const currentBranding = current.rows[0].branding_config || {};
+    const currentMenu = current.rows[0].menu_config || {};
+
+    const mergedBranding = {
+      ...currentBranding,
+      ...(data.branding || {}),
+    };
+
+    const mergedMenu = {
+      ...currentMenu,
+      ...(data.menuConfig || {}),
+      features: {
+        ...(currentMenu.features || {}),
+        ...(data.features || {}),
+      },
+    };
+
+    const query = `
+      UPDATE schools
+      SET name = COALESCE($1, name),
+          branding_config = $2,
+          menu_config = $3,
+          updated_at = NOW()
+      WHERE id = $4
+      RETURNING id, name, code, branding_config, menu_config;
+    `;
+    const { rows } = await pool.query(query, [data.name, JSON.stringify(mergedBranding), JSON.stringify(mergedMenu), id]);
+    return rows[0];
+  }
+
   /**
    * Update school subscription plan and quota
    */

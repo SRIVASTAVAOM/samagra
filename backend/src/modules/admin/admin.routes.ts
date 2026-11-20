@@ -85,6 +85,10 @@ router.post('/materials', MaterialsController.createAdminMaterial);
 router.patch('/materials/:id', MaterialsController.updateAdminMaterial);
 router.delete('/materials/:id', MaterialsController.deleteAdminMaterial);
 
+// Tenant Configuration (Dynamic Branding & Feature Switches)
+router.get('/tenant-config', AdminController.getTenantConfig);
+router.patch('/tenant-config', AdminController.updateTenantConfig);
+
 export default router;
 
 

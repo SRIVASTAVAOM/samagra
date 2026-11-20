@@ -86,18 +86,18 @@ class DocumentPickerBottomSheet extends StatelessWidget {
                 ? 'camera_capture_${DateTime.now().millisecondsSinceEpoch}.jpg'
                 : 'device_file_${DateTime.now().millisecondsSinceEpoch}.jpg');
         docUrl =
-            'https://school-erp-assets.s3.amazonaws.com/uploads/${categoryPrefix}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
+            'https://res.cloudinary.com/school-erp/image/upload/v1/uploads/${categoryPrefix}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
       } else {
         // Fallback for test runner, simulator or devices without camera delegate
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         if (source == DocumentUploadSource.camera) {
           fileName = 'Camera_Capture_$timestamp.jpg';
           docUrl =
-              'https://school-erp-assets.s3.amazonaws.com/uploads/${categoryPrefix}_camera_$timestamp.jpg';
+              'https://res.cloudinary.com/school-erp/image/upload/v1/uploads/${categoryPrefix}_camera_$timestamp.jpg';
         } else {
           fileName = 'Device_Document_$timestamp.pdf';
           docUrl =
-              'https://school-erp-assets.s3.amazonaws.com/uploads/${categoryPrefix}_device_$timestamp.pdf';
+              'https://res.cloudinary.com/school-erp/image/upload/v1/uploads/${categoryPrefix}_device_$timestamp.pdf';
         }
       }
     } catch (_) {
@@ -106,11 +106,11 @@ class DocumentPickerBottomSheet extends StatelessWidget {
       if (source == DocumentUploadSource.camera) {
         fileName = 'Camera_Capture_$timestamp.jpg';
         docUrl =
-            'https://school-erp-assets.s3.amazonaws.com/uploads/${categoryPrefix}_camera_$timestamp.jpg';
+            'https://res.cloudinary.com/school-erp/image/upload/v1/uploads/${categoryPrefix}_camera_$timestamp.jpg';
       } else {
         fileName = 'Device_Document_$timestamp.pdf';
         docUrl =
-            'https://school-erp-assets.s3.amazonaws.com/uploads/${categoryPrefix}_device_$timestamp.pdf';
+            'https://res.cloudinary.com/school-erp/image/upload/v1/uploads/${categoryPrefix}_device_$timestamp.pdf';
       }
     }
 

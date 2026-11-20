@@ -55,33 +55,33 @@ const navSections: NavSection[] = [
     title: 'Students & Academics',
     items: [
       {
-        name: '1. Student List',
+        name: 'Student Directory',
         href: '/students',
         icon: Users,
       },
       {
-        name: '2. Subject Master',
+        name: 'Subject Master',
         href: '/subjects',
         icon: Library,
       },
       {
-        name: '3. View Timetable',
+        name: 'Class Timetable',
         href: '/timetable',
         icon: CalendarDays,
         badge: 'Sync',
       },
       {
-        name: '4. Report Cards',
+        name: 'Greensheet Report Cards',
         href: '/reports/greensheet',
         icon: FileSpreadsheet,
       },
       {
-        name: '5. Student Attendance',
+        name: 'Student Attendance',
         href: '/attendance/students',
         icon: UserCheck,
       },
       {
-        name: '11. View/Assign Homework',
+        name: 'Homework & Assignments',
         href: '/homework',
         icon: BookOpen,
       },
@@ -96,12 +96,12 @@ const navSections: NavSection[] = [
     title: 'Staff Management',
     items: [
       {
-        name: '8. Staff List',
+        name: 'Staff Directory',
         href: '/staff',
         icon: UserCog,
       },
       {
-        name: '6. Staff Attendance',
+        name: 'Staff Attendance',
         href: '/attendance/staff',
         icon: ClipboardCheck,
       },
@@ -111,7 +111,7 @@ const navSections: NavSection[] = [
     title: 'Finance & Accounts',
     items: [
       {
-        name: '2. Fees Section',
+        name: 'Fee Counter & Accounts',
         href: '/fees',
         icon: Receipt,
       },
@@ -121,17 +121,17 @@ const navSections: NavSection[] = [
     title: 'Communication & Alerts',
     items: [
       {
-        name: '9. Add Notice',
+        name: 'Circulars & Notices',
         href: '/notices',
         icon: Megaphone,
       },
       {
-        name: '10. Push Notifications',
+        name: 'Push Broadcasts',
         href: '/notifications',
         icon: Bell,
       },
       {
-        name: '7. View Feedback',
+        name: 'Feedback & Grievances',
         href: '/feedback',
         icon: MessageSquare,
       },

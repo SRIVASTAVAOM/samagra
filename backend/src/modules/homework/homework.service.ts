@@ -1,6 +1,6 @@
 import { pool } from '../../config/db.config';
 import { TokenPayload } from '../../types/auth.types';
-import { S3Service } from '../../services/s3.service';
+import { CloudinaryService } from '../../services/cloudinary.service';
 import { HomeworkRepository, HomeworkAssignment } from './homework.repository';
 
 export class HomeworkService {
@@ -192,7 +192,7 @@ export class HomeworkService {
       throw { statusCode: 404, message: 'No attachment found for this homework assignment.' };
     }
 
-    const { downloadUrl, isMock } = await S3Service.generatePresignedDownloadUrl(homework.s3_attachment_key, 900);
+    const { downloadUrl, isMock } = await CloudinaryService.generatePresignedDownloadUrl(homework.s3_attachment_key, 900);
     return {
       downloadUrl,
       attachmentName: homework.attachment_name || 'homework_attachment',

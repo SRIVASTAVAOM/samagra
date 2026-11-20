@@ -176,5 +176,20 @@ export class SuperAdminController {
       next(error);
     }
   }
+
+  static async updateSchoolConfig(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { name, branding, features, menuConfig } = req.body;
+      const updated = await SuperAdminService.updateSchoolConfig(id, { name, branding, features, menuConfig });
+      res.status(200).json({
+        success: true,
+        message: 'School configuration updated successfully',
+        data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
