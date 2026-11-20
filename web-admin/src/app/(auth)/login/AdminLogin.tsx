@@ -20,10 +20,33 @@ import { api, setSession } from '@/lib/api';
 import ForgotPasswordModal from './ForgotPasswordModal';
 import './AdminLogin.css';
 
-// ─── Configurable school branding ────────────────────────────────────────────
-const SCHOOL_NAME    = 'Little Angels Public School';
-const SCHOOL_TAGLINE = 'Learn • Grow • Lead';
-const SCHOOL_ABBR    = 'LA';   // shown in the avatar when no logo is uploaded
+// ─── Dynamic Subdomain & Multi-Tenant School Branding ───────────────────────
+interface SchoolLoginBranding {
+  isSuperAdminPortal: boolean;
+  name: string;
+  tagline: string;
+  abbr: string;
+  heroTitle: string;
+  heroSubtitle: string;
+}
+
+const SUPER_ADMIN_BRANDING: SchoolLoginBranding = {
+  isSuperAdminPortal: true,
+  name: 'SAMAGRA Platform HQ',
+  tagline: 'Multi-Tenant Institutional SaaS Administration',
+  abbr: 'HQ',
+  heroTitle: 'SAMAGRA Platform HQ',
+  heroSubtitle: 'Centralized institutional management, multi-school tenant governance, and global licensing.',
+};
+
+const DEFAULT_SCHOOL_BRANDING: SchoolLoginBranding = {
+  isSuperAdminPortal: false,
+  name: 'Apex International School',
+  tagline: 'Learn • Grow • Lead',
+  abbr: 'AIS',
+  heroTitle: 'Apex International School',
+  heroSubtitle: 'Integrated School ERP platform empowering management, faculty, and academic excellence.',
+};
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FEATURE_CARDS = [
@@ -51,6 +74,42 @@ export default function AdminLogin() {
   const [error,         setError]         = useState<string | null>(null);
   const [info,          setInfo]          = useState<string | null>(null);
   const [isForgotOpen,  setIsForgotOpen]  = useState(false);
+  const [branding,      setBranding]      = useState<SchoolLoginBranding>(DEFAULT_SCHOOL_BRANDING);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const hostname = window.location.hostname;
+    const searchParams = new URLSearchParams(window.location.search);
+    const querySchool = searchParams.get('school') || searchParams.get('portal');
+
+    // Extract subdomain (e.g. "admin.localhost" -> "admin", "apex.samagraerp.com" -> "apex")
+    const hostParts = hostname.split('.');
+    let subdomain = '';
+    if (hostParts.length > 1 && hostParts[0] !== 'www' && hostParts[0] !== 'localhost') {
+      subdomain = hostParts[0].toLowerCase();
+    } else if (hostParts.length > 2 && hostParts[1] === 'localhost') {
+      subdomain = hostParts[0].toLowerCase();
+    }
+
+    const targetKey = querySchool?.toLowerCase() || subdomain;
+
+    if (targetKey === 'admin' || targetKey === 'hq' || targetKey === 'superadmin') {
+      setBranding(SUPER_ADMIN_BRANDING);
+    } else if (targetKey === 'apex') {
+      setBranding(DEFAULT_SCHOOL_BRANDING);
+    } else if (targetKey) {
+      const formattedName = targetKey.charAt(0).toUpperCase() + targetKey.slice(1) + ' School';
+      setBranding({
+        isSuperAdminPortal: false,
+        name: formattedName,
+        tagline: 'Learn • Grow • Lead',
+        abbr: targetKey.slice(0, 2).toUpperCase(),
+        heroTitle: formattedName,
+        heroSubtitle: 'Integrated School ERP platform powered by SAMAGRA SaaS Engine.',
+      });
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,10 +159,10 @@ export default function AdminLogin() {
       <header className="aln-header">
         {/* School branding */}
         <div className="aln-header-school">
-          <div className="aln-school-avatar" aria-hidden="true">{SCHOOL_ABBR}</div>
+          <div className="aln-school-avatar" aria-hidden="true">{branding.abbr}</div>
           <div className="aln-school-text">
-            <span className="aln-school-name">{SCHOOL_NAME}</span>
-            <span className="aln-school-tagline">{SCHOOL_TAGLINE}</span>
+            <span className="aln-school-name">{branding.name}</span>
+            <span className="aln-school-tagline">{branding.tagline}</span>
           </div>
         </div>
 
@@ -112,7 +171,7 @@ export default function AdminLogin() {
           <div className="aln-samagra-badge" aria-label="Samagra">
             <img className="aln-samagra-badge-img" src="/samagra-mark.png" alt="" />
           </div>
-          <span className="aln-samagra-text">SAMAGRA</span>
+          <span className="aln-samagra-text">{branding.isSuperAdminPortal ? 'PLATFORM HQ' : 'SAMAGRA'}</span>
         </div>
       </header>
 
@@ -133,9 +192,9 @@ export default function AdminLogin() {
 
           {/* Hero */}
           <div className="aln-hero">
-            <h1 className="aln-hero-title">{SCHOOL_NAME}</h1>
+            <h1 className="aln-hero-title">{branding.heroTitle}</h1>
             <p className="aln-hero-subtitle">
-              Empowering schools with AI-powered tools to simplify operations and enhance learning.
+              {branding.heroSubtitle}
             </p>
           </div>
 
@@ -209,8 +268,10 @@ export default function AdminLogin() {
                 <ShieldCheck size={22} />
               </span>
               <div>
-                <h2 className="aln-card-title">Welcome back!</h2>
-                <p className="aln-card-subtitle">Sign in to access your dashboard.</p>
+                <h2 className="aln-card-title">{branding.isSuperAdminPortal ? 'Platform HQ Login' : 'Welcome back!'}</h2>
+                <p className="aln-card-subtitle">
+                  {branding.isSuperAdminPortal ? 'Sign in to SAMAGRA SaaS Management HQ.' : 'Sign in to access your school dashboard.'}
+                </p>
               </div>
             </div>
 
