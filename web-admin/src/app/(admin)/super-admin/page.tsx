@@ -1094,7 +1094,7 @@ export default function SuperAdminPage() {
                     value={configBranding.name}
                     onChange={(e) => setConfigBranding({ ...configBranding, name: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:border-teal-500"
-                    placeholder="e.g. Sanskar Global School Pratapgarh"
+                    placeholder="e.g. Apex International School"
                   />
                 </div>
                 <div className="space-y-1 sm:col-span-2">

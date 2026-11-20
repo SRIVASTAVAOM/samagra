@@ -1980,7 +1980,7 @@ export default function FeesSectionPage() {
             <div className="border border-slate-300 rounded-xl p-5 bg-slate-50/50 space-y-4">
               <div className="text-center border-b border-slate-200 pb-3">
                 <div className="text-sm font-bold text-slate-900 uppercase">
-                  SANSKAR GLOBAL SCHOOL / SAMAGRA PLATFORM
+                  {(branding?.name || 'School ERP').toUpperCase()} / SAMAGRA PLATFORM
                 </div>
                 <div className="text-[10px] text-slate-500">Official Fee Payment Receipt</div>
                 <div className="text-xs font-mono font-bold text-teal-700 mt-1">

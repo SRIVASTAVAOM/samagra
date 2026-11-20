@@ -3,10 +3,15 @@
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { Calendar, Menu, School, AlertCircle, GitBranch } from 'lucide-react';
+import { Calendar, Menu, School, AlertCircle, GitBranch, ShieldCheck } from 'lucide-react';
 import { useTenant } from '@/context/TenantContext';
+import { getCurrentUser } from '@/lib/api';
 
 const titleMap: Record<string, { title: string; subtitle: string }> = {
+  '/super-admin': {
+    title: 'Platform Management HQ',
+    subtitle: 'Institutional SaaS tenants, global licensing, and modular configuration',
+  },
   '/dashboard': {
     title: 'Command Center',
     subtitle: 'Attendance, homework and fee collection at a glance',
@@ -57,6 +62,9 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     year: 'numeric',
   }).format(new Date());
 
+  const user = typeof window !== 'undefined' ? getCurrentUser() : null;
+  const isSuperAdmin = user?.roles?.includes('SUPER_ADMIN');
+
   return (
     <header className="no-print h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center gap-3 shrink-0">
       <button
@@ -82,43 +90,59 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           <span>{todayStr}</span>
         </div>
 
-        {/* Dynamic School Badge */}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-900 font-bold truncate max-w-[220px]">
-          <School className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <span className="truncate">{branding.name}</span>
-        </div>
+        {isSuperAdmin ? (
+          /* Super-Admin Platform HQ Header Elements */
+          <>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0f1d3a] border border-white/10 text-white font-bold shadow-xs">
+              <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="text-[11px] tracking-tight">SAMAGRA PLATFORM HQ</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-900 font-semibold text-xs">
+              <span>Tenant Engine: Active</span>
+            </div>
+          </>
+        ) : (
+          /* School Admin Header Elements */
+          <>
+            {/* Dynamic School Badge */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-900 font-bold truncate max-w-[220px]">
+              <School className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span className="truncate">{branding.name}</span>
+            </div>
 
-        {/* SAMAGRA SaaS Powered Badge */}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 text-white font-semibold shadow-xs">
-          <Image
-            src="/samagra-mark.png"
-            alt="SAMAGRA"
-            width={14}
-            height={14}
-            className="rounded-full"
-          />
-          <span className="tracking-tight text-[11px]">SAMAGRA ERP</span>
-        </div>
+            {/* SAMAGRA SaaS Powered Badge */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 text-white font-semibold shadow-xs">
+              <Image
+                src="/samagra-mark.png"
+                alt="SAMAGRA"
+                width={14}
+                height={14}
+                className="rounded-full"
+              />
+              <span className="tracking-tight text-[11px]">SAMAGRA ERP</span>
+            </div>
 
-        {/* Raise Complain Button */}
-        <button
-          type="button"
-          onClick={() => alert('Support ticket & grievance window will open')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#023E8A] hover:bg-[#001938] text-white font-bold text-xs transition cursor-pointer shadow-xs"
-        >
-          <AlertCircle className="w-3.5 h-3.5" />
-          <span>Raise Complain</span>
-        </button>
+            {/* Raise Complain Button */}
+            <button
+              type="button"
+              onClick={() => alert('Support ticket & grievance window will open')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#023E8A] hover:bg-[#001938] text-white font-bold text-xs transition cursor-pointer shadow-xs"
+            >
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>Raise Complain</span>
+            </button>
 
-        {/* Switch Branch Dropdown */}
-        <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-slate-200 bg-white text-slate-700 text-xs font-semibold">
-          <GitBranch className="w-3 h-3 text-rose-500" />
-          <span className="text-[11px] text-slate-500">Branch:</span>
-          <select className="bg-transparent border-none outline-none cursor-pointer text-slate-900 font-bold text-xs pr-1">
-            <option value="main">Main Campus</option>
-            <option value="city">City Wing</option>
-          </select>
-        </div>
+            {/* Switch Branch Dropdown */}
+            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-slate-200 bg-white text-slate-700 text-xs font-semibold">
+              <GitBranch className="w-3 h-3 text-rose-500" />
+              <span className="text-[11px] text-slate-500">Branch:</span>
+              <select className="bg-transparent border-none outline-none cursor-pointer text-slate-900 font-bold text-xs pr-1">
+                <option value="main">Main Campus</option>
+                <option value="city">City Wing</option>
+              </select>
+            </div>
+          </>
+        )}
       </div>
     </header>
   );

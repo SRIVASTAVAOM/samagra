@@ -53,14 +53,14 @@ const defaultFeatures: TenantFeatures = {
 };
 
 const defaultBranding: TenantBranding = {
-  name: 'Sanskar Global School',
-  code: 'SANSKAR',
+  name: 'School Portal',
+  code: 'SCHOOL',
   platformBrand: 'SAMAGRA',
-  affiliation: 'Affiliated to CBSE, New Delhi',
-  logoUrl: '/logo-icon.png',
+  affiliation: 'Institutional Portal',
+  logoUrl: '/samagra-mark.png',
   tagline: 'The Complete School Platform',
-  address: 'Civil Lines, Pratapgarh, Uttar Pradesh',
-  phone: '+91 98765 43210',
+  address: 'School Campus',
+  phone: '+91 00000 00000',
 };
 
 const TenantContext = createContext<TenantContextValue>({
@@ -77,6 +77,30 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   const refreshTenant = async () => {
     try {
+      const user = getCurrentUser();
+      
+      // If logged in user is Super-Admin, configure dedicated Platform HQ tenant
+      if (user?.roles?.includes('SUPER_ADMIN')) {
+        setTenant({
+          id: 'platform-hq',
+          name: 'SAMAGRA Platform HQ',
+          code: 'HQ',
+          branding: {
+            name: 'SAMAGRA Platform HQ',
+            code: 'HQ',
+            platformBrand: 'SAMAGRA',
+            affiliation: 'Central Platform Administration',
+            logoUrl: '/samagra-mark.png',
+            tagline: 'Multi-Tenant Institutional SaaS',
+            address: 'Command Center',
+            phone: '',
+          },
+          features: defaultFeatures,
+        });
+        setLoading(false);
+        return;
+      }
+
       const res = await api.admin.getTenantConfig();
       if (res && res.data) {
         setTenant({

@@ -21,11 +21,31 @@ import {
   MessageSquare,
   Globe,
   FolderOpen,
+  Building2,
+  SlidersHorizontal,
+  ShieldCheck,
 } from 'lucide-react';
 import { clearSession, getCurrentUser } from '@/lib/api';
 
 type NavItem    = { name: string; href: string; icon: any; badge?: string; };
 type NavSection = { title: string; items: NavItem[]; };
+
+const superAdminSections: NavSection[] = [
+  {
+    title: 'Platform HQ',
+    items: [
+      { name: 'SaaS Command Center', href: '/super-admin', icon: LayoutDashboard, badge: 'Live' },
+      { name: 'Schools Directory', href: '/super-admin', icon: Building2, badge: 'Tenants' },
+    ],
+  },
+  {
+    title: 'Governance & Rules',
+    items: [
+      { name: 'Brand & Modules Engine', href: '/super-admin', icon: SlidersHorizontal },
+      { name: 'Platform Audit & Logs', href: '/super-admin', icon: ShieldCheck, badge: 'Secured' },
+    ],
+  },
+];
 
 const navSections: NavSection[] = [
   {
@@ -83,15 +103,12 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
   const isSuperAdmin  = user?.roles?.includes('SUPER_ADMIN');
   const isAdmin       = user?.roles?.includes('ADMIN');
   const isTeacherOnly = user?.roles?.includes('TEACHER') && !isAdmin && !isSuperAdmin;
-  const roleName      = isSuperAdmin ? 'Super Admin' : isTeacherOnly ? 'Teacher' : 'Administrator';
+  const roleName      = isSuperAdmin ? 'Platform Owner' : isTeacherOnly ? 'Teacher' : 'School Administrator';
   const userInitials  = (user?.identifier || 'AD').slice(0, 2).toUpperCase();
 
   const sectionsToRender = React.useMemo(() => {
     if (isSuperAdmin) {
-      return [
-        { title: 'Platform Master', items: [{ name: 'Super Admin Engine', href: '/super-admin', icon: Globe, badge: 'L1' }] },
-        ...navSections,
-      ];
+      return superAdminSections;
     }
     if (isTeacherOnly) {
       return navSections
@@ -146,7 +163,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
               SAMAGRA
             </div>
             <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10.5, marginTop: 2, letterSpacing: 0 }}>
-              {isSuperAdmin ? 'Multi-School Hub' : isTeacherOnly ? 'Faculty Portal' : 'Core Suite · Web admin'}
+              {isSuperAdmin ? 'Platform HQ' : isTeacherOnly ? 'Faculty Portal' : 'School ERP'}
             </div>
           </div>
         </div>
