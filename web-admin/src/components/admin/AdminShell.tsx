@@ -20,8 +20,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     const token = typeof window !== 'undefined' ? localStorage.getItem('school_erp_token') : null;
     const user = getCurrentUser();
 
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+
     if (!token || !user) {
-      router.replace('/login');
+      if (pathname.startsWith('/super-admin')) {
+        router.replace('/super-admin/login');
+      } else {
+        router.replace('/login');
+      }
       return;
     }
 
@@ -29,12 +35,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     const hasRole = user.roles?.some((r: string) => permittedRoles.includes(r));
 
     if (!hasRole) {
-      router.replace('/login');
+      if (pathname.startsWith('/super-admin')) {
+        router.replace('/super-admin/login');
+      } else {
+        router.replace('/login');
+      }
       return;
     }
 
     const isSuperAdmin = user.roles?.includes('SUPER_ADMIN');
-    const pathname = window.location.pathname;
 
     // Super-Admin route lock: Super-Admin must stay within Platform HQ (/super-admin)
     if (isSuperAdmin && pathname !== '/super-admin') {

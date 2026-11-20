@@ -41,13 +41,17 @@ const SUPER_ADMIN_BRANDING: SchoolLoginBranding = {
 
 const DEFAULT_SCHOOL_BRANDING: SchoolLoginBranding = {
   isSuperAdminPortal: false,
-  name: 'Apex International School',
+  name: 'School Name',
   tagline: 'Learn • Grow • Lead',
-  abbr: 'AIS',
-  heroTitle: 'Apex International School',
+  abbr: 'SN',
+  heroTitle: 'School Name',
   heroSubtitle: 'Integrated School ERP platform empowering management, faculty, and academic excellence.',
 };
 // ─────────────────────────────────────────────────────────────────────────────
+
+interface AdminLoginProps {
+  isSuperAdminOnly?: boolean;
+}
 
 const FEATURE_CARDS = [
   { icon: Users,      iconColor: '#1b2f5c', iconBg: '#e3e8f1', title: 'Unified Access',    desc: 'One login for all roles.'     },
@@ -65,7 +69,7 @@ const BG_ICONS = [
   { Icon: BookOpen,      top: '36%', left: '3%',  size: 18, opacity: 0.09 },
 ];
 
-export default function AdminLogin() {
+export default function AdminLogin({ isSuperAdminOnly = false }: AdminLoginProps) {
   const router = useRouter();
   const [identifier,    setIdentifier]    = useState('');
   const [password,      setPassword]      = useState('');
@@ -74,10 +78,17 @@ export default function AdminLogin() {
   const [error,         setError]         = useState<string | null>(null);
   const [info,          setInfo]          = useState<string | null>(null);
   const [isForgotOpen,  setIsForgotOpen]  = useState(false);
-  const [branding,      setBranding]      = useState<SchoolLoginBranding>(DEFAULT_SCHOOL_BRANDING);
+  const [branding,      setBranding]      = useState<SchoolLoginBranding>(
+    isSuperAdminOnly ? SUPER_ADMIN_BRANDING : DEFAULT_SCHOOL_BRANDING
+  );
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    if (isSuperAdminOnly) {
+      setBranding(SUPER_ADMIN_BRANDING);
+      return;
+    }
 
     const hostname = window.location.hostname;
     const searchParams = new URLSearchParams(window.location.search);
@@ -94,11 +105,7 @@ export default function AdminLogin() {
 
     const targetKey = querySchool?.toLowerCase() || subdomain;
 
-    if (targetKey === 'admin' || targetKey === 'hq' || targetKey === 'superadmin') {
-      setBranding(SUPER_ADMIN_BRANDING);
-    } else if (targetKey === 'apex') {
-      setBranding(DEFAULT_SCHOOL_BRANDING);
-    } else if (targetKey) {
+    if (targetKey && targetKey !== 'admin' && targetKey !== 'hq' && targetKey !== 'superadmin') {
       const formattedName = targetKey.charAt(0).toUpperCase() + targetKey.slice(1) + ' School';
       setBranding({
         isSuperAdminPortal: false,
@@ -109,7 +116,7 @@ export default function AdminLogin() {
         heroSubtitle: 'Integrated School ERP platform powered by SAMAGRA SaaS Engine.',
       });
     }
-  }, []);
+  }, [isSuperAdminOnly]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,20 +132,35 @@ export default function AdminLogin() {
       const isTeacher    = userRoles.includes('TEACHER');
       const isStudent    = userRoles.includes('STUDENT');
 
-      if (!isSuperAdmin && !isAdmin) {
-        if (isTeacher) {
-          setError('Access Restricted: Teacher accounts must log in via the SAMAGRA School Mobile App.');
-        } else if (isStudent) {
-          setError('Access Restricted: Student & Parent accounts must log in via the SAMAGRA School Mobile App.');
-        } else {
-          setError('Access Restricted: Administrative credentials required to access the Web Portal.');
+      // Strict role-to-portal enforcement
+      if (isSuperAdminOnly) {
+        if (!isSuperAdmin) {
+          setError('Access Restricted: This portal is strictly for Platform Super-Administrators. School staff must log in at /login.');
+          setLoading(false);
+          return;
         }
-        setLoading(false);
-        return;
+      } else {
+        if (isSuperAdmin) {
+          setError('Access Restricted: Platform Super-Administrators must log in via /super-admin/login.');
+          setLoading(false);
+          return;
+        }
+
+        if (!isAdmin) {
+          if (isTeacher) {
+            setError('Access Restricted: Teacher accounts must log in via the SAMAGRA School Mobile App.');
+          } else if (isStudent) {
+            setError('Access Restricted: Student & Parent accounts must log in via the SAMAGRA School Mobile App.');
+          } else {
+            setError('Access Restricted: Administrative credentials required to access the Web Portal.');
+          }
+          setLoading(false);
+          return;
+        }
       }
 
       setSession(data.token, data.user);
-      router.push(isSuperAdmin ? '/super-admin' : '/dashboard');
+      router.push(isSuperAdminOnly ? '/super-admin' : '/dashboard');
     } catch (err) {
       setError((err instanceof Error && err.message) || 'Login failed. Please check your credentials.');
       setLoading(false);
@@ -356,18 +378,22 @@ export default function AdminLogin() {
               </button>
             </form>
 
-            {/* Back to home */}
+            {/* Portal Switcher & Back Link */}
             <div className="aln-back-home">
               <Home size={14} aria-hidden="true" />
-              <a href="/" className="aln-link">Back to home</a>
+              <a href={isSuperAdminOnly ? '/login' : '/super-admin/login'} className="aln-link">
+                {isSuperAdminOnly ? 'Go to School Admin Portal (/login)' : 'Go to Super Admin Portal (/super-admin/login)'}
+              </a>
             </div>
 
             {/* Quick test presets */}
             <div className="aln-presets">
               <span>Quick test:</span>
-              <button type="button" className="aln-link aln-preset-super" onClick={() => fillPreset('superadmin')}>Super Admin</button>
-              <span aria-hidden="true">·</span>
-              <button type="button" className="aln-link aln-preset-admin" onClick={() => fillPreset('admin')}>School Admin</button>
+              {isSuperAdminOnly ? (
+                <button type="button" className="aln-link aln-preset-super" onClick={() => fillPreset('superadmin')}>Super Admin</button>
+              ) : (
+                <button type="button" className="aln-link aln-preset-admin" onClick={() => fillPreset('admin@apex.edu')}>School Admin</button>
+              )}
             </div>
           </div>
 

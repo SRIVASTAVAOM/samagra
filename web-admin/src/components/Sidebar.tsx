@@ -26,6 +26,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { clearSession, getCurrentUser } from '@/lib/api';
+import { useTenant } from '@/context/TenantContext';
 
 type NavItem    = { name: string; href: string; icon: any; badge?: string; };
 type NavSection = { title: string; items: NavItem[]; };
@@ -95,14 +96,17 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router   = useRouter();
   const [user, setUser] = React.useState<any>(null);
+  const { branding } = useTenant();
 
   React.useEffect(() => { setUser(getCurrentUser()); }, []);
 
-  const handleLogout = () => { clearSession(); router.push('/login'); };
+  const isSuperAdmin = user?.roles?.includes('SUPER_ADMIN');
 
-  const isSuperAdmin  = user?.roles?.includes('SUPER_ADMIN');
-  const roleName      = isSuperAdmin ? 'Platform Owner' : 'School Administrator';
-  const userInitials  = (user?.identifier || 'AD').slice(0, 2).toUpperCase();
+  const handleLogout = () => {
+    const wasSuper = isSuperAdmin;
+    clearSession();
+    router.push(wasSuper ? '/super-admin/login' : '/login');
+  };
 
   const sectionsToRender = React.useMemo(() => {
     if (isSuperAdmin) {
@@ -149,8 +153,8 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
             <Image src="/samagra-mark.png" alt="Samagra" width={32} height={32} priority />
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, letterSpacing: '-0.01em', lineHeight: 1.2 }}>
-              SAMAGRA
+            <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, letterSpacing: '-0.01em', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {isSuperAdmin ? 'SAMAGRA HQ' : (branding?.name || 'School Name')}
             </div>
             <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10.5, marginTop: 2, letterSpacing: 0 }}>
               {isSuperAdmin ? 'Platform HQ' : 'School ERP'}
@@ -267,19 +271,19 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
               {/* Avatar */}
               <div style={{
                 width: 32, height: 32, borderRadius: '50%',
-                background: '#f7920c',
+                background: isSuperAdmin ? '#f7920c' : '#023e8a',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
-                fontSize: 11, fontWeight: 700, color: '#0f1d3a', letterSpacing: '0.03em',
+                fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: '0.03em',
               }}>
-                {userInitials}
+                {isSuperAdmin ? 'HQ' : 'SA'}
               </div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ color: '#fff', fontSize: 12, fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user?.identifier || 'admin'}
+                  {isSuperAdmin ? 'Platform Owner' : 'School Administrator'}
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10.5, marginTop: 1 }}>
-                  {roleName}
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10.5, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {isSuperAdmin ? 'Platform Super Admin' : (branding?.name || 'School Name')}
                 </div>
               </div>
             </div>

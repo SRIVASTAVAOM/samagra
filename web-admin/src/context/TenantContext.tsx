@@ -53,10 +53,10 @@ const defaultFeatures: TenantFeatures = {
 };
 
 const defaultBranding: TenantBranding = {
-  name: 'School Portal',
+  name: 'School Name',
   code: 'SCHOOL',
   platformBrand: 'SAMAGRA',
-  affiliation: 'Institutional Portal',
+  affiliation: 'Affiliated to CBSE / State Board',
   logoUrl: '/samagra-mark.png',
   tagline: 'The Complete School Platform',
   address: 'School Campus',
