@@ -101,25 +101,15 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
   const handleLogout = () => { clearSession(); router.push('/login'); };
 
   const isSuperAdmin  = user?.roles?.includes('SUPER_ADMIN');
-  const isAdmin       = user?.roles?.includes('ADMIN');
-  const isTeacherOnly = user?.roles?.includes('TEACHER') && !isAdmin && !isSuperAdmin;
-  const roleName      = isSuperAdmin ? 'Platform Owner' : isTeacherOnly ? 'Teacher' : 'School Administrator';
+  const roleName      = isSuperAdmin ? 'Platform Owner' : 'School Administrator';
   const userInitials  = (user?.identifier || 'AD').slice(0, 2).toUpperCase();
 
   const sectionsToRender = React.useMemo(() => {
     if (isSuperAdmin) {
       return superAdminSections;
     }
-    if (isTeacherOnly) {
-      return navSections
-        .filter(s => s.title !== 'Finance & Accounts' && s.title !== 'Staff Management')
-        .map(s => s.title === 'Students & Academics'
-          ? { ...s, items: s.items.filter(i => i.name !== 'Subject master') }
-          : s
-        );
-    }
     return navSections;
-  }, [isSuperAdmin, isTeacherOnly]);
+  }, [isSuperAdmin]);
 
   return (
     <>
@@ -163,7 +153,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
               SAMAGRA
             </div>
             <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10.5, marginTop: 2, letterSpacing: 0 }}>
-              {isSuperAdmin ? 'Platform HQ' : isTeacherOnly ? 'Faculty Portal' : 'School ERP'}
+              {isSuperAdmin ? 'Platform HQ' : 'School ERP'}
             </div>
           </div>
         </div>

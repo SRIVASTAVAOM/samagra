@@ -60,19 +60,26 @@ export default function AdminLogin() {
 
     try {
       const data      = await api.auth.login(identifier.trim(), password);
-      const userRoles = data.user.roles || [];
-      const isAllowed = userRoles.some((r: string) =>
-        ['SUPER_ADMIN', 'ADMIN', 'TEACHER'].includes(r)
-      );
+      const userRoles    = data.user.roles || [];
+      const isSuperAdmin = userRoles.includes('SUPER_ADMIN');
+      const isAdmin      = userRoles.includes('ADMIN');
+      const isTeacher    = userRoles.includes('TEACHER');
+      const isStudent    = userRoles.includes('STUDENT');
 
-      if (!isAllowed) {
-        setError('Access Restricted: Student accounts should log in via the School Mobile App.');
+      if (!isSuperAdmin && !isAdmin) {
+        if (isTeacher) {
+          setError('Access Restricted: Teacher accounts must log in via the SAMAGRA School Mobile App.');
+        } else if (isStudent) {
+          setError('Access Restricted: Student & Parent accounts must log in via the SAMAGRA School Mobile App.');
+        } else {
+          setError('Access Restricted: Administrative credentials required to access the Web Portal.');
+        }
         setLoading(false);
         return;
       }
 
       setSession(data.token, data.user);
-      router.push(userRoles.includes('SUPER_ADMIN') ? '/super-admin' : '/dashboard');
+      router.push(isSuperAdmin ? '/super-admin' : '/dashboard');
     } catch (err) {
       setError((err instanceof Error && err.message) || 'Login failed. Please check your credentials.');
       setLoading(false);

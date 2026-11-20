@@ -25,11 +25,26 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const permittedRoles = ['SUPER_ADMIN', 'ADMIN', 'TEACHER'];
+    const permittedRoles = ['SUPER_ADMIN', 'ADMIN'];
     const hasRole = user.roles?.some((r: string) => permittedRoles.includes(r));
 
     if (!hasRole) {
       router.replace('/login');
+      return;
+    }
+
+    const isSuperAdmin = user.roles?.includes('SUPER_ADMIN');
+    const pathname = window.location.pathname;
+
+    // Super-Admin route lock: Super-Admin must stay within Platform HQ (/super-admin)
+    if (isSuperAdmin && pathname !== '/super-admin') {
+      router.replace('/super-admin');
+      return;
+    }
+
+    // School Admin route lock: School Admin cannot access /super-admin
+    if (!isSuperAdmin && pathname === '/super-admin') {
+      router.replace('/dashboard');
       return;
     }
 
