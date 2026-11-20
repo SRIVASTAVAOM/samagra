@@ -2897,7 +2897,7 @@ export default function StudentsDirectoryPage() {
       {activeTab === 'bulk' && (
         <div className="space-y-6 animate-in fade-in duration-150">
           {/* Bulk Hero Banner */}
-          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+          <div className="samagra-hero rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
             <div className="relative z-10 max-w-3xl space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-semibold text-indigo-200 border border-white/15">
                 <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-400" />

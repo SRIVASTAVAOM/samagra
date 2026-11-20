@@ -1,0 +1,20 @@
+Sanitized observation — public Flutter Web login screen
+Date: 2026-10-29
+URL: https://samagra-mobile.vercel.app/#/login
+
+An unauthenticated visitor can see a "Test Accounts" panel listing sample
+account identifiers and a shared default password. All values are redacted
+and intentionally not retained here. The page was visually inspected only;
+no credentials were entered, no login request was sent, and no account access
+or credential validity was tested.
+
+Verified source reference:
+mobile/lib/features/auth/presentation/login_screen.dart
+
+The browser screenshot was not saved because it displayed credential values.
+The accompanying APK screenshot is redacted and records the emulator launch
+state only. The test APK was uninstalled and the emulator was shut down after
+the launch attempt.
+
+An unauthenticated direct navigation to /#/teacher redirected to /#/login.
+No authenticated role session was available in the test browser.

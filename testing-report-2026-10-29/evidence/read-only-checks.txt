@@ -1,0 +1,38 @@
+SAMAGRA read-only audit evidence
+Date: 2026-10-29
+
+1) Backend health probe
+Request: GET configured backend /health (read-only)
+Observed: HTTP 200; {"status":"ok","timestamp":"2026-10-29T14:27:42.947Z"}
+No authentication headers, tokens, cookies, or personal data were collected.
+
+2) Public Flutter Web login screen
+URL: https://samagra-mobile.vercel.app/#/login
+Observed: the anonymous login page visibly renders a "Test Accounts" hint that
+contains sample account identifiers and a shared password. Values are intentionally
+omitted from this evidence. No sign-in attempt was made; credential validity and
+access scope remain unverified. An unauthenticated direct navigation to
+/#/teacher redirected to /#/login.
+Source reference: mobile/lib/features/auth/presentation/login_screen.dart
+
+3) APK metadata and launch
+Artifact: user-supplied samagra-mobile-release.apk (59,670,181 bytes)
+Package: com.schoolerp.mobile; version 1.0.0 (version code 1)
+Min SDK: 24; target SDK: 36; native ABIs include arm64-v8a, armeabi-v7a,
+and x86_64.
+Declared permissions: INTERNET, ACCESS_NETWORK_STATE, CAMERA, and the
+application-scoped dynamic receiver permission.
+Installed the original APK on the Pixel_9_Pro_API_35 emulator. MainActivity
+was foreground and the application process remained alive. An Android System UI
+"isn't responding" dialog obstructed subsequent interaction. No login was
+attempted and no application write action was performed.
+Redacted emulator screenshot: apk-login-screen-redacted.png
+
+4) Additional checks and limitations
+Web-admin ESLint (npm run lint, no auto-fix) exited 1 with 265 errors and
+111 warnings. These are source-quality diagnostics, not confirmed runtime bugs.
+The React web-admin URL/session was not supplied; its interactive routes remain
+untested. No app source, configuration, dependencies, or database records changed.
+No credentials or private school records are included in this report.
+The test APK was uninstalled from the emulator after verification, and the
+emulator and ADB server started for this audit were stopped.

@@ -34,7 +34,7 @@ import { ColumnChart, ColumnItem } from '@/components/uploads/UploadCharts';
 const STUDENT_PASS = '#22C55E';
 const STUDENT_FAIL = '#F43F5E';
 const STUDENT_INCOMPLETE = '#F59E0B';
-const SUBJECT_PALETTE = ['#7560E8', '#3B82F6', '#22C55E', '#F59E0B', '#EC4899', '#A78BFA', '#14B8A6', '#F97316'];
+const SUBJECT_PALETTE = ['#7560E8', '#1499C7', '#22C55E', '#F59E0B', '#EC4899', '#A78BFA', '#14B8A6', '#F97316'];
 
 // Accent colours for the summary cards. Literal class names so Tailwind generates them.
 const STAT_TONE = {

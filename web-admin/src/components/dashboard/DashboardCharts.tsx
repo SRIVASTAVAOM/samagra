@@ -4,10 +4,10 @@ import React, { useRef, useState } from 'react';
 import { SectionSummary } from '@/lib/types';
 
 export const CHART_COLORS = {
-  present: '#16A34A',
+  present: '#1FA64F',
   absent: '#FDA4AF',
   notMarked: '#CBD5E1',
-  accent: '#635BFF',
+  accent: '#1B2F5C',
   track: '#EEF2F8',
 };
 

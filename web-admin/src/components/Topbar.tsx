@@ -8,8 +8,8 @@ import { useTenant } from '@/context/TenantContext';
 
 const titleMap: Record<string, { title: string; subtitle: string }> = {
   '/dashboard': {
-    title: 'Command Center Dashboard',
-    subtitle: 'Real-time section attendance pills, homework feeds, and school KPIs',
+    title: 'Command Center',
+    subtitle: 'Attendance, homework and fee collection at a glance',
   },
   '/timetable': {
     title: 'Master Timetable Builder',
@@ -68,13 +68,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         <Menu className="w-5 h-5" />
       </button>
 
-      <div className="min-w-0 flex-1 flex items-center gap-4">
-        <div>
-          <h1 className="text-sm font-semibold text-slate-900 tracking-tight truncate">
-            {current.title}
-          </h1>
-          <p className="text-xs text-slate-500 font-normal truncate">{current.subtitle}</p>
-        </div>
+      <div className="min-w-0 flex-1">
+        <h1 className="text-base font-bold text-slate-900 tracking-tight truncate">
+          {current.title}
+        </h1>
+        <p className="text-xs text-slate-500 font-normal truncate">{current.subtitle}</p>
       </div>
 
       <div className="hidden lg:flex items-center gap-2.5 text-xs shrink-0">
@@ -93,7 +91,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         {/* SAMAGRA SaaS Powered Badge */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 text-white font-semibold shadow-xs">
           <Image
-            src="/logo-icon.png"
+            src="/samagra-mark.png"
             alt="SAMAGRA"
             width={14}
             height={14}
@@ -102,7 +100,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           <span className="tracking-tight text-[11px]">SAMAGRA ERP</span>
         </div>
 
-        {/* Raise Complain Button (From reference image) */}
+        {/* Raise Complain Button */}
         <button
           type="button"
           onClick={() => alert('Support ticket & grievance window will open')}

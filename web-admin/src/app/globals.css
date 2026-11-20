@@ -1,15 +1,16 @@
 @import "tailwindcss";
 
 /*
- * Admin design tokens (reference theme).
- * The existing admin screens use Tailwind's slate / indigo utilities, so the
- * palette is re-mapped here. Class names stay the same and the theme changes
- * in one place.
- *   page background  #F3F6FC  (slate-50)
- *   primary text     #17233D  (slate-900)
- *   secondary text   #718096  (slate-500)
- *   card border      #E2E8F0  (slate-200)
- *   accent           #635BFF  (indigo-600)
+ * SAMAGRA brand palette — derived from the logo, not a generic UI kit.
+ * Existing Tailwind class names are kept; only the scales are re-mapped,
+ * so every screen picks up the brand without layout changes.
+ *
+ *   indigo  -> Samagra Navy   (wordmark / cap)   primary actions, links
+ *   purple  -> Samagra Orange (leaf, warm end)   highlights, active state
+ *   amber   -> Samagra Gold   (leaf, light end)  warnings
+ *   emerald -> Samagra Green  (S stroke)         success / present
+ *   blue,sky-> Samagra Teal   (S stroke, cyan)   info
+ *   slate   -> neutral surfaces (unchanged)
  */
 @theme {
   --color-slate-50: #f3f6fc;
@@ -24,24 +25,84 @@
   --color-slate-900: #17233d;
   --color-slate-950: #0f1830;
 
-  --color-indigo-50: #f4f3ff;
-  --color-indigo-100: #e9e7ff;
-  --color-indigo-200: #d5d1ff;
-  --color-indigo-300: #b5aeff;
-  --color-indigo-400: #8e84ff;
-  --color-indigo-500: #7a70ff;
-  --color-indigo-600: #635bff;
-  --color-indigo-700: #5148e6;
-  --color-indigo-800: #4139b8;
-  --color-indigo-900: #352f8f;
-  --color-indigo-950: #211d5c;
+  --color-indigo-50: #f1f4f9;
+  --color-indigo-100: #e3e8f1;
+  --color-indigo-200: #c6cfdf;
+  --color-indigo-300: #9aa8c2;
+  --color-indigo-400: #6b7c9e;
+  --color-indigo-500: #3f5179;
+  --color-indigo-600: #1b2f5c;
+  --color-indigo-700: #142449;
+  --color-indigo-800: #0f1d3a;
+  --color-indigo-900: #0b1630;
+  --color-indigo-950: #070f22;
+
+  --color-purple-50: #fff4ed;
+  --color-purple-100: #ffe6d5;
+  --color-purple-200: #fec9aa;
+  --color-purple-300: #fda374;
+  --color-purple-400: #fb7a3c;
+  --color-purple-500: #ef5d14;
+  --color-purple-600: #d4480a;
+  --color-purple-700: #ad370b;
+  --color-purple-800: #8a2e11;
+  --color-purple-900: #702811;
+  --color-purple-950: #3d1206;
+
+  --color-amber-50: #fff8eb;
+  --color-amber-100: #ffecc7;
+  --color-amber-200: #ffd78a;
+  --color-amber-300: #ffbf4d;
+  --color-amber-400: #fdaa24;
+  --color-amber-500: #f7920c;
+  --color-amber-600: #db7206;
+  --color-amber-700: #b55309;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+  --color-amber-950: #451a03;
+
+  --color-emerald-50: #effaf2;
+  --color-emerald-100: #d7f3df;
+  --color-emerald-200: #b0e6c0;
+  --color-emerald-300: #7dd39a;
+  --color-emerald-400: #45bd6f;
+  --color-emerald-500: #1fa64f;
+  --color-emerald-600: #178a41;
+  --color-emerald-700: #136e35;
+  --color-emerald-800: #12572d;
+  --color-emerald-900: #0f4726;
+  --color-emerald-950: #062815;
+
+  --color-blue-50: #ecf9fe;
+  --color-blue-100: #d3f1fc;
+  --color-blue-200: #a9e3f8;
+  --color-blue-300: #6dceee;
+  --color-blue-400: #34b4e0;
+  --color-blue-500: #1499c7;
+  --color-blue-600: #0b7ba6;
+  --color-blue-700: #0d6386;
+  --color-blue-800: #11526e;
+  --color-blue-900: #13445c;
+  --color-blue-950: #0b2b3d;
+
+  --color-sky-50: #ecf9fe;
+  --color-sky-100: #d3f1fc;
+  --color-sky-200: #a9e3f8;
+  --color-sky-300: #6dceee;
+  --color-sky-400: #34b4e0;
+  --color-sky-500: #1499c7;
+  --color-sky-600: #0b7ba6;
+  --color-sky-700: #0d6386;
+  --color-sky-800: #11526e;
+  --color-sky-900: #13445c;
+  --color-sky-950: #0b2b3d;
 
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
 }
 
 :root {
-  --background: #f3f6fc;
+  --background: #f4f6fa;
   --foreground: #17233d;
 }
 
@@ -92,3 +153,41 @@ body {
     margin: 8mm;
   }
 }
+
+/*
+ * Page hero banner (used on every admin module header).
+ * Solid Samagra navy with a thin three-tone rule along the bottom taken from
+ * the logo's S strokes (green -> teal -> orange). No gradients, no glow.
+ * Unlayered on purpose so it wins over the Tailwind utilities on the banner.
+ */
+.samagra-hero {
+  background:
+    linear-gradient(90deg, #1fa64f 0 33.33%, #1499c7 33.33% 66.66%, #f7920c 66.66% 100%) bottom / 100% 3px no-repeat,
+    #0f1d3a;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 1px 2px rgba(15, 29, 58, 0.08) !important;
+}
+.samagra-hero p { color: rgba(255, 255, 255, 0.72); }
+
+/* Neutral chips on navy instead of tinted indigo glass */
+.samagra-hero .bg-indigo-500\/30,
+.samagra-hero .bg-indigo-500\/20 {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.78);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Heading icon picks up the logo orange */
+.samagra-hero .text-indigo-400 { color: #fdaa24; }
+.samagra-hero .text-indigo-200,
+.samagra-hero .text-indigo-300 { color: rgba(255, 255, 255, 0.78); }
+
+/* Primary action: logo orange with navy text (7:1 contrast) */
+.samagra-hero .bg-indigo-600 {
+  background: #f7920c;
+  color: #0f1d3a;
+  border-color: transparent;
+  box-shadow: none;
+}
+.samagra-hero .bg-indigo-600:hover { background: #fdaa24; }
+.samagra-hero .bg-indigo-600:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
