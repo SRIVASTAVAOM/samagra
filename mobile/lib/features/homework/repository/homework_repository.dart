@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/dio_client.dart';
@@ -92,10 +93,15 @@ class HomeworkRepository {
   }
 
   Future<Map<String, dynamic>> uploadAttachment(List<int> bytes, String fileName) async {
-    final mimeType = fileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+    final lower = fileName.toLowerCase();
+    final mimeType = lower.endsWith('.pdf')
+        ? 'application/pdf'
+        : (lower.endsWith('.png')
+            ? 'image/png'
+            : (lower.endsWith('.webp') ? 'image/webp' : 'image/jpeg'));
     final response = await _client.post(
       '${ApiEndpoints.homeworkAttachmentUpload}?fileName=${Uri.encodeComponent(fileName)}',
-      data: bytes,
+      data: Uint8List.fromList(bytes),
       options: Options(
         headers: {
           'Content-Type': mimeType,

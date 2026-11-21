@@ -37,14 +37,16 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
       body: BlocConsumer<HomeworkBloc, HomeworkState>(
         listener: (context, state) {
           if (state is HomeworkOperationSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.downloadUrl != null
-                    ? '${state.message}: ${state.attachmentName ?? "File"}'
-                    : state.message),
-                backgroundColor: AppColors.primaryText,
-              ),
-            );
+            if (state.downloadUrl != null && state.downloadUrl!.isNotEmpty) {
+              _showAttachmentViewer(context, state.downloadUrl!, state.attachmentName);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: AppColors.primaryText,
+                ),
+              );
+            }
           } else if (state is HomeworkError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
@@ -260,20 +262,177 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
                 TextButton.icon(
                   key: Key('download_attachment_${hw.id}'),
                   onPressed: () {
-                    context.read<HomeworkBloc>().add(
-                          DownloadHomeworkAttachmentEvent(hw.id),
-                        );
+                    final key = hw.s3AttachmentKey;
+                    if (key != null && key.startsWith('http')) {
+                      _showAttachmentViewer(context, key, hw.attachmentName);
+                    } else {
+                      context.read<HomeworkBloc>().add(
+                            DownloadHomeworkAttachmentEvent(hw.id),
+                          );
+                    }
                   },
                   icon: const Icon(Icons.download_outlined, size: 16, color: AppColors.primaryAccent),
                   label: Text(
-                    hw.attachmentName ?? 'Attachment',
+                    hw.attachmentName ?? 'View Attachment',
                     style: const TextStyle(color: AppColors.primaryAccent, fontWeight: FontWeight.w500),
                   ),
                 ),
               ],
             ],
           ),
+          if (hw.hasAttachment) ...[
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: () {
+                final key = hw.s3AttachmentKey;
+                if (key != null && key.startsWith('http')) {
+                  _showAttachmentViewer(context, key, hw.attachmentName);
+                } else {
+                  context.read<HomeworkBloc>().add(
+                        DownloadHomeworkAttachmentEvent(hw.id),
+                      );
+                }
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.scaffoldBackground,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      (hw.attachmentName ?? '').toLowerCase().endsWith('.pdf')
+                          ? Icons.picture_as_pdf
+                          : Icons.image_outlined,
+                      size: 20,
+                      color: (hw.attachmentName ?? '').toLowerCase().endsWith('.pdf')
+                          ? const Color(0xFFB91C1C)
+                          : AppColors.primaryAccent,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        hw.attachmentName ?? 'Attached Homework Photo / Document',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryText,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const Icon(Icons.open_in_new, size: 14, color: AppColors.primaryAccent),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  void _showAttachmentViewer(BuildContext context, String url, String? name) {
+    final isPdf = (name ?? url).toLowerCase().endsWith('.pdf');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.border)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name ?? (isPdf ? 'PDF Document' : 'Homework Photo'),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: isPdf
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.picture_as_pdf, size: 48, color: Color(0xFFB91C1C)),
+                              const SizedBox(height: 12),
+                              Text(
+                                name ?? 'Homework PDF',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 12),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  // Open URL
+                                },
+                                icon: const Icon(Icons.open_in_browser, size: 16),
+                                label: const Text('Open PDF Document'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : InteractiveViewer(
+                          panEnabled: true,
+                          minScale: 0.5,
+                          maxScale: 4.0,
+                          child: Image.network(
+                            url,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24.0),
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+                                    const SizedBox(height: 8),
+                                    const Text('Unable to load image preview'),
+                                    const SizedBox(height: 4),
+                                    Text(url, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

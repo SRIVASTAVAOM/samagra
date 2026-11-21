@@ -25,7 +25,7 @@ import {
   AlertCircle,
   Filter,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, API_BASE_URL } from '@/lib/api';
 import { ClassItem, SubjectItem } from '@/lib/types';
 
 interface HomeworkItem {
@@ -665,7 +665,7 @@ export default function HomeworkPage() {
                             </span>
                             {hw.attachment_name && (
                               <a
-                                href={hw.s3_attachment_key && hw.s3_attachment_key.startsWith('http') ? hw.s3_attachment_key : `http://localhost:5001/api/v1/homework/${hw.id}/attachment-download`}
+                                href={hw.s3_attachment_key && hw.s3_attachment_key.startsWith('http') ? hw.s3_attachment_key : `${API_BASE_URL}/homework/${hw.id}/attachment-download`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
@@ -857,7 +857,7 @@ export default function HomeworkPage() {
                   </span>
                   {selectedHomework.s3_attachment_key ? (
                     <a
-                      href={selectedHomework.s3_attachment_key.startsWith('http') ? selectedHomework.s3_attachment_key : `http://localhost:5001/api/v1/homework/${selectedHomework.id}/attachment-download`}
+                      href={selectedHomework.s3_attachment_key.startsWith('http') ? selectedHomework.s3_attachment_key : `${API_BASE_URL}/homework/${selectedHomework.id}/attachment-download`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 px-3 py-1 bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-semibold rounded-lg shadow-2xs transition"

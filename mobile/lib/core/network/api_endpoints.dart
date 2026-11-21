@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 class ApiEndpoints {
   ApiEndpoints._();
 
@@ -18,27 +16,9 @@ class ApiEndpoints {
       return _envBaseUrl;
     }
 
-    if (kIsWeb) {
-      if (kDebugMode) {
-        return 'http://localhost:5001/api/v1';
-      }
-      return _defaultProdUrl;
-    }
-
-    if (kReleaseMode) {
-      return _defaultProdUrl;
-    }
-
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'http://10.0.2.2:5001/api/v1';
-      case TargetPlatform.iOS:
-      case TargetPlatform.macOS:
-      case TargetPlatform.linux:
-      case TargetPlatform.windows:
-      default:
-        return 'http://localhost:5001/api/v1';
-    }
+    // Default to Render production backend so physical mobile devices,
+    // emulators, and web deployments always connect to the active backend.
+    return _defaultProdUrl;
   }
 
   // Auth Endpoints

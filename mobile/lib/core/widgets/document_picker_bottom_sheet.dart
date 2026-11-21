@@ -108,39 +108,35 @@ class DocumentPickerBottomSheet extends StatelessWidget {
               return;
             }
             docUrl = await onUpload!(fileBytes, fileName);
-          } catch (_) {
-            docUrl =
-                'https://res.cloudinary.com/tylyaesr/image/upload/v1/uploads/${categoryPrefix}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Upload failed: ${e.toString()}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
           }
         } else {
           docUrl =
               'https://res.cloudinary.com/tylyaesr/image/upload/v1/uploads/${categoryPrefix}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
         }
       } else {
-        // Fallback for test runner, simulator or devices without camera delegate
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        if (source == DocumentUploadSource.camera) {
-          fileName = 'Camera_Capture_$timestamp.jpg';
-          docUrl =
-              'https://res.cloudinary.com/tylyaesr/image/upload/v1/uploads/${categoryPrefix}_camera_$timestamp.jpg';
-        } else {
-          fileName = 'Device_Document_$timestamp.pdf';
-          docUrl =
-              'https://res.cloudinary.com/tylyaesr/image/upload/v1/uploads/${categoryPrefix}_device_$timestamp.pdf';
-        }
+        // User canceled picker or closed dialog
+        return;
       }
-    } catch (_) {
-      // Graceful fallback for simulator or platforms without physical camera
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      if (source == DocumentUploadSource.camera) {
-        fileName = 'Camera_Capture_$timestamp.jpg';
-        docUrl =
-            'https://res.cloudinary.com/tylyaesr/image/upload/v1/uploads/${categoryPrefix}_camera_$timestamp.jpg';
-      } else {
-        fileName = 'Device_Document_$timestamp.pdf';
-        docUrl =
-            'https://res.cloudinary.com/tylyaesr/image/upload/v1/uploads/${categoryPrefix}_device_$timestamp.pdf';
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting file: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
+      return;
     }
 
     final result = PickedDocument(

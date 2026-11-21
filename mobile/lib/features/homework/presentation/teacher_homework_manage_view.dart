@@ -193,19 +193,123 @@ class _TeacherHomeworkManageViewState extends State<TeacherHomeworkManageView> {
               ),
               if (hw.hasAttachment) ...[
                 const SizedBox(width: 16),
-                Icon(Icons.attach_file, size: 14, color: Colors.grey.shade600),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    hw.attachmentName ?? 'Attachment',
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                InkWell(
+                  onTap: () {
+                    final key = hw.s3AttachmentKey;
+                    if (key != null && key.isNotEmpty) {
+                      _showAttachmentPreviewDialog(context, key, hw.attachmentName);
+                    }
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.attach_file, size: 14, color: Color(0xFF2563EB)),
+                      const SizedBox(width: 4),
+                      Text(
+                        hw.attachmentName ?? 'View Photo',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF2563EB),
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAttachmentPreviewDialog(BuildContext context, String url, String? name) {
+    final isPdf = (name ?? url).toLowerCase().endsWith('.pdf');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name ?? (isPdf ? 'PDF Document' : 'Homework Attachment Photo'),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: isPdf
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.picture_as_pdf, size: 48, color: Color(0xFFB91C1C)),
+                              const SizedBox(height: 12),
+                              Text(name ?? 'Homework PDF', style: const TextStyle(fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        )
+                      : InteractiveViewer(
+                          child: Image.network(
+                            url,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24.0),
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+                                    const SizedBox(height: 8),
+                                    const Text('Unable to load image preview'),
+                                    const SizedBox(height: 4),
+                                    Text(url, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
