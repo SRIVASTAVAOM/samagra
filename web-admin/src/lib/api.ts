@@ -971,3 +971,8 @@ export const api = {
     },
   },
 };
+export function uploadAttachment(file: File) {
+  return request<{ url: string }>('/materials/attachments', {
+    method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: file,
+  });
+}

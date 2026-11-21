@@ -114,12 +114,12 @@ export class MaterialsService {
     };
   }
 
-  static async verifyUpload(user: TokenPayload, materialId: string): Promise<AcademicMaterial> {
+  static async verifyUpload(user: TokenPayload, materialId: string, attachmentUrl?: string, metadata?: { name: string; size: number; type: string }): Promise<AcademicMaterial> {
     if (!user.roles.includes('TEACHER')) {
       throw { statusCode: 403, message: 'Only uploading teachers can verify uploaded materials.' };
     }
 
-    const material = await MaterialsRepository.markMaterialVerified(materialId, user.profileId!);
+    const material = await MaterialsRepository.markMaterialVerified(materialId, user.profileId!, attachmentUrl, metadata);
     if (!material) {
       throw { statusCode: 404, message: 'Material not found or you are not the uploader of this material.' };
     }
@@ -267,6 +267,7 @@ export class MaterialsService {
       description: data.description !== undefined ? data.description.trim() : undefined,
       materialType: data.materialType || data.material_type || data.type,
       fileName: data.fileName || data.file_name,
+      attachment: data.s3_file_key ? { url: data.s3_file_key, size: data.file_size_bytes, type: data.content_type } : undefined,
     });
     if (!updated) {
       throw { statusCode: 404, message: 'Study material not found or unauthorized' };

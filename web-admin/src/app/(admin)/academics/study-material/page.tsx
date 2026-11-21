@@ -27,7 +27,7 @@ import {
   ShieldCheck,
   Eye,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, uploadAttachment } from '@/lib/api';
 import {
   SubjectItem,
   ClassItem,
@@ -232,6 +232,7 @@ export default function StudyMaterialPage() {
 
   // Open Edit Modal
   const handleOpenEditModal = (item: RecentUploadItem) => {
+    setSelectedFile(null);
     setSelectedMaterial(item);
     setFormData({
       title: item.title || '',
@@ -303,7 +304,8 @@ export default function StudyMaterialPage() {
     try {
       setSubmitting(true);
       setErrorMessage(null);
-      const fileNameToUse = formData.file_name.trim() || selectedFile?.name || `${formData.material_type.toLowerCase().replace(/ /g, '_')}_document.pdf`;
+      if (!selectedFile) throw new Error('Select a document to upload.');
+      const uploaded = await uploadAttachment(selectedFile);
 
       await api.admin.createMaterial({
         class_id: formData.class_id,
@@ -312,7 +314,8 @@ export default function StudyMaterialPage() {
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
         material_type: formData.material_type,
-        file_name: fileNameToUse,
+        file_name: selectedFile.name,
+        s3_file_key: uploaded.url,
         file_size_bytes: selectedFile?.size || formData.file_size_bytes,
         content_type: selectedFile?.type || formData.content_type,
       });
@@ -347,6 +350,7 @@ export default function StudyMaterialPage() {
         description: formData.description.trim() || '',
         material_type: formData.material_type,
         file_name: formData.file_name.trim(),
+        ...(selectedFile && { file_name: selectedFile.name, s3_file_key: (await uploadAttachment(selectedFile)).url, content_type: selectedFile.type, file_size_bytes: selectedFile.size }),
       });
 
       setSuccessMessage(`Study material "${formData.title}" updated successfully!`);
@@ -1048,12 +1052,7 @@ export default function StudyMaterialPage() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   File Name
                 </label>
-                <input
-                  type="text"
-                  value={formData.file_name}
-                  onChange={(e) => setFormData({ ...formData, file_name: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+                <input aria-label="Replace attachment" type="file" accept=".png,.jpg,.jpeg,.pdf" onChange={handleFileChange} />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">

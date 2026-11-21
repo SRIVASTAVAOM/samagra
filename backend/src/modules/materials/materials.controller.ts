@@ -53,7 +53,16 @@ export class MaterialsController {
   static async verifyUpload(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const material = await MaterialsService.verifyUpload((req as any).user, id);
+      const attachmentUrl = req.body?.attachmentUrl;
+      if (attachmentUrl !== undefined && !CloudinaryService.isAttachmentUrl(attachmentUrl)) {
+        res.status(400).json({ error: 'Invalid attachment URL' });
+        return;
+      }
+      const metadata = req.body?.metadata === undefined ? undefined : z.object({
+        name: z.string().min(1).max(255), size: z.number().int().positive(),
+        type: z.enum(['application/pdf','image/jpeg','image/png']),
+      }).parse(req.body.metadata);
+      const material = await MaterialsService.verifyUpload((req as any).user, id, attachmentUrl, metadata);
       res.status(200).json({ success: true, data: material });
     } catch (error: any) {
       res.status(error.statusCode || 500).json({

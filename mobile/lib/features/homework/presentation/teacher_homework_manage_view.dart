@@ -1,3 +1,4 @@
+import 'view_homework_attachment.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../academics/bloc/academics_bloc.dart';
@@ -195,11 +196,11 @@ class _TeacherHomeworkManageViewState extends State<TeacherHomeworkManageView> {
                 Icon(Icons.attach_file, size: 14, color: Colors.grey.shade600),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: Text(
+                  child: TextButton(onPressed: () => viewHomeworkAttachment(context, hw), child: Text(
                     hw.attachmentName ?? 'Attachment',
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                  ),
+                  )),
                 ),
               ],
             ],

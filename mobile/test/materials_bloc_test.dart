@@ -1,9 +1,10 @@
+import 'package:mocktail/mocktail.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/materials/bloc/materials_bloc.dart';
 import 'package:mobile/features/materials/models/academic_material_model.dart';
 import 'package:mobile/features/materials/repository/materials_repository.dart';
 
-class MockMaterialsRepository implements MaterialsRepository {
+class MockMaterialsRepository extends Mock implements MaterialsRepository {
   bool shouldThrow = false;
 
   final sampleMaterial = const AcademicMaterialModel(

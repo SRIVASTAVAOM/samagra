@@ -22,7 +22,7 @@ import {
   AlertCircle,
   Filter,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { uploadAttachment, api } from '@/lib/api';
 import { ClassItem, SubjectItem } from '@/lib/types';
 
 interface HomeworkItem {
@@ -74,6 +74,7 @@ export default function HomeworkPage() {
   const [editingHomework, setEditingHomework] = useState<HomeworkItem | null>(null);
 
   // Form state for Add/Edit
+  const [attachment, setAttachment] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     class_id: '',
     section_id: '',
@@ -196,6 +197,7 @@ export default function HomeworkPage() {
     const defaultSectionId = classes[0]?.sections?.[0]?.id || '';
     const defaultSubjectId = subjects[0]?.id || '';
 
+    setAttachment(null);
     setFormData({
       class_id: defaultClassId,
       section_id: defaultSectionId,
@@ -215,6 +217,7 @@ export default function HomeworkPage() {
   // Open Edit Homework Modal
   const handleOpenEditModal = (hw: HomeworkItem) => {
     setEditingHomework(hw);
+    setAttachment(null);
     setFormData({
       class_id: hw.class_id || '',
       section_id: hw.section_id || '',
@@ -255,7 +258,7 @@ export default function HomeworkPage() {
         description: formData.description.trim(),
         assigned_date: formData.assigned_date,
         due_date: formData.due_date,
-        attachment_name: formData.attachment_name.trim() || undefined,
+        ...(attachment && { attachment_name: attachment.name, s3_attachment_key: (await uploadAttachment(attachment)).url }),
       });
       setSuccessMessage(`Homework "${formData.title}" assigned successfully!`);
       setIsAddModalOpen(false);
@@ -292,7 +295,7 @@ export default function HomeworkPage() {
         description: formData.description.trim(),
         assigned_date: formData.assigned_date,
         due_date: formData.due_date,
-        attachment_name: formData.attachment_name.trim() || undefined,
+        ...(attachment && { attachment_name: attachment.name, s3_attachment_key: (await uploadAttachment(attachment)).url }),
       });
       setSuccessMessage(`Homework "${formData.title}" updated successfully!`);
       setIsEditModalOpen(false);
@@ -737,7 +740,7 @@ export default function HomeworkPage() {
                     <Paperclip className="w-4 h-4 text-indigo-600" />
                     {selectedHomework.attachment_name}
                   </span>
-                  <span className="text-slate-500">Attached Reference</span>
+                  {selectedHomework.s3_attachment_key?.startsWith('https://') && !selectedHomework.s3_attachment_key.includes('/v1/uploads/') ? <a href={selectedHomework.s3_attachment_key} target="_blank" rel="noreferrer">View attachment</a> : <span>File unavailable. Replace the attachment.</span>}
                 </div>
               )}
             </div>
@@ -938,13 +941,10 @@ export default function HomeworkPage() {
               {/* Attachment Reference */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Attachment Name / Reference File (Optional)
+                  Attachment (PDF, JPEG or PNG)
                 </label>
                 <input
-                  type="text"
-                  placeholder="e.g. Worksheet_Chapter4.pdf, Quadratic_Formula_Guide.pdf"
-                  value={formData.attachment_name}
-                  onChange={(e) => setFormData({ ...formData, attachment_name: e.target.value })}
+                  type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={e => setAttachment(e.target.files?.[0] ?? null)}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -1140,12 +1140,10 @@ export default function HomeworkPage() {
               {/* Attachment Reference */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Attachment Name / Reference File (Optional)
+                  Attachment (PDF, JPEG or PNG)
                 </label>
                 <input
-                  type="text"
-                  value={formData.attachment_name}
-                  onChange={(e) => setFormData({ ...formData, attachment_name: e.target.value })}
+                  type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={e => setAttachment(e.target.files?.[0] ?? null)}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>

@@ -164,5 +164,14 @@ export class CloudinaryService {
       uploadStream.end(buffer);
     });
   }
+
+  static isAttachmentUrl(value: unknown): boolean {
+    if (typeof value !== 'string') return false;
+    try {
+      const url = new URL(value);
+      return url.origin === 'https://res.cloudinary.com' &&
+        url.pathname.startsWith('/' + cloudinary.config().cloud_name + '/image/upload/');
+    } catch { return false; }
+  }
 }
 

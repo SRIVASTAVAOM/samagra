@@ -60,13 +60,13 @@ export class MaterialsRepository {
     return rows[0];
   }
 
-  static async markMaterialVerified(id: string, staffId: string): Promise<AcademicMaterial | null> {
+  static async markMaterialVerified(id: string, staffId: string, attachmentUrl?: string, metadata?: { name: string; size: number; type: string }): Promise<AcademicMaterial | null> {
     const { rows } = await pool.query(
       `UPDATE academic_materials 
-       SET is_verified = true, updated_at = CURRENT_TIMESTAMP
+       SET is_verified = true, s3_file_key = COALESCE($3, s3_file_key), file_name = COALESCE($4,file_name), file_size_bytes = COALESCE($5,file_size_bytes), content_type = COALESCE($6,content_type), updated_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND uploaded_by_staff_id = $2
        RETURNING *;`,
-      [id, staffId]
+      [id, staffId, attachmentUrl ?? null, metadata?.name, metadata?.size, metadata?.type]
     );
     return rows[0] || null;
   }
@@ -226,6 +226,7 @@ export class MaterialsRepository {
       description?: string;
       materialType?: string;
       fileName?: string;
+      attachment?: { url: string; size: number; type: string };
     }
   ): Promise<AcademicMaterial | null> {
     const fields: string[] = [];
@@ -255,6 +256,10 @@ export class MaterialsRepository {
     if (updates.materialType !== undefined) {
       fields.push(`material_type = $${idx++}`);
       values.push(updates.materialType);
+    }
+    if (updates.attachment) {
+      fields.push(`s3_file_key = ${idx++}`, `file_size_bytes = ${idx++}`, `content_type = ${idx++}`);
+      values.push(updates.attachment.url, updates.attachment.size, updates.attachment.type);
     }
     if (updates.fileName !== undefined) {
       fields.push(`file_name = $${idx++}`);
