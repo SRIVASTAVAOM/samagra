@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   UploadCloud,
   FileText,
@@ -66,8 +66,6 @@ const CATEGORY_COLOR: Record<string, string> = {
   'Daily HW Message': '#A78BFA',
 };
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB limit
-
 function formatBytes(bytes: number | string | undefined) {
   const b = typeof bytes === 'string' ? parseInt(bytes, 10) : bytes || 0;
   if (b < 1024) return `${b} B`;
@@ -109,8 +107,6 @@ export default function StudyMaterialPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load real database data from backend
   const loadData = async () => {
@@ -251,49 +247,6 @@ export default function StudyMaterialPage() {
     setErrorMessage(null);
     setSuccessMessage(null);
     setIsEditModalOpen(true);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > MAX_FILE_BYTES) {
-        setErrorMessage('File size exceeds 10MB limit.');
-        return;
-      }
-      setSelectedFile(file);
-      setFormData((prev) => ({
-        ...prev,
-        file_name: file.name,
-        file_size_bytes: file.size,
-        content_type: file.type || 'application/pdf',
-      }));
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(true);
-  };
-
-  const handleDragLeave = () => setDragActive(false);
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      if (file.size > MAX_FILE_BYTES) {
-        setErrorMessage('File size exceeds 10MB limit.');
-        return;
-      }
-      setSelectedFile(file);
-      setFormData((prev) => ({
-        ...prev,
-        file_name: file.name,
-        file_size_bytes: file.size,
-        content_type: file.type || 'application/pdf',
-      }));
-    }
   };
 
   // Submit Upload to Backend Database

@@ -60,7 +60,7 @@ export class MaterialsController {
       }
       const metadata = req.body?.metadata === undefined ? undefined : z.object({
         name: z.string().min(1).max(255), size: z.number().int().positive(),
-        type: z.enum(['application/pdf','image/jpeg','image/png']),
+        type: z.enum(['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']),
       }).parse(req.body.metadata);
       const material = await MaterialsService.verifyUpload((req as any).user, id, attachmentUrl, metadata);
       res.status(200).json({ success: true, data: material });

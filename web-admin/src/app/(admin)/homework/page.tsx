@@ -86,7 +86,6 @@ export default function HomeworkPage() {
     description: '',
     assigned_date: new Date().toISOString().split('T')[0],
     due_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
-    attachment_name: '',
   });
 
   const [saving, setSaving] = useState(false);
@@ -209,7 +208,6 @@ export default function HomeworkPage() {
       description: '',
       assigned_date: new Date().toISOString().split('T')[0],
       due_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
-      attachment_name: '',
     });
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -230,7 +228,6 @@ export default function HomeworkPage() {
       description: hw.description || '',
       assigned_date: hw.assigned_date || new Date().toISOString().split('T')[0],
       due_date: hw.due_date || new Date().toISOString().split('T')[0],
-      attachment_name: hw.attachment_name || '',
     });
     setErrorMessage(null);
     setSuccessMessage(null);
