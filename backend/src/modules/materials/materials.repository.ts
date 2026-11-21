@@ -226,7 +226,7 @@ export class MaterialsRepository {
       description?: string;
       materialType?: string;
       fileName?: string;
-      attachment?: { url: string; size: number; type: string };
+      attachment?: { url: string; size: number; type: string } | null;
     }
   ): Promise<AcademicMaterial | null> {
     const fields: string[] = [];
@@ -257,11 +257,15 @@ export class MaterialsRepository {
       fields.push(`material_type = $${idx++}`);
       values.push(updates.materialType);
     }
-    if (updates.attachment) {
-      fields.push(`s3_file_key = ${idx++}`, `file_size_bytes = ${idx++}`, `content_type = ${idx++}`);
-      values.push(updates.attachment.url, updates.attachment.size, updates.attachment.type);
+    if (updates.attachment !== undefined) {
+      if (updates.attachment) {
+        fields.push(`s3_file_key = $${idx++}`, `file_size_bytes = $${idx++}`, `content_type = $${idx++}`);
+        values.push(updates.attachment.url, updates.attachment.size, updates.attachment.type);
+      } else {
+        fields.push(`s3_file_key = NULL`, `file_size_bytes = NULL`, `content_type = NULL`, `file_name = NULL`);
+      }
     }
-    if (updates.fileName !== undefined) {
+    if (updates.fileName !== undefined && updates.attachment !== null) {
       fields.push(`file_name = $${idx++}`);
       values.push(updates.fileName);
     }
