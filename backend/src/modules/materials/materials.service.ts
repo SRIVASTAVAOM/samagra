@@ -114,12 +114,12 @@ export class MaterialsService {
     };
   }
 
-  static async verifyUpload(user: TokenPayload, materialId: string, attachmentUrl?: string, metadata?: { name: string; size: number; type: string }): Promise<AcademicMaterial> {
+  static async verifyUpload(user: TokenPayload, materialId: string): Promise<AcademicMaterial> {
     if (!user.roles.includes('TEACHER')) {
       throw { statusCode: 403, message: 'Only uploading teachers can verify uploaded materials.' };
     }
 
-    const material = await MaterialsRepository.markMaterialVerified(materialId, user.profileId!, attachmentUrl, metadata);
+    const material = await MaterialsRepository.markMaterialVerified(materialId, user.profileId!);
     if (!material) {
       throw { statusCode: 404, message: 'Material not found or you are not the uploader of this material.' };
     }
@@ -259,18 +259,6 @@ export class MaterialsService {
   }
 
   static async updateAdminMaterial(user: TokenPayload, id: string, data: any): Promise<AcademicMaterial> {
-    let attachmentUpdate: { url: string; size: number; type: string } | null | undefined = undefined;
-    const s3Key = data.s3_file_key !== undefined ? data.s3_file_key : data.s3FileKey;
-    if (s3Key === null) {
-      attachmentUpdate = null;
-    } else if (s3Key) {
-      attachmentUpdate = {
-        url: s3Key,
-        size: Number(data.file_size_bytes || data.fileSizeBytes || 0),
-        type: data.content_type || data.contentType || 'application/octet-stream',
-      };
-    }
-
     const updated = await MaterialsRepository.updateAdminMaterial(id, user.schoolId, {
       classId: data.classId || data.class_id,
       sectionId: data.sectionId !== undefined ? data.sectionId : data.section_id,
@@ -279,7 +267,6 @@ export class MaterialsService {
       description: data.description !== undefined ? data.description.trim() : undefined,
       materialType: data.materialType || data.material_type || data.type,
       fileName: data.fileName || data.file_name,
-      attachment: attachmentUpdate,
     });
     if (!updated) {
       throw { statusCode: 404, message: 'Study material not found or unauthorized' };

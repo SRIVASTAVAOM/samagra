@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import {
   UploadCloud,
   FileText,
@@ -27,8 +27,7 @@ import {
   ShieldCheck,
   Eye,
 } from 'lucide-react';
-import { api, uploadAttachment } from '@/lib/api';
-import FileAttachmentControl from '@/components/common/FileAttachmentControl';
+import { api } from '@/lib/api';
 import {
   SubjectItem,
   ClassItem,
@@ -65,6 +64,8 @@ const CATEGORY_COLOR: Record<string, string> = {
   'Holiday HW': '#F59E0B',
   'Daily HW Message': '#A78BFA',
 };
+
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB limit
 
 function formatBytes(bytes: number | string | undefined) {
   const b = typeof bytes === 'string' ? parseInt(bytes, 10) : bytes || 0;
@@ -103,10 +104,11 @@ export default function StudyMaterialPage() {
   });
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [editAttachmentDeleted, setEditAttachmentDeleted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load real database data from backend
   const loadData = async () => {
@@ -230,8 +232,6 @@ export default function StudyMaterialPage() {
 
   // Open Edit Modal
   const handleOpenEditModal = (item: RecentUploadItem) => {
-    setSelectedFile(null);
-    setEditAttachmentDeleted(false);
     setSelectedMaterial(item);
     setFormData({
       title: item.title || '',
@@ -249,6 +249,49 @@ export default function StudyMaterialPage() {
     setIsEditModalOpen(true);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.size > MAX_FILE_BYTES) {
+        setErrorMessage('File size exceeds 10MB limit.');
+        return;
+      }
+      setSelectedFile(file);
+      setFormData((prev) => ({
+        ...prev,
+        file_name: file.name,
+        file_size_bytes: file.size,
+        content_type: file.type || 'application/pdf',
+      }));
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = () => setDragActive(false);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      if (file.size > MAX_FILE_BYTES) {
+        setErrorMessage('File size exceeds 10MB limit.');
+        return;
+      }
+      setSelectedFile(file);
+      setFormData((prev) => ({
+        ...prev,
+        file_name: file.name,
+        file_size_bytes: file.size,
+        content_type: file.type || 'application/pdf',
+      }));
+    }
+  };
+
   // Submit Upload to Backend Database
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,8 +303,7 @@ export default function StudyMaterialPage() {
     try {
       setSubmitting(true);
       setErrorMessage(null);
-      if (!selectedFile) throw new Error('Select a document to upload.');
-      const uploaded = await uploadAttachment(selectedFile);
+      const fileNameToUse = formData.file_name.trim() || selectedFile?.name || `${formData.material_type.toLowerCase().replace(/ /g, '_')}_document.pdf`;
 
       await api.admin.createMaterial({
         class_id: formData.class_id,
@@ -270,8 +312,7 @@ export default function StudyMaterialPage() {
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
         material_type: formData.material_type,
-        file_name: selectedFile.name,
-        s3_file_key: uploaded.url,
+        file_name: fileNameToUse,
         file_size_bytes: selectedFile?.size || formData.file_size_bytes,
         content_type: selectedFile?.type || formData.content_type,
       });
@@ -298,25 +339,6 @@ export default function StudyMaterialPage() {
     try {
       setSubmitting(true);
       setErrorMessage(null);
-
-      let s3FileKey: string | null | undefined = undefined;
-      let fileName: string | null | undefined = undefined;
-      let fileSizeBytes: number | null | undefined = undefined;
-      let contentType: string | null | undefined = undefined;
-
-      if (selectedFile) {
-        const uploaded = await uploadAttachment(selectedFile);
-        s3FileKey = uploaded.url;
-        fileName = selectedFile.name;
-        fileSizeBytes = selectedFile.size;
-        contentType = selectedFile.type || 'application/octet-stream';
-      } else if (editAttachmentDeleted) {
-        s3FileKey = null;
-        fileName = null;
-        fileSizeBytes = null;
-        contentType = null;
-      }
-
       await api.admin.updateMaterial(selectedMaterial.id, {
         class_id: formData.class_id,
         section_id: formData.section_id || null,
@@ -324,10 +346,7 @@ export default function StudyMaterialPage() {
         title: formData.title.trim(),
         description: formData.description.trim() || '',
         material_type: formData.material_type,
-        ...(fileName !== undefined ? { file_name: fileName || '' } : { file_name: formData.file_name.trim() }),
-        ...(s3FileKey !== undefined && { s3_file_key: s3FileKey }),
-        ...(fileSizeBytes !== undefined && { file_size_bytes: fileSizeBytes }),
-        ...(contentType !== undefined && { content_type: contentType }),
+        file_name: formData.file_name.trim(),
       });
 
       setSuccessMessage(`Study material "${formData.title}" updated successfully!`);
@@ -362,19 +381,14 @@ export default function StudyMaterialPage() {
   // Download File Handler
   const handleDownload = async (item: RecentUploadItem) => {
     try {
-      // If direct URL available, open in a new tab immediately
-      if (item.s3_file_key && (item.s3_file_key.startsWith('http://') || item.s3_file_key.startsWith('https://'))) {
-        window.open(item.s3_file_key, '_blank', 'noopener,noreferrer');
-        return;
-      }
       const res = await api.admin.getMaterialDownloadUrl(item.id);
       if (res && res.downloadUrl) {
-        window.open(res.downloadUrl, '_blank', 'noopener,noreferrer');
+        window.open(res.downloadUrl, '_blank');
       } else {
         alert('File download URL is unavailable.');
       }
     } catch (err: any) {
-      alert(`Download notice: ${err.message || 'File download initiated.'}`);
+      alert(`Download notice: ${err.message || 'Simulated file download initiated.'}`);
     }
   };
 
@@ -829,25 +843,50 @@ export default function StudyMaterialPage() {
                 />
               </div>
 
-              {/* File Attachment Control */}
-              <FileAttachmentControl
-                label="Study Material Document"
-                required
-                stagedFile={selectedFile}
-                onStagedFileChange={(file) => {
-                  setSelectedFile(file);
-                  if (file) {
-                    setFormData((prev) => ({
-                      ...prev,
-                      file_name: file.name,
-                      file_size_bytes: file.size,
-                      content_type: file.type || 'application/pdf',
-                    }));
-                  }
-                }}
-                disabled={submitting}
-                helperText="Allowed: PDF, PNG, JPG (Max 10MB)"
-              />
+              {/* File Attachment Dropzone */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Document File (PDF, DOCX, JPEG, PNG • max 10MB)
+                </label>
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`p-5 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition text-center ${
+                    dragActive
+                      ? 'border-indigo-600 bg-indigo-50/50'
+                      : 'border-slate-300 hover:border-indigo-400 bg-slate-50/60'
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    accept=".pdf,.docx,.doc,.jpg,.jpeg,.png"
+                  />
+                  {selectedFile ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-semibold text-slate-800">{selectedFile.name}</p>
+                        <p className="text-[11px] text-slate-500">{formatBytes(selectedFile.size)}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <UploadCloud className="w-8 h-8 text-slate-400 mb-2" />
+                      <p className="text-xs font-medium text-slate-700">
+                        Drag and drop file here, or <span className="text-indigo-600 font-semibold">browse</span>
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Supports PDF, DOCX, Images up to 10MB</p>
+                    </>
+                  )}
+                </div>
+              </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
@@ -1004,39 +1043,18 @@ export default function StudyMaterialPage() {
                 />
               </div>
 
-              {/* Attachment Control */}
-              <FileAttachmentControl
-                label="Study Material Document"
-                stagedFile={selectedFile}
-                onStagedFileChange={(file) => {
-                  setSelectedFile(file);
-                  if (file) {
-                    setEditAttachmentDeleted(false);
-                    setFormData((prev) => ({
-                      ...prev,
-                      file_name: file.name,
-                      file_size_bytes: file.size,
-                      content_type: file.type || 'application/pdf',
-                    }));
-                  }
-                }}
-                existingAttachment={
-                  !editAttachmentDeleted && selectedMaterial?.s3_file_key
-                    ? {
-                        url: selectedMaterial.s3_file_key,
-                        fileName: selectedMaterial.file_name,
-                        fileSize: selectedMaterial.file_size_bytes,
-                        contentType: selectedMaterial.content_type,
-                      }
-                    : null
-                }
-                onRemoveExisting={() => {
-                  setEditAttachmentDeleted(true);
-                  setSelectedFile(null);
-                }}
-                disabled={submitting}
-                helperText="View, replace or delete attached study material document"
-              />
+              {/* File Name */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  File Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.file_name}
+                  onChange={(e) => setFormData({ ...formData, file_name: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button

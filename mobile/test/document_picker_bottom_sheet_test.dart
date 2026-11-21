@@ -1,28 +1,14 @@
-import 'dart:typed_data';
-import 'package:dio/dio.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:mobile/core/network/dio_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile/core/widgets/document_picker_bottom_sheet.dart';
-
-class UploadClient extends Mock implements DioClient {
-  @override
-  Future<Response<T>> post<T>(String path, {Object? data, Map<String,dynamic>? queryParameters, Options? options, CancelToken? cancelToken, ProgressCallback? onSendProgress, ProgressCallback? onReceiveProgress}) async {
-    expect(path, '/materials/attachments');
-    expect(data, [1,2,3]);
-    return Response<T>(requestOptions: RequestOptions(path: path), data: {'data': {'url': 'https://res.cloudinary.com/test/result'}} as T);
-  }
-}
 
 void main() {
   group('DocumentPickerBottomSheet Widget Tests', () {
     testWidgets('renders both Device/System and Camera options cleanly',
         (tester) async {
       await tester.pumpWidget(
-        RepositoryProvider<DioClient>.value(value: UploadClient(), child: MaterialApp(
+        MaterialApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
@@ -37,7 +23,7 @@ void main() {
               ),
             ),
           ),
-        )),
+        ),
       );
 
       // Open bottom sheet
@@ -59,7 +45,7 @@ void main() {
       PickedDocument? selectedDoc;
 
       await tester.pumpWidget(
-        RepositoryProvider<DioClient>.value(value: UploadClient(), child: MaterialApp(
+        MaterialApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
@@ -67,14 +53,14 @@ void main() {
                   selectedDoc = await DocumentPickerBottomSheet.show(
                     context,
                     categoryPrefix: 'leave_doc',
-                    pickImageFn: (src) async => XFile.fromData(Uint8List.fromList([1,2,3]), path: 'prescription_report.pdf'),
+                    pickImageFn: (src) async => XFile('prescription_report.pdf'),
                   );
                 },
                 child: const Text('Open Picker'),
               ),
             ),
           ),
-        )),
+        ),
       );
 
       await tester.tap(find.text('Open Picker'));
@@ -89,7 +75,7 @@ void main() {
       expect(selectedDoc, isNotNull);
       expect(selectedDoc!.source, DocumentUploadSource.device);
       expect(selectedDoc!.name, 'prescription_report.pdf');
-      expect(selectedDoc!.url, 'https://res.cloudinary.com/test/result');
+      expect(selectedDoc!.url, contains('leave_doc'));
     });
 
     testWidgets('selecting Camera option returns camera document result',
@@ -97,7 +83,7 @@ void main() {
       PickedDocument? selectedDoc;
 
       await tester.pumpWidget(
-        RepositoryProvider<DioClient>.value(value: UploadClient(), child: MaterialApp(
+        MaterialApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
@@ -105,14 +91,14 @@ void main() {
                   selectedDoc = await DocumentPickerBottomSheet.show(
                     context,
                     categoryPrefix: 'camera_capture',
-                    pickImageFn: (src) async => XFile.fromData(Uint8List.fromList([1,2,3]), path: 'camera_doc_photo.jpg'),
+                    pickImageFn: (src) async => XFile('camera_doc_photo.jpg'),
                   );
                 },
                 child: const Text('Open Picker'),
               ),
             ),
           ),
-        )),
+        ),
       );
 
       await tester.tap(find.text('Open Picker'));
@@ -126,7 +112,7 @@ void main() {
       expect(find.byType(DocumentPickerBottomSheet), findsNothing);
       expect(selectedDoc, isNotNull);
       expect(selectedDoc!.source, DocumentUploadSource.camera);
-      expect(selectedDoc!.url, 'https://res.cloudinary.com/test/result');
+      expect(selectedDoc!.url, contains('camera'));
     });
 
     testWidgets('tapping Cancel closes sheet without selection',
@@ -134,7 +120,7 @@ void main() {
       PickedDocument? selectedDoc;
 
       await tester.pumpWidget(
-        RepositoryProvider<DioClient>.value(value: UploadClient(), child: MaterialApp(
+        MaterialApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
@@ -145,7 +131,7 @@ void main() {
               ),
             ),
           ),
-        )),
+        ),
       );
 
       await tester.tap(find.text('Open Picker'));

@@ -1,4 +1,3 @@
-import '../repository/materials_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -97,7 +96,6 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
           : BlocConsumer<MaterialsBloc, MaterialsState>(
         listener: (context, state) {
           if (state is MaterialOperationSuccess) {
-            if (state.downloadUrl != null) { viewAttachment(context, state.downloadUrl); return; }
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.downloadUrl != null
@@ -163,7 +161,7 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
               itemCount: materials.length,
               separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
-                return _buildMaterialCard(materials[index], isTeacher && authState.user.profileId == materials[index].uploadedByStaffId);
+                return _buildMaterialCard(materials[index]);
               },
             );
           }
@@ -187,7 +185,7 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
     );
   }
 
-  Widget _buildMaterialCard(AcademicMaterialModel item, bool canReplace) {
+  Widget _buildMaterialCard(AcademicMaterialModel item) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -259,20 +257,6 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
               style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
             ),
           ],
-          if (canReplace) TextButton(onPressed: () async {
-            final repo = context.read<MaterialsRepository>();
-            final doc = await DocumentPickerBottomSheet.show(context);
-            if (doc == null || !mounted) return;
-            try {
-              await repo.confirmAttachment(item.id, doc.url, metadata: {
-                'name': doc.name, 'size': doc.size,
-                'type': doc.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : doc.name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg',
-              });
-              if (mounted) context.read<MaterialsBloc>().add(LoadClassMaterialsEvent(widget.classId, widget.subjectId));
-            } catch (_) {
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Replacement failed. Please retry.')));
-            }
-          }, child: const Text('Replace attachment')),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -341,7 +325,6 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
   final _descController = TextEditingController();
   final _fileNameController = TextEditingController(text: 'Chapter_Summary_Guide.pdf');
   String _selectedContentType = 'application/pdf';
-  PickedDocument? _document;
   String? _pickedDocumentSource;
 
   @override
@@ -443,7 +426,6 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
                         );
                         if (doc != null) {
                           setState(() {
-                            _document = doc;
                             _fileNameController.text = doc.name;
                             _pickedDocumentSource = doc.source == DocumentUploadSource.camera
                                 ? 'From Camera'
@@ -477,7 +459,6 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 key: const Key('material_filename_field'),
-                readOnly: true,
                 controller: _fileNameController,
                 decoration: const InputDecoration(
                   labelText: 'File Name *',
@@ -517,8 +498,7 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
           key: const Key('confirm_upload_btn'),
           onPressed: () {
             if (_formKey.currentState!.validate()) {
-              final document = _document;
-              if (document == null) return;
+              final sampleBytes = List<int>.filled(1024 * 100, 65);
               widget.onSubmitted(
                 UploadMaterialEvent(
                   classId: widget.classId,
@@ -526,9 +506,7 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
                   title: _titleController.text.trim(),
                   description: _descController.text.trim(),
                   fileName: _fileNameController.text.trim(),
-                  fileBytes: const [],
-                  attachmentUrl: document.url,
-                  uploadedSize: document.size,
+                  fileBytes: sampleBytes,
                   contentType: _selectedContentType,
                 ),
               );

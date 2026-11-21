@@ -198,7 +198,6 @@ class StudentProfileView extends StatelessWidget {
               const SizedBox(height: 12),
               _buildRow('Emergency Phone', p.emergencyPhone ?? 'Not Provided'),
               _buildRow('Blood Group', p.bloodGroup ?? 'Not Provided'),
-              if (p.documentUrl?.isNotEmpty == true) TextButton(onPressed: () => viewAttachment(context, p.documentUrl), child: const Text('View document')),
               _buildRow('Medical Notes', p.medicalNotes ?? 'None recorded'),
               _buildRow('Medical / ID Document', (p.documentUrl != null && p.documentUrl!.isNotEmpty) ? 'Document Uploaded' : 'None Attached'),
             ],

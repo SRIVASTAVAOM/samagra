@@ -22,9 +22,8 @@ import {
   AlertCircle,
   Filter,
 } from 'lucide-react';
-import { uploadAttachment, api } from '@/lib/api';
+import { api } from '@/lib/api';
 import { ClassItem, SubjectItem } from '@/lib/types';
-import FileAttachmentControl from '@/components/common/FileAttachmentControl';
 
 interface HomeworkItem {
   id: string;
@@ -75,8 +74,6 @@ export default function HomeworkPage() {
   const [editingHomework, setEditingHomework] = useState<HomeworkItem | null>(null);
 
   // Form state for Add/Edit
-  const [attachment, setAttachment] = useState<File | null>(null);
-  const [editAttachmentDeleted, setEditAttachmentDeleted] = useState(false);
   const [formData, setFormData] = useState({
     class_id: '',
     section_id: '',
@@ -86,6 +83,7 @@ export default function HomeworkPage() {
     description: '',
     assigned_date: new Date().toISOString().split('T')[0],
     due_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+    attachment_name: '',
   });
 
   const [saving, setSaving] = useState(false);
@@ -198,7 +196,6 @@ export default function HomeworkPage() {
     const defaultSectionId = classes[0]?.sections?.[0]?.id || '';
     const defaultSubjectId = subjects[0]?.id || '';
 
-    setAttachment(null);
     setFormData({
       class_id: defaultClassId,
       section_id: defaultSectionId,
@@ -208,6 +205,7 @@ export default function HomeworkPage() {
       description: '',
       assigned_date: new Date().toISOString().split('T')[0],
       due_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+      attachment_name: '',
     });
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -217,8 +215,6 @@ export default function HomeworkPage() {
   // Open Edit Homework Modal
   const handleOpenEditModal = (hw: HomeworkItem) => {
     setEditingHomework(hw);
-    setAttachment(null);
-    setEditAttachmentDeleted(false);
     setFormData({
       class_id: hw.class_id || '',
       section_id: hw.section_id || '',
@@ -228,6 +224,7 @@ export default function HomeworkPage() {
       description: hw.description || '',
       assigned_date: hw.assigned_date || new Date().toISOString().split('T')[0],
       due_date: hw.due_date || new Date().toISOString().split('T')[0],
+      attachment_name: hw.attachment_name || '',
     });
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -249,16 +246,6 @@ export default function HomeworkPage() {
     try {
       setSaving(true);
       setErrorMessage(null);
-
-      let s3AttachmentKey: string | undefined = undefined;
-      let attachmentName: string | undefined = undefined;
-
-      if (attachment) {
-        const uploaded = await uploadAttachment(attachment);
-        s3AttachmentKey = uploaded.url;
-        attachmentName = attachment.name;
-      }
-
       await api.admin.createHomework({
         class_id: formData.class_id,
         section_id: formData.section_id,
@@ -268,7 +255,7 @@ export default function HomeworkPage() {
         description: formData.description.trim(),
         assigned_date: formData.assigned_date,
         due_date: formData.due_date,
-        ...(s3AttachmentKey && { attachment_name: attachmentName, s3_attachment_key: s3AttachmentKey }),
+        attachment_name: formData.attachment_name.trim() || undefined,
       });
       setSuccessMessage(`Homework "${formData.title}" assigned successfully!`);
       setIsAddModalOpen(false);
@@ -296,19 +283,6 @@ export default function HomeworkPage() {
     try {
       setSaving(true);
       setErrorMessage(null);
-
-      let s3AttachmentKey: string | null | undefined = undefined;
-      let attachmentName: string | null | undefined = undefined;
-
-      if (attachment) {
-        const uploaded = await uploadAttachment(attachment);
-        s3AttachmentKey = uploaded.url;
-        attachmentName = attachment.name;
-      } else if (editAttachmentDeleted) {
-        s3AttachmentKey = null;
-        attachmentName = null;
-      }
-
       await api.admin.updateHomework(editingHomework.id, {
         class_id: formData.class_id,
         section_id: formData.section_id,
@@ -318,8 +292,7 @@ export default function HomeworkPage() {
         description: formData.description.trim(),
         assigned_date: formData.assigned_date,
         due_date: formData.due_date,
-        ...(s3AttachmentKey !== undefined && { s3_attachment_key: s3AttachmentKey }),
-        ...(attachmentName !== undefined && { attachment_name: attachmentName }),
+        attachment_name: formData.attachment_name.trim() || undefined,
       });
       setSuccessMessage(`Homework "${formData.title}" updated successfully!`);
       setIsEditModalOpen(false);
@@ -581,24 +554,10 @@ export default function HomeworkPage() {
                               {hw.subject_name}
                             </span>
                             {hw.attachment_name && (
-                              hw.s3_attachment_key ? (
-                                <a
-                                  href={hw.s3_attachment_key}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="flex items-center gap-1 text-[11px] text-indigo-600 hover:text-indigo-800 hover:underline max-w-[180px] truncate"
-                                  title="View attachment"
-                                >
-                                  <Paperclip className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">{hw.attachment_name}</span>
-                                </a>
-                              ) : (
-                                <span className="flex items-center gap-1 text-[11px] text-slate-500">
-                                  <Paperclip className="w-3 h-3 text-slate-400" />
-                                  {hw.attachment_name}
-                                </span>
-                              )
+                              <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                                <Paperclip className="w-3 h-3 text-slate-400" />
+                                {hw.attachment_name}
+                              </span>
                             )}
                           </div>
                         </div>
@@ -773,23 +732,12 @@ export default function HomeworkPage() {
 
               {/* Attachment if present */}
               {selectedHomework.attachment_name && (
-                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-2 font-medium text-slate-800 truncate max-w-[280px]">
-                    <Paperclip className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span className="truncate">{selectedHomework.attachment_name}</span>
+                <div className="p-3 bg-slate-100 rounded-xl flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 font-medium text-slate-700">
+                    <Paperclip className="w-4 h-4 text-indigo-600" />
+                    {selectedHomework.attachment_name}
                   </span>
-                  {selectedHomework.s3_attachment_key ? (
-                    <a
-                      href={selectedHomework.s3_attachment_key}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 hover:border-indigo-300 text-indigo-600 font-medium rounded-lg shadow-sm hover:bg-indigo-50/50 transition shrink-0"
-                    >
-                      <Eye className="w-3.5 h-3.5" /> View Attachment
-                    </a>
-                  ) : (
-                    <span className="text-slate-400">File link unavailable</span>
-                  )}
+                  <span className="text-slate-500">Attached Reference</span>
                 </div>
               )}
             </div>
@@ -987,14 +935,19 @@ export default function HomeworkPage() {
                 />
               </div>
 
-              {/* Homework Attachment */}
-              <FileAttachmentControl
-                label="Homework Attachment"
-                stagedFile={attachment}
-                onStagedFileChange={setAttachment}
-                disabled={saving}
-                helperText="Upload worksheet, guidelines or assignment PDF/Image (Max 10MB)"
-              />
+              {/* Attachment Reference */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Attachment Name / Reference File (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Worksheet_Chapter4.pdf, Quadratic_Formula_Guide.pdf"
+                  value={formData.attachment_name}
+                  onChange={(e) => setFormData({ ...formData, attachment_name: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
@@ -1184,29 +1137,18 @@ export default function HomeworkPage() {
                 />
               </div>
 
-              {/* Homework Attachment */}
-              <FileAttachmentControl
-                label="Homework Attachment"
-                stagedFile={attachment}
-                onStagedFileChange={(file) => {
-                  setAttachment(file);
-                  if (file) setEditAttachmentDeleted(false);
-                }}
-                existingAttachment={
-                  !editAttachmentDeleted && editingHomework?.s3_attachment_key
-                    ? {
-                        url: editingHomework.s3_attachment_key,
-                        fileName: editingHomework.attachment_name,
-                      }
-                    : null
-                }
-                onRemoveExisting={() => {
-                  setEditAttachmentDeleted(true);
-                  setAttachment(null);
-                }}
-                disabled={saving}
-                helperText="View, replace or remove assignment attachment"
-              />
+              {/* Attachment Reference */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Attachment Name / Reference File (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={formData.attachment_name}
+                  onChange={(e) => setFormData({ ...formData, attachment_name: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button

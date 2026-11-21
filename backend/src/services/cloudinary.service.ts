@@ -164,21 +164,5 @@ export class CloudinaryService {
       uploadStream.end(buffer);
     });
   }
-
-  static isAttachmentUrl(value: unknown): boolean {
-    if (typeof value !== 'string') return false;
-    try {
-      const url = new URL(value);
-      const cloudName = cloudinary.config().cloud_name;
-      if (!cloudName) {
-        return url.origin === 'https://res.cloudinary.com';
-      }
-      return url.origin === 'https://res.cloudinary.com' &&
-        (url.pathname.startsWith('/' + cloudName + '/image/upload/') ||
-         url.pathname.startsWith('/' + cloudName + '/raw/upload/') ||
-         url.pathname.startsWith('/' + cloudName + '/auto/upload/') ||
-         url.pathname.startsWith('/' + cloudName + '/video/upload/'));
-    } catch { return false; }
-  }
 }
 

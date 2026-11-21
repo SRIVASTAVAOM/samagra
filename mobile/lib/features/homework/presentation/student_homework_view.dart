@@ -1,4 +1,3 @@
-import 'view_homework_attachment.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -260,7 +259,11 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
                 const SizedBox(width: 8),
                 TextButton.icon(
                   key: Key('download_attachment_${hw.id}'),
-                  onPressed: () => viewHomeworkAttachment(context, hw),
+                  onPressed: () {
+                    context.read<HomeworkBloc>().add(
+                          DownloadHomeworkAttachmentEvent(hw.id),
+                        );
+                  },
                   icon: const Icon(Icons.download_outlined, size: 16, color: AppColors.primaryAccent),
                   label: Text(
                     hw.attachmentName ?? 'Attachment',

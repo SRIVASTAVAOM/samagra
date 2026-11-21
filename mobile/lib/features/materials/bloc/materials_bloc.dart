@@ -21,8 +21,6 @@ class UploadMaterialEvent extends MaterialsEvent {
   final String title;
   final String? description;
   final String fileName;
-  final String? attachmentUrl;
-  final int? uploadedSize;
   final List<int> fileBytes;
   final String contentType;
 
@@ -34,8 +32,6 @@ class UploadMaterialEvent extends MaterialsEvent {
     this.description,
     required this.fileName,
     required this.fileBytes,
-    this.attachmentUrl,
-    this.uploadedSize,
     required this.contentType,
   });
 }
@@ -122,13 +118,13 @@ class MaterialsBloc extends Bloc<MaterialsEvent, MaterialsState> {
         title: event.title,
         description: event.description,
         fileName: event.fileName,
-        fileSizeBytes: event.uploadedSize ?? event.fileBytes.length,
+        fileSizeBytes: event.fileBytes.length,
         contentType: event.contentType,
       );
 
       // Step 2: Direct upload to S3 / Mock S3
       emit(const MaterialUploading(0.5, 'Uploading document directly...'));
-      if (event.attachmentUrl == null) await _repository.uploadFileDirectlyToS3(
+      await _repository.uploadFileDirectlyToS3(
         presigned.uploadUrl,
         event.fileBytes,
         event.contentType,
@@ -136,11 +132,7 @@ class MaterialsBloc extends Bloc<MaterialsEvent, MaterialsState> {
 
       // Step 3: Verify upload with backend
       emit(const MaterialUploading(0.9, 'Verifying file metadata...'));
-      if (event.attachmentUrl != null) {
-        await _repository.confirmAttachment(presigned.materialId, event.attachmentUrl!);
-      } else {
-        await _repository.verifyUpload(presigned.materialId);
-      }
+      await _repository.verifyUpload(presigned.materialId);
 
       emit(const MaterialOperationSuccess('Material uploaded and verified successfully!'));
 

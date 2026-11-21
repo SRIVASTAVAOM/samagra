@@ -409,8 +409,8 @@ export const api = {
         description?: string;
         assigned_date?: string;
         due_date?: string;
-        attachment_name?: string | null;
-        s3_attachment_key?: string | null;
+        attachment_name?: string;
+        s3_attachment_key?: string;
       }
     ): Promise<any> => {
       return request(`/admin/homework/${encodeURIComponent(id)}`, {
@@ -486,10 +486,7 @@ export const api = {
         title?: string;
         description?: string;
         material_type?: string;
-        file_name?: string | null;
-        s3_file_key?: string | null;
-        file_size_bytes?: number | null;
-        content_type?: string | null;
+        file_name?: string;
       }
     ): Promise<any> => {
       return request(`/admin/materials/${encodeURIComponent(id)}`, {
@@ -974,21 +971,3 @@ export const api = {
     },
   },
 };
-export async function uploadAttachment(file: File): Promise<{
-  url: string;
-  fileName: string;
-  fileSize: number;
-  contentType: string;
-}> {
-  const res = await request<{ url: string }>('/materials/attachments', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/octet-stream' },
-    body: file,
-  });
-  return {
-    url: res.url,
-    fileName: file.name,
-    fileSize: file.size,
-    contentType: file.type || 'application/octet-stream',
-  };
-}

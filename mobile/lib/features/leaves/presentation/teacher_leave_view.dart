@@ -687,7 +687,6 @@ class _TeacherLeaveViewState extends State<TeacherLeaveView> {
                 color: AppColors.secondaryText,
               ),
             ),
-            if (leave.documentUrl?.isNotEmpty == true) TextButton(onPressed: () => viewAttachment(context, leave.documentUrl), child: const Text('View attachment')),
             if ((leave.documentUrl != null && leave.documentUrl!.isNotEmpty) ||
                 (leave.attachmentName != null && leave.attachmentName!.isNotEmpty)) ...[
               const SizedBox(height: 6),
@@ -862,7 +861,6 @@ class _TeacherLeaveViewState extends State<TeacherLeaveView> {
               color: AppColors.primaryText,
             ),
           ),
-          if (leave.documentUrl?.isNotEmpty == true) TextButton(onPressed: () => viewAttachment(context, leave.documentUrl), child: const Text('View attachment')),
           if ((leave.documentUrl != null && leave.documentUrl!.isNotEmpty) ||
               (leave.attachmentName != null && leave.attachmentName!.isNotEmpty)) ...[
             const SizedBox(height: 6),
@@ -1035,7 +1033,6 @@ class _TeacherLeaveViewState extends State<TeacherLeaveView> {
               color: AppColors.primaryText,
             ),
           ),
-          if (leave.documentUrl?.isNotEmpty == true) TextButton(onPressed: () => viewAttachment(context, leave.documentUrl), child: const Text('View attachment')),
           if ((leave.documentUrl != null && leave.documentUrl!.isNotEmpty) ||
               (leave.attachmentName != null && leave.attachmentName!.isNotEmpty)) ...[
             const SizedBox(height: 6),

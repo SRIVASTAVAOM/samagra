@@ -86,8 +86,4 @@ class MaterialsRepository {
     final response = await _client.get(ApiEndpoints.materialDownloadUrl(materialId));
     return PresignedDownloadResponse.fromJson(response.data['data'] as Map<String, dynamic>);
   }
-
-  Future<void> confirmAttachment(String id, String url, {Map<String,dynamic>? metadata}) async {
-    await _client.post('/materials/$id/verify-upload', data: {'attachmentUrl': url, if (metadata != null) 'metadata': metadata});
-  }
 }

@@ -529,7 +529,6 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
               ),
             ),
           ],
-          if (leave.documentUrl?.isNotEmpty == true) TextButton(onPressed: () => viewAttachment(context, leave.documentUrl), child: const Text('View attachment')),
           if ((leave.documentUrl != null && leave.documentUrl!.isNotEmpty) ||
               (leave.attachmentName != null && leave.attachmentName!.isNotEmpty)) ...[
             const SizedBox(height: 6),
