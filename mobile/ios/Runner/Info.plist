@@ -68,5 +68,9 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSCameraUsageDescription</key>
+		<string>SAMAGRA needs camera access to take photos of homework assignments, attendance, and documents.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>SAMAGRA needs photo library access to upload homework documents and attachments.</string>
 	</dict>
 </plist>

@@ -19,6 +19,7 @@ import {
   Plus,
   X,
   Upload,
+  Camera,
   ExternalLink,
   Loader2,
   AlertCircle,
@@ -100,6 +101,76 @@ export default function HomeworkPage() {
   const [editAttachmentKey, setEditAttachmentKey] = useState<string | null>(null);
   const [editAttachmentName, setEditAttachmentName] = useState<string | null>(null);
   const [editAttachmentError, setEditAttachmentError] = useState<string | null>(null);
+
+  // Live Camera Snapshot States
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraTarget, setCameraTarget] = useState<'ADD' | 'EDIT'>('ADD');
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
+
+  const startCamera = async (target: 'ADD' | 'EDIT') => {
+    setCameraTarget(target);
+    setCameraError(null);
+    setIsCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err: any) {
+      console.warn('[Camera error]:', err);
+      setCameraError('Camera access not granted or unavailable. Please allow camera permissions in your browser or select a file from device.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraOpen(false);
+    setCameraError(null);
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], `live_photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      if (cameraTarget === 'ADD') {
+        setAddAttachmentFile(file);
+        setAddAttachmentError(null);
+      } else {
+        setEditAttachmentFile(file);
+        setEditAttachmentError(null);
+      }
+      stopCamera();
+    }, 'image/jpeg', 0.9);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
 
   // Fetch initial data
   const loadData = async () => {
@@ -1004,13 +1075,14 @@ export default function HomeworkPage() {
                 </div>
 
                 {!addAttachmentFile ? (
-                  <div>
-                    <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl cursor-pointer bg-slate-50/60 hover:bg-indigo-50/30 transition group">
-                      <div className="flex items-center gap-2 text-indigo-600 mb-1 group-hover:scale-105 transition-transform">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Option 1: Browse from System/Files */}
+                    <label className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl cursor-pointer bg-slate-50/60 hover:bg-indigo-50/30 transition group text-center">
+                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mb-1.5 group-hover:scale-110 transition-transform">
                         <Upload className="w-4 h-4" />
-                        <span className="text-xs font-semibold">Click to browse file or image</span>
                       </div>
-                      <p className="text-[11px] text-slate-400">Direct upload to Cloudinary storage (Max 5 MB)</p>
+                      <span className="text-xs font-semibold text-slate-700">Browse System File</span>
+                      <p className="text-[10px] text-slate-400 mt-0.5">JPG, PNG, PDF (Max 5 MB)</p>
                       <input
                         type="file"
                         accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
@@ -1033,6 +1105,19 @@ export default function HomeworkPage() {
                         }}
                       />
                     </label>
+
+                    {/* Option 2: Live Camera Snapshot */}
+                    <button
+                      type="button"
+                      onClick={() => startCamera('ADD')}
+                      className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-slate-200 hover:border-emerald-400 rounded-xl cursor-pointer bg-slate-50/60 hover:bg-emerald-50/30 transition group text-center"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 mb-1.5 group-hover:scale-110 transition-transform">
+                        <Camera className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-semibold text-slate-700">Take Live Photo</span>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Click photo with camera</p>
+                    </button>
                   </div>
                 ) : (
                   <div className="p-3 bg-indigo-50/60 border border-indigo-200/80 rounded-xl flex items-center justify-between">
@@ -1332,6 +1417,15 @@ export default function HomeworkPage() {
                       </label>
                       <button
                         type="button"
+                        onClick={() => startCamera('EDIT')}
+                        className="px-2.5 py-1 text-xs font-medium text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg flex items-center gap-1 transition"
+                        title="Click new photo with camera"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        Camera
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => {
                           setEditAttachmentName(null);
                           setEditAttachmentKey(null);
@@ -1383,13 +1477,14 @@ export default function HomeworkPage() {
                   </div>
                 ) : (
                   /* Case 3: No attachment currently */
-                  <div>
-                    <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl cursor-pointer bg-slate-50/60 hover:bg-indigo-50/30 transition group">
-                      <div className="flex items-center gap-2 text-indigo-600 mb-1 group-hover:scale-105 transition-transform">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Option 1: Browse from System/Files */}
+                    <label className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl cursor-pointer bg-slate-50/60 hover:bg-indigo-50/30 transition group text-center">
+                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mb-1.5 group-hover:scale-110 transition-transform">
                         <Upload className="w-4 h-4" />
-                        <span className="text-xs font-semibold">Click to attach file or image (Max 5 MB)</span>
                       </div>
-                      <p className="text-[11px] text-slate-400">Direct upload to Cloudinary storage</p>
+                      <span className="text-xs font-semibold text-slate-700">Browse System File</span>
+                      <p className="text-[10px] text-slate-400 mt-0.5">JPG, PNG, PDF (Max 5 MB)</p>
                       <input
                         type="file"
                         accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
@@ -1412,6 +1507,19 @@ export default function HomeworkPage() {
                         }}
                       />
                     </label>
+
+                    {/* Option 2: Live Camera Snapshot */}
+                    <button
+                      type="button"
+                      onClick={() => startCamera('EDIT')}
+                      className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-slate-200 hover:border-emerald-400 rounded-xl cursor-pointer bg-slate-50/60 hover:bg-emerald-50/30 transition group text-center"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 mb-1.5 group-hover:scale-110 transition-transform">
+                        <Camera className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-semibold text-slate-700">Take Live Photo</span>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Click photo with camera</p>
+                    </button>
                   </div>
                 )}
 
@@ -1441,6 +1549,69 @@ export default function HomeworkPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Live Camera Snapshot Modal */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <Camera className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Live Camera Snapshot</h3>
+                  <p className="text-xs text-slate-400">Position the assignment document or notebook</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 bg-slate-950 flex flex-col items-center justify-center relative min-h-[300px]">
+              {cameraError ? (
+                <div className="p-4 text-center max-w-sm">
+                  <AlertCircle className="w-8 h-8 text-rose-500 mx-auto mb-2" />
+                  <p className="text-xs text-slate-200">{cameraError}</p>
+                </div>
+              ) : (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full rounded-xl max-h-[360px] object-cover"
+                />
+              )}
+            </div>
+
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              {!cameraError && (
+                <button
+                  type="button"
+                  onClick={capturePhoto}
+                  className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition"
+                >
+                  <Camera className="w-4 h-4" />
+                  Capture Photo
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
