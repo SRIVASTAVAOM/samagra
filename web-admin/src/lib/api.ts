@@ -425,6 +425,34 @@ export const api = {
       });
     },
 
+    uploadHomeworkAttachment: async (file: File): Promise<{
+      fileKey: string;
+      attachmentUrl: string;
+      attachmentName: string;
+      sizeBytes: number;
+      format: string;
+    }> => {
+      const token = getToken();
+      const url = `${API_BASE_URL}/homework/attachment-upload?fileName=${encodeURIComponent(file.name)}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: file,
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new ApiError(
+          json.error || json.message || 'Failed to upload homework attachment',
+          response.status,
+          json.details
+        );
+      }
+      return json.data;
+    },
+
     // Feedback & Complaints
     getFeedback: async (): Promise<{ feedback: any[]; complaints: any[] }> => {
       return request<{ feedback: any[]; complaints: any[] }>('/admin/feedback');

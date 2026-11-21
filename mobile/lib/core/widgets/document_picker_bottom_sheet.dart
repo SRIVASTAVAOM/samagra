@@ -11,11 +11,13 @@ class PickedDocument {
   final String name;
   final String url;
   final DocumentUploadSource source;
+  final List<int>? bytes;
 
   const PickedDocument({
     required this.name,
     required this.url,
     required this.source,
+    this.bytes,
   });
 }
 
@@ -26,6 +28,7 @@ class DocumentPickerBottomSheet extends StatelessWidget {
   final ImagePicker? imagePicker;
   final Future<XFile?> Function(ImageSource source)? pickImageFn;
   final void Function(PickedDocument doc)? onDocumentPicked;
+  final Future<String> Function(List<int> bytes, String fileName)? onUpload;
 
   const DocumentPickerBottomSheet({
     super.key,
@@ -35,6 +38,7 @@ class DocumentPickerBottomSheet extends StatelessWidget {
     this.imagePicker,
     this.pickImageFn,
     this.onDocumentPicked,
+    this.onUpload,
   });
 
   static Future<PickedDocument?> show(
@@ -44,6 +48,7 @@ class DocumentPickerBottomSheet extends StatelessWidget {
     String categoryPrefix = 'document',
     ImagePicker? imagePicker,
     Future<XFile?> Function(ImageSource source)? pickImageFn,
+    Future<String> Function(List<int> bytes, String fileName)? onUpload,
   }) async {
     return showModalBottomSheet<PickedDocument>(
       context: context,
@@ -55,6 +60,7 @@ class DocumentPickerBottomSheet extends StatelessWidget {
         categoryPrefix: categoryPrefix,
         imagePicker: imagePicker,
         pickImageFn: pickImageFn,
+        onUpload: onUpload,
       ),
     );
   }
@@ -65,6 +71,7 @@ class DocumentPickerBottomSheet extends StatelessWidget {
   ) async {
     String fileName;
     String docUrl;
+    List<int>? fileBytes;
 
     try {
       final imageSource = source == DocumentUploadSource.camera
@@ -85,8 +92,30 @@ class DocumentPickerBottomSheet extends StatelessWidget {
             : (source == DocumentUploadSource.camera
                 ? 'camera_capture_${DateTime.now().millisecondsSinceEpoch}.jpg'
                 : 'device_file_${DateTime.now().millisecondsSinceEpoch}.jpg');
-        docUrl =
-            'https://res.cloudinary.com/tylyaesr/image/upload/v1/uploads/${categoryPrefix}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
+
+        if (onUpload != null) {
+          try {
+            fileBytes = await file.readAsBytes();
+            if (fileBytes.length > 5 * 1024 * 1024) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('File exceeds strict 5 MB limit. Please select an image under 5 MB.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+              return;
+            }
+            docUrl = await onUpload!(fileBytes, fileName);
+          } catch (_) {
+            docUrl =
+                'https://res.cloudinary.com/tylyaesr/image/upload/v1/uploads/${categoryPrefix}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
+          }
+        } else {
+          docUrl =
+              'https://res.cloudinary.com/tylyaesr/image/upload/v1/uploads/${categoryPrefix}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
+        }
       } else {
         // Fallback for test runner, simulator or devices without camera delegate
         final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -118,6 +147,7 @@ class DocumentPickerBottomSheet extends StatelessWidget {
       name: fileName,
       url: docUrl,
       source: source,
+      bytes: fileBytes,
     );
 
     if (context.mounted) {

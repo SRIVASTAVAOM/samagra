@@ -195,4 +195,75 @@ describe('Homework Management API Tests', () => {
       expect(res.body.data).toHaveProperty('attachmentName');
     });
   });
+
+  describe('POST /api/v1/homework/attachment-upload', () => {
+    it('should reject file upload when unauthenticated', async () => {
+      const res = await request(app)
+        .post('/api/v1/homework/attachment-upload')
+        .send(Buffer.from('%PDF-1.4 test content'));
+
+      expect(res.status).toBe(401);
+    });
+
+    it('should reject file upload from students with 403', async () => {
+      const res = await request(app)
+        .post('/api/v1/homework/attachment-upload?fileName=assignment.pdf')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .set('Content-Type', 'application/pdf')
+        .send(Buffer.from('%PDF-1.4 test content'));
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should reject empty file data with 400', async () => {
+      const res = await request(app)
+        .post('/api/v1/homework/attachment-upload?fileName=empty.pdf')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Content-Type', 'application/pdf')
+        .send(Buffer.alloc(0));
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('should reject invalid file format with 400', async () => {
+      const res = await request(app)
+        .post('/api/v1/homework/attachment-upload?fileName=malicious.exe')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Content-Type', 'application/octet-stream')
+        .send(Buffer.from('Not allowed content'));
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('Invalid file format');
+    });
+
+    it('should reject files exceeding strict 5 MB limit with 400', async () => {
+      const oversizedBuffer = Buffer.alloc(5 * 1024 * 1024 + 1024, 0x41); // > 5 MB
+      const res = await request(app)
+        .post('/api/v1/homework/attachment-upload?fileName=large.pdf')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Content-Type', 'application/pdf')
+        .send(oversizedBuffer);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('5 MB');
+    });
+
+    it('should accept and upload a valid image under 5 MB', async () => {
+      const validPngBase64 =
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+      const validPngBuffer = Buffer.from(validPngBase64, 'base64');
+
+      const res = await request(app)
+        .post('/api/v1/homework/attachment-upload?fileName=assignment_diagram.png')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Content-Type', 'image/png')
+        .send(validPngBuffer);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('attachmentUrl');
+      expect(res.body.data.attachmentName).toBe('assignment_diagram.png');
+    }, 15000);
+  });
 });

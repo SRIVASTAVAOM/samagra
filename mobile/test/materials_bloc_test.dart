@@ -58,6 +58,17 @@ class MockMaterialsRepository implements MaterialsRepository {
   }
 
   @override
+  Future<void> uploadFileDirectly(
+    String uploadUrl,
+    List<int> fileBytes,
+    String contentType, {
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    if (shouldThrow) throw Exception('Upload failed');
+    onProgress?.call(100, 100);
+  }
+
+  @override
   Future<void> uploadFileDirectlyToS3(
     String uploadUrl,
     List<int> fileBytes,

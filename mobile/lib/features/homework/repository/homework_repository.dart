@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/dio_client.dart';
 import '../../materials/models/academic_material_model.dart';
@@ -88,5 +89,19 @@ class HomeworkRepository {
   Future<PresignedDownloadResponse> getAttachmentDownloadUrl(String homeworkId) async {
     final response = await _client.get(ApiEndpoints.homeworkAttachmentDownload(homeworkId));
     return PresignedDownloadResponse.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<Map<String, dynamic>> uploadAttachment(List<int> bytes, String fileName) async {
+    final mimeType = fileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+    final response = await _client.post(
+      '${ApiEndpoints.homeworkAttachmentUpload}?fileName=${Uri.encodeComponent(fileName)}',
+      data: bytes,
+      options: Options(
+        headers: {
+          'Content-Type': mimeType,
+        },
+      ),
+    );
+    return response.data['data'] as Map<String, dynamic>;
   }
 }

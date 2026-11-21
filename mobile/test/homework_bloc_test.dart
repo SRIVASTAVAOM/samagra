@@ -91,6 +91,16 @@ class MockHomeworkRepository implements HomeworkRepository {
       expiresInSeconds: 900,
     );
   }
+
+  @override
+  Future<Map<String, dynamic>> uploadAttachment(List<int> bytes, String fileName) async {
+    if (shouldThrow) throw Exception('Network error');
+    return {
+      'fileKey': 'https://res.cloudinary.com/tylyaesr/image/upload/v1/uploads/test.jpg',
+      'attachmentUrl': 'https://res.cloudinary.com/tylyaesr/image/upload/v1/uploads/test.jpg',
+      'attachmentName': fileName,
+    };
+  }
 }
 
 void main() {

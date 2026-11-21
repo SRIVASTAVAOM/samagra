@@ -6,6 +6,7 @@ import '../../academics/bloc/academics_state.dart';
 import '../../academics/models/subject_model.dart';
 import '../bloc/homework_bloc.dart';
 import '../models/homework_model.dart';
+import '../repository/homework_repository.dart';
 import '../../../core/widgets/document_picker_bottom_sheet.dart';
 
 class TeacherHomeworkManageView extends StatefulWidget {
@@ -415,12 +416,17 @@ class _EditHomeworkSheetState extends State<_EditHomeworkSheet> {
                       OutlinedButton.icon(
                         key: const Key('edit_hw_attach_btn'),
                         onPressed: () async {
+                          final repo = context.read<HomeworkRepository>();
                           final doc = await DocumentPickerBottomSheet.show(
                             context,
                             title: 'Attach Assignment Document',
                             subtitle:
-                                'Choose from device storage or take a photo with camera',
+                                'Choose from device storage or take a photo with camera (Max 5 MB)',
                             categoryPrefix: 'homework_doc',
+                            onUpload: (bytes, fileName) async {
+                              final res = await repo.uploadAttachment(bytes, fileName);
+                              return res['fileKey'] as String? ?? res['attachmentUrl'] as String;
+                            },
                           );
                           if (doc != null) {
                             setState(() {
@@ -459,12 +465,17 @@ class _EditHomeworkSheetState extends State<_EditHomeworkSheet> {
                           ),
                           TextButton(
                             onPressed: () async {
+                              final repo = context.read<HomeworkRepository>();
                               final doc = await DocumentPickerBottomSheet.show(
                                 context,
                                 title: 'Attach Assignment Document',
                                 subtitle:
-                                    'Choose from device storage or take a photo with camera',
+                                    'Choose from device storage or take a photo with camera (Max 5 MB)',
                                 categoryPrefix: 'homework_doc',
+                                onUpload: (bytes, fileName) async {
+                                  final res = await repo.uploadAttachment(bytes, fileName);
+                                  return res['fileKey'] as String? ?? res['attachmentUrl'] as String;
+                                },
                               );
                               if (doc != null) {
                                 setState(() {
@@ -474,6 +485,18 @@ class _EditHomeworkSheetState extends State<_EditHomeworkSheet> {
                               }
                             },
                             child: const Text('Change', style: TextStyle(fontSize: 11)),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 16, color: Colors.grey),
+                            tooltip: 'Remove Attachment [x]',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              setState(() {
+                                _attachedDocumentName = null;
+                                _attachedDocumentKey = null;
+                              });
+                            },
                           ),
                         ],
                       ),
@@ -681,12 +704,17 @@ class _CreateHomeworkSheetState extends State<_CreateHomeworkSheet> {
                           OutlinedButton.icon(
                             key: const Key('create_hw_attach_btn'),
                             onPressed: () async {
+                              final repo = context.read<HomeworkRepository>();
                               final doc = await DocumentPickerBottomSheet.show(
                                 context,
                                 title: 'Attach Assignment Document',
                                 subtitle:
-                                    'Choose from device storage or take a photo with camera',
+                                    'Choose from device storage or take a photo with camera (Max 5 MB)',
                                 categoryPrefix: 'homework_doc',
+                                onUpload: (bytes, fileName) async {
+                                  final res = await repo.uploadAttachment(bytes, fileName);
+                                  return res['fileKey'] as String? ?? res['attachmentUrl'] as String;
+                                },
                               );
                               if (doc != null) {
                                 setState(() {
@@ -722,6 +750,18 @@ class _CreateHomeworkSheetState extends State<_CreateHomeworkSheet> {
                                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                                   overflow: TextOverflow.ellipsis,
                                 ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close, size: 16, color: Colors.grey),
+                                tooltip: 'Remove Attachment [x]',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () {
+                                  setState(() {
+                                    _attachedDocumentName = null;
+                                    _attachedDocumentKey = null;
+                                  });
+                                },
                               ),
                             ],
                           ),

@@ -208,8 +208,8 @@ export class AdminService {
         description: data.description || '',
         assignedDate: data.assigned_date,
         dueDate: data.due_date,
-        attachmentName: data.attachment_name,
-        s3AttachmentKey: data.s3_attachment_key,
+        attachmentName: data.attachment_name !== undefined ? data.attachment_name : data.attachmentName,
+        s3AttachmentKey: data.s3_attachment_key !== undefined ? data.s3_attachment_key : data.s3AttachmentKey,
       },
       user.userId
     );
@@ -225,8 +225,8 @@ export class AdminService {
       description: data.description,
       assignedDate: data.assigned_date,
       dueDate: data.due_date,
-      attachmentName: data.attachment_name,
-      s3AttachmentKey: data.s3_attachment_key,
+      attachmentName: data.attachment_name !== undefined ? data.attachment_name : data.attachmentName,
+      s3AttachmentKey: data.s3_attachment_key !== undefined ? data.s3_attachment_key : data.s3AttachmentKey,
     });
     if (!updated) {
       const error: any = new Error('Homework record not found or unauthorized');

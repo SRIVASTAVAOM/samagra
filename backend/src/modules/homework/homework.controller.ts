@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import path from 'path';
 import { HomeworkService } from './homework.service';
+import { CloudinaryService } from '../../services/cloudinary.service';
 
 const createHomeworkSchema = z.object({
   classId: z.string().uuid(),
@@ -147,6 +149,130 @@ export class HomeworkController {
       res.status(error.statusCode || 500).json({
         success: false,
         error: error.message || 'Failed to generate attachment download URL',
+      });
+    }
+  }
+
+  /**
+   * Upload homework attachment directly to Cloudinary with strict 5 MB limit.
+   */
+  static async uploadHomeworkAttachment(req: Request, res: Response): Promise<void> {
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB (5,242,880 bytes)
+    const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+
+    const getRawBuffer = (): Promise<Buffer> => {
+      if (Buffer.isBuffer(req.body)) {
+        return Promise.resolve(req.body);
+      }
+      return new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        let total = 0;
+        let limitExceeded = false;
+
+        req.on('data', (chunk: Buffer) => {
+          if (limitExceeded) return;
+          total += chunk.length;
+          if (total > MAX_FILE_SIZE) {
+            limitExceeded = true;
+            return;
+          }
+          chunks.push(chunk);
+        });
+
+        req.on('end', () => {
+          if (limitExceeded) {
+            const err: any = new Error('File size exceeds maximum allowed limit of 5 MB');
+            err.statusCode = 400;
+            return reject(err);
+          }
+          resolve(Buffer.concat(chunks));
+        });
+
+        req.on('error', (err) => reject(err));
+      });
+    };
+
+    try {
+      const buffer = await getRawBuffer();
+
+      if (!buffer || buffer.length === 0) {
+        res.status(400).json({ success: false, error: 'No file data received or uploaded file is empty' });
+        return;
+      }
+
+      if (buffer.length > MAX_FILE_SIZE) {
+        res.status(400).json({ success: false, error: 'File size exceeds maximum allowed limit of 5 MB' });
+        return;
+      }
+
+      // Determine file name and extension
+      const rawName =
+        (req.query.fileName as string) ||
+        (req.query.filename as string) ||
+        (req.headers['x-file-name'] as string) ||
+        `attachment_${Date.now()}.pdf`;
+
+      const safeBaseName = path.basename(rawName).replace(/[^a-zA-Z0-9._-]/g, '_');
+      const ext = path.extname(safeBaseName).toLowerCase();
+
+      if (!ALLOWED_EXTS.includes(ext)) {
+        res.status(400).json({
+          success: false,
+          error: `Invalid file format (${ext || 'unknown'}). Only JPEG, PNG, WebP, and PDF documents are allowed.`,
+        });
+        return;
+      }
+
+      // Magic numbers validation
+      const isPdf = buffer.length >= 4 && buffer.slice(0, 4).toString('ascii') === '%PDF';
+      const isJpg = buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+      const isPng =
+        buffer.length >= 8 &&
+        buffer[0] === 0x89 &&
+        buffer[1] === 0x50 &&
+        buffer[2] === 0x4e &&
+        buffer[3] === 0x47;
+      const isWebp =
+        buffer.length >= 12 &&
+        buffer.slice(0, 4).toString('ascii') === 'RIFF' &&
+        buffer.slice(8, 12).toString('ascii') === 'WEBP';
+
+      if (!isPdf && !isJpg && !isPng && !isWebp) {
+        res.status(400).json({
+          success: false,
+          error: 'File content does not match allowed format signature (JPEG, PNG, WebP, or PDF).',
+        });
+        return;
+      }
+
+      const contentType =
+        ext === '.pdf'
+          ? 'application/pdf'
+          : ext === '.png'
+          ? 'image/png'
+          : ext === '.webp'
+          ? 'image/webp'
+          : 'image/jpeg';
+
+      const uniqueKey = `homework_${Date.now()}_${safeBaseName}`;
+      const uploadResult = await CloudinaryService.uploadBuffer(buffer, uniqueKey, contentType);
+
+      res.status(200).json({
+        success: true,
+        message: 'Homework attachment uploaded successfully',
+        data: {
+          fileKey: uploadResult.url || uploadResult.publicId,
+          attachmentUrl: uploadResult.url,
+          attachmentName: safeBaseName,
+          sizeBytes: buffer.length,
+          format: ext.replace('.', ''),
+        },
+      });
+    } catch (error: any) {
+      console.error('[Homework Attachment Upload Error]:', error);
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: error.message || 'Failed to upload homework attachment',
       });
     }
   }

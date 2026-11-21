@@ -1,11 +1,24 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { authenticateToken } from '../../middlewares/auth.middleware';
 import { requireRole } from '../../middlewares/rbac.middleware';
 import { HomeworkController } from './homework.controller';
 
 const router = Router();
 
+const uploadParser = express.raw({
+  limit: '6mb',
+  type: ['image/*', 'application/pdf', 'application/octet-stream'],
+});
+
 router.use(authenticateToken);
+
+// Teacher/Admin uploads homework attachment (5MB limit) - before /:id
+router.post(
+  '/attachment-upload',
+  requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']),
+  uploadParser,
+  HomeworkController.uploadHomeworkAttachment
+);
 
 // Teacher creates homework
 router.post('/', requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']), HomeworkController.createHomework);

@@ -123,6 +123,7 @@ class ApiEndpoints {
   // Homework Endpoints
 
   static String get homework => '$baseUrl/homework';
+  static String get homeworkAttachmentUpload => '$baseUrl/homework/attachment-upload';
   static String get studentMyClassHomework => '$baseUrl/homework/student/my-class';
   static String get teacherMyAssignedHomework => '$baseUrl/homework/teacher/my-assigned';
   static String classHomework(String classId, String sectionId) =>
