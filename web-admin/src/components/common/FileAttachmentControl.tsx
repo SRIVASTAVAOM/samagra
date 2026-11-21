@@ -66,13 +66,13 @@ export default function FileAttachmentControl({
   label = 'Attachment',
   required = false,
   disabled = false,
-  accept = '.pdf,.png,.jpg,.jpeg',
+  accept = '.pdf,.png,.jpg,.jpeg,.webp,.docx',
   maxSizeBytes = 10 * 1024 * 1024, // 10MB default
   stagedFile,
   onStagedFileChange,
   existingAttachment,
   onRemoveExisting,
-  helperText = 'Allowed: PDF, PNG, JPG (Max 10MB)',
+  helperText = 'Allowed: PDF, PNG, JPG, WebP, DOCX (Max 10MB)',
   className = '',
 }: FileAttachmentControlProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -95,9 +95,11 @@ export default function FileAttachmentControl({
       .split(',')
       .map((ext) => ext.trim().toLowerCase());
     const fileExt = '.' + (file.name.split('.').pop() || '').toLowerCase();
-    const isAllowed = allowedExts.some(
-      (ext) => ext === fileExt || (file.type && file.type.includes(ext.replace('.', '')))
-    );
+    const isImage = file.type ? file.type.startsWith('image/') : false;
+    const isAllowed =
+      allowedExts.some(
+        (ext) => ext === fileExt || (file.type && file.type.includes(ext.replace('.', '')))
+      ) || isImage;
 
     if (!isAllowed) {
       setValidationError(`Unsupported file format. Please select ${accept.replace(/\./g, ' ').toUpperCase()}.`);
