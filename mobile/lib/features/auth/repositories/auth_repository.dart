@@ -36,6 +36,7 @@ class AuthRepository {
         userId: user.id,
         role: user.primaryRole,
       );
+      await storageService.saveUserData(user.toJson());
 
       return user;
     } on DioException catch (e) {
@@ -53,15 +54,50 @@ class AuthRepository {
       return null;
     }
 
+    UserModel? cachedUser;
+    final cachedUserData = await storageService.getUserData();
+    if (cachedUserData != null) {
+      try {
+        cachedUser = UserModel.fromJson(cachedUserData);
+      } catch (_) {}
+    }
+
+    if (cachedUser == null) {
+      final role = await storageService.getActiveRole();
+      final userId = await storageService.read('active_user_id');
+      if (role != null && userId != null) {
+        cachedUser = UserModel(
+          id: userId,
+          schoolId: '',
+          identifier: userId,
+          roles: [role],
+        );
+      }
+    }
+
     try {
       final response = await dioClient.dio.get(ApiEndpoints.me);
       if (response.statusCode == 200 && response.data['data'] != null) {
-        return UserModel.fromJson(response.data['data'] as Map<String, dynamic>);
+        final freshUser = UserModel.fromJson(response.data['data'] as Map<String, dynamic>);
+        await storageService.saveUserData(freshUser.toJson());
+        await storageService.saveUserInfo(
+          userId: freshUser.id,
+          role: freshUser.primaryRole,
+        );
+        return freshUser;
       }
-      return null;
+      return cachedUser;
+    } on DioException catch (e) {
+      // ONLY wipe storage if backend explicitly told us token is 401 Unauthorized
+      if (e.response?.statusCode == 401) {
+        await storageService.clearAll();
+        return null;
+      }
+      // Network timeout, Render cold start, or temporary 5xx: keep session alive!
+      return cachedUser;
     } catch (_) {
-      await storageService.clearAll();
-      return null;
+      // Offline or other exceptions: keep session alive!
+      return cachedUser;
     }
   }
 

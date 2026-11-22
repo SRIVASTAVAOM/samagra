@@ -180,6 +180,7 @@ void main() {
       attendanceBloc = AttendanceBloc(repository: attendanceRepo);
       homeworkBloc = HomeworkBloc(homeworkRepo);
       featuresBloc = StudentFeaturesBloc(repository: featuresRepo);
+      featuresBloc.emit(StudentNoticesLoaded(featuresRepo.testNotices));
     });
 
     tearDown(() {
@@ -308,6 +309,11 @@ void main() {
     });
 
     testWidgets('Quick Links safely trigger callbacks without errors', (tester) async {
+      tester.view.physicalSize = const Size(1200, 3500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       int? tappedTab;
       int? tappedAcademicSub;
       int? tappedServicesSub;
@@ -365,6 +371,11 @@ void main() {
     });
 
     testWidgets('Tapping a notice opens detail dialog modal', (tester) async {
+      tester.view.physicalSize = const Size(1200, 3500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       featuresBloc.emit(StudentNoticesLoaded(featuresRepo.testNotices));
 
       await tester.pumpWidget(createTestWidget());
@@ -374,7 +385,7 @@ void main() {
       expect(find.text('Annual Sports Meet 2026'), findsOneWidget);
       await tester.ensureVisible(find.text('Annual Sports Meet 2026'));
       await tester.tap(find.text('Annual Sports Meet 2026'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.byType(AlertDialog), findsOneWidget);
       expect(find.descendant(
@@ -384,12 +395,17 @@ void main() {
       expect(find.text('Close'), findsOneWidget);
 
       await tester.tap(find.text('Close'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.byType(AlertDialog), findsNothing);
     });
 
     testWidgets('Fallback navigation without onNavigateToTab does not throw error', (tester) async {
+      tester.view.physicalSize = const Size(1200, 3500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await tester.pumpWidget(createTestWidget(onNavigateToTab: null));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -402,6 +418,11 @@ void main() {
     });
 
     testWidgets('Tapping Add Menu opens Customize Quick Links bottom sheet', (tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await tester.pumpWidget(createTestWidget());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -409,14 +430,17 @@ void main() {
       expect(find.byKey(const Key('add_menu_tile')), findsOneWidget);
       await tester.ensureVisible(find.byKey(const Key('add_menu_tile')));
       await tester.tap(find.byKey(const Key('add_menu_tile')));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
 
       expect(find.text('Customize Quick Links'), findsOneWidget);
       expect(find.text('Save Quick Links'), findsOneWidget);
       expect(find.text('Reset Default'), findsOneWidget);
 
+      await tester.ensureVisible(find.text('Save Quick Links'));
       await tester.tap(find.text('Save Quick Links'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
 
       expect(find.text('Customize Quick Links'), findsNothing);
     });

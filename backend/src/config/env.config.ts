@@ -13,7 +13,7 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().default(''),
   DB_NAME: z.string().default('school_erp_db'),
   JWT_SECRET: z.string().default('super_secret_dev_school_erp_jwt_key_2026_m1'),
-  JWT_EXPIRES_IN: z.string().default('8h'),
+  JWT_EXPIRES_IN: z.string().default('30d'),
   // Cloudinary Storage Configuration
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),

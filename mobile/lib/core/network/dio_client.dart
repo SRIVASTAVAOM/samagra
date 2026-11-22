@@ -16,8 +16,8 @@ class DioClient {
             Dio(
               BaseOptions(
                 baseUrl: ApiEndpoints.baseUrl,
-                connectTimeout: const Duration(seconds: 10),
-                receiveTimeout: const Duration(seconds: 10),
+                connectTimeout: const Duration(seconds: 30),
+                receiveTimeout: const Duration(seconds: 30),
                 headers: {
                   'Content-Type': 'application/json',
                   'Accept': 'application/json',
@@ -35,9 +35,14 @@ class DioClient {
         },
         onError: (DioException error, handler) async {
           if (error.response?.statusCode == 401) {
-            // Token expired or invalid - clear storage and notify AuthBloc
-            await storageService.clearAll();
-            onUnauthorized?.call();
+            final path = error.requestOptions.path;
+            final isAuthAttempt = path.contains('/auth/login') ||
+                path.contains('/auth/forgot-password');
+            if (!isAuthAttempt) {
+              // Token genuinely expired or invalid - clear storage and notify AuthBloc
+              await storageService.clearAll();
+              onUnauthorized?.call();
+            }
           }
           return handler.next(error);
         },
