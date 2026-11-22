@@ -58,7 +58,15 @@ export class HomeworkController {
   static async createHomework(req: Request, res: Response): Promise<void> {
     try {
       const parsed = createHomeworkSchema.parse(req.body);
-      const homework = await HomeworkService.createHomework((req as any).user, parsed);
+      const idempotencyKey = (req.headers['idempotency-key'] ||
+        req.headers['x-idempotency-key'] ||
+        req.body.idempotencyKey ||
+        req.body.idempotency_key) as string | undefined;
+
+      const homework = await HomeworkService.createHomework((req as any).user, {
+        ...parsed,
+        idempotencyKey,
+      });
       res.status(201).json({ success: true, data: homework });
     } catch (error: any) {
       if (error instanceof z.ZodError) {

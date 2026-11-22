@@ -3,6 +3,8 @@ import { TokenPayload } from '../../types/auth.types';
 import { CloudinaryService } from '../../services/cloudinary.service';
 import { HomeworkRepository, HomeworkAssignment } from './homework.repository';
 
+const homeworkIdempotencyCache = new Map<string, { result: HomeworkAssignment; expiresAt: number }>();
+
 export class HomeworkService {
   /**
    * Verifies teacher is allocated to class, section, and subject.
@@ -42,10 +44,20 @@ export class HomeworkService {
       dueDate: string;
       s3AttachmentKey?: string;
       attachmentName?: string;
+      idempotencyKey?: string;
     }
   ): Promise<HomeworkAssignment> {
     if (!user.roles.includes('TEACHER')) {
       throw { statusCode: 403, message: 'Only teachers can create homework assignments.' };
+    }
+
+    // 1. In-memory idempotency check for fast network double-taps
+    const now = Date.now();
+    if (data.idempotencyKey) {
+      const cached = homeworkIdempotencyCache.get(data.idempotencyKey);
+      if (cached && cached.expiresAt > now) {
+        return cached.result;
+      }
     }
 
     // Validate due date
@@ -56,6 +68,41 @@ export class HomeworkService {
     }
 
     await this.verifyTeacherAllocation(user.profileId!, data.classId, data.sectionId, data.subjectId);
+
+    // 2. Database level idempotency check: check if identical homework was submitted within last 60 seconds
+    const existingRecent = await pool.query(
+      `SELECT * FROM homework_assignments
+       WHERE school_id = $1 
+         AND class_id = $2 
+         AND section_id = $3 
+         AND subject_id = $4 
+         AND assigned_by_staff_id = $5 
+         AND title = $6 
+         AND due_date = $7::date 
+         AND created_at >= NOW() - INTERVAL '60 seconds'
+       ORDER BY created_at DESC 
+       LIMIT 1;`,
+      [
+        user.schoolId,
+        data.classId,
+        data.sectionId,
+        data.subjectId,
+        user.profileId!,
+        data.title,
+        data.dueDate,
+      ]
+    );
+
+    if (existingRecent.rows.length > 0) {
+      const existing = existingRecent.rows[0];
+      if (data.idempotencyKey) {
+        homeworkIdempotencyCache.set(data.idempotencyKey, {
+          result: existing,
+          expiresAt: now + 5 * 60 * 1000,
+        });
+      }
+      return existing;
+    }
 
     const client = await pool.connect();
     try {
@@ -100,6 +147,14 @@ export class HomeworkService {
       );
 
       await client.query('COMMIT');
+
+      if (data.idempotencyKey) {
+        homeworkIdempotencyCache.set(data.idempotencyKey, {
+          result: homework,
+          expiresAt: Date.now() + 5 * 60 * 1000,
+        });
+      }
+
       return homework;
     } catch (txErr) {
       await client.query('ROLLBACK');

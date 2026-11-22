@@ -13,6 +13,8 @@ export interface NoticeItem {
   created_at: string;
 }
 
+const noticeIdempotencyCache = new Map<string, { result: any; expiresAt: number }>();
+
 export class NoticeService {
   static async getStudentNotices(user: TokenPayload): Promise<NoticeItem[]> {
     const query = `
@@ -68,12 +70,50 @@ export class NoticeService {
       target_student_id?: string | null;
       priority?: 'INFO' | 'NORMAL' | 'URGENT';
       channel?: string;
+      idempotencyKey?: string;
     }
   ): Promise<any> {
     if (!data.title?.trim() || !data.content?.trim()) {
       const error: any = new Error('Title and content are required');
       error.statusCode = 400;
       throw error;
+    }
+
+    const now = Date.now();
+    // 1. In-memory idempotency check
+    if (data.idempotencyKey) {
+      const cached = noticeIdempotencyCache.get(data.idempotencyKey);
+      if (cached && cached.expiresAt > now) {
+        return cached.result;
+      }
+    }
+
+    const trimmedTitle = data.title.trim();
+    const trimmedContent = data.content.trim();
+    const role = data.target_role || 'ALL';
+
+    // 2. Database level idempotency check for duplicate clicks within 60s
+    const existingRecent = await pool.query(
+      `SELECT * FROM notices
+       WHERE school_id = $1
+         AND title = $2
+         AND content = $3
+         AND target_role = $4
+         AND created_at >= NOW() - INTERVAL '60 seconds'
+       ORDER BY created_at DESC
+       LIMIT 1;`,
+      [user.schoolId, trimmedTitle, trimmedContent, role]
+    );
+
+    if (existingRecent.rows.length > 0) {
+      const existing = existingRecent.rows[0];
+      if (data.idempotencyKey) {
+        noticeIdempotencyCache.set(data.idempotencyKey, {
+          result: existing,
+          expiresAt: now + 5 * 60 * 1000,
+        });
+      }
+      return existing;
     }
 
     const query = `
@@ -86,9 +126,9 @@ export class NoticeService {
 
     const { rows } = await pool.query(query, [
       user.schoolId,
-      data.title.trim(),
-      data.content.trim(),
-      data.target_role || 'ALL',
+      trimmedTitle,
+      trimmedContent,
+      role,
       data.target_class_id || null,
       data.target_section_id || null,
       data.target_student_id || null,
@@ -96,7 +136,15 @@ export class NoticeService {
       data.channel || 'IN_APP',
     ]);
 
-    return rows[0];
+    const created = rows[0];
+    if (data.idempotencyKey) {
+      noticeIdempotencyCache.set(data.idempotencyKey, {
+        result: created,
+        expiresAt: now + 5 * 60 * 1000,
+      });
+    }
+
+    return created;
   }
 
   static async deleteNotice(user: TokenPayload, id: string): Promise<boolean> {

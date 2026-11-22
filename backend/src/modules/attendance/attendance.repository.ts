@@ -82,29 +82,43 @@ export class AttendanceRepository {
         }
       }
 
-      const query = `
-        INSERT INTO student_attendance_records (
-          school_id, student_id, class_id, section_id, attendance_date, status, marked_by_staff_id, remarks, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
-        ON CONFLICT (student_id, attendance_date)
-        DO UPDATE SET
-          status = EXCLUDED.status,
-          marked_by_staff_id = EXCLUDED.marked_by_staff_id,
-          remarks = EXCLUDED.remarks,
-          updated_at = CURRENT_TIMESTAMP;
-      `;
+      if (records.length > 0) {
+        const studentIds = records.map((r) => r.student_id);
+        const statuses = records.map((r) => r.status);
+        const remarks = records.map((r) => r.remarks ?? null);
 
-      for (const rec of records) {
-        await client.query(query, [
-          schoolId,
-          rec.student_id,
-          classId,
-          sectionId,
-          attendanceDate,
-          rec.status,
-          markedByStaffId,
-          rec.remarks ?? null,
-        ]);
+        await client.query(
+          `INSERT INTO student_attendance_records (
+            school_id, student_id, class_id, section_id, attendance_date, status, marked_by_staff_id, remarks, updated_at
+          )
+          SELECT 
+            $1, 
+            s.student_id, 
+            $2, 
+            $3, 
+            $4::date, 
+            s.status, 
+            $5, 
+            s.remarks, 
+            CURRENT_TIMESTAMP
+          FROM UNNEST($6::uuid[], $7::varchar[], $8::text[]) AS s(student_id, status, remarks)
+          ON CONFLICT (student_id, attendance_date)
+          DO UPDATE SET
+            status = EXCLUDED.status,
+            marked_by_staff_id = EXCLUDED.marked_by_staff_id,
+            remarks = EXCLUDED.remarks,
+            updated_at = CURRENT_TIMESTAMP;`,
+          [
+            schoolId,
+            classId,
+            sectionId,
+            attendanceDate,
+            markedByStaffId,
+            studentIds,
+            statuses,
+            remarks,
+          ]
+        );
       }
 
       await client.query('COMMIT');
@@ -290,28 +304,43 @@ export class AttendanceRepository {
     try {
       await client.query('BEGIN');
 
-      const query = `
-        INSERT INTO staff_attendance_records (
-          school_id, staff_id, attendance_date, status, in_time, out_time, remarks
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (staff_id, attendance_date)
-        DO UPDATE SET
-          status = EXCLUDED.status,
-          in_time = COALESCE(EXCLUDED.in_time, staff_attendance_records.in_time),
-          out_time = COALESCE(EXCLUDED.out_time, staff_attendance_records.out_time),
-          remarks = EXCLUDED.remarks;
-      `;
+      if (records.length > 0) {
+        const staffIds = records.map((r) => r.staff_id);
+        const statuses = records.map((r) => r.status);
+        const inTimes = records.map((r) => r.in_time ?? null);
+        const outTimes = records.map((r) => r.out_time ?? null);
+        const remarks = records.map((r) => r.remarks ?? null);
 
-      for (const rec of records) {
-        await client.query(query, [
-          schoolId,
-          rec.staff_id,
-          attendanceDate,
-          rec.status,
-          rec.in_time ?? null,
-          rec.out_time ?? null,
-          rec.remarks ?? null,
-        ]);
+        await client.query(
+          `INSERT INTO staff_attendance_records (
+            school_id, staff_id, attendance_date, status, in_time, out_time, remarks
+          )
+          SELECT 
+            $1, 
+            s.staff_id, 
+            $2::date, 
+            s.status, 
+            s.in_time::time, 
+            s.out_time::time, 
+            s.remarks
+          FROM UNNEST($3::uuid[], $4::varchar[], $5::text[], $6::text[], $7::text[]) 
+            AS s(staff_id, status, in_time, out_time, remarks)
+          ON CONFLICT (staff_id, attendance_date)
+          DO UPDATE SET
+            status = EXCLUDED.status,
+            in_time = COALESCE(EXCLUDED.in_time, staff_attendance_records.in_time),
+            out_time = COALESCE(EXCLUDED.out_time, staff_attendance_records.out_time),
+            remarks = EXCLUDED.remarks;`,
+          [
+            schoolId,
+            attendanceDate,
+            staffIds,
+            statuses,
+            inTimes,
+            outTimes,
+            remarks,
+          ]
+        );
       }
 
       await client.query('COMMIT');

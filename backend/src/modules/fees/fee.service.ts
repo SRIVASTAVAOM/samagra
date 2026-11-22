@@ -1242,14 +1242,25 @@ export class FeeService {
         const cyclesRes = await client.query(`SELECT id, name, TO_CHAR(due_date, 'YYYY-MM-DD') AS due_date FROM fee_cycles WHERE school_id = $1;`, [user.schoolId]);
         for (const c of cyclesRes.rows) cyclesMap.set(c.id, c);
 
-        for (const st of students.rows) {
-          // Check concessions for this student
-          const concRes = await client.query(
-            `SELECT fee_head_id, concession_type, concession_value::float 
+        // Pre-fetch all active concessions for matched students in one batch query (Eliminates N+1 query loop)
+        const studentIds = students.rows.map((st: any) => st.id);
+        const concessionsMap = new Map<string, any[]>();
+        if (studentIds.length > 0) {
+          const allConcRes = await client.query(
+            `SELECT student_id, fee_head_id, concession_type, concession_value::float 
              FROM student_fee_concessions 
-             WHERE student_id = $1 AND is_active = TRUE;`,
-            [st.id]
+             WHERE student_id = ANY($1::uuid[]) AND is_active = TRUE;`,
+            [studentIds]
           );
+          for (const c of allConcRes.rows) {
+            const list = concessionsMap.get(c.student_id) || [];
+            list.push(c);
+            concessionsMap.set(c.student_id, list);
+          }
+        }
+
+        for (const st of students.rows) {
+          const studentConcessions = concessionsMap.get(st.id) || [];
 
           for (const item of data.items) {
             const headName = headsMap.get(item.fee_head_id) || 'Fee';
@@ -1262,7 +1273,7 @@ export class FeeService {
             let discountAmount = 0;
 
             // Apply concession if matched
-            const matchingConc = concRes.rows.find((c) => !c.fee_head_id || c.fee_head_id === item.fee_head_id);
+            const matchingConc = studentConcessions.find((c) => !c.fee_head_id || c.fee_head_id === item.fee_head_id);
             if (matchingConc) {
               if (matchingConc.concession_type === 'PERCENTAGE') {
                 discountAmount = (baseAmount * matchingConc.concession_value) / 100;
@@ -1588,11 +1599,41 @@ export class FeeService {
     amount: number;
     payment_mode: string;
     remarks?: string;
+    idempotency_key?: string;
   }) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       const schoolId = user.schoolId;
+
+      // Idempotency check for extra fee collection
+      if (data.idempotency_key) {
+        const existing = await client.query(
+          `SELECT r.id AS receipt_id, r.receipt_number, r.amount_paid,
+                  sp.first_name, sp.last_name, sp.admission_number, c.name AS class_name, sec.name AS section_name
+           FROM fee_receipts r
+           JOIN student_profiles sp ON r.student_id = sp.id
+           LEFT JOIN classes c ON sp.current_class_id = c.id
+           LEFT JOIN sections sec ON sp.current_section_id = sec.id
+           WHERE r.idempotency_key = $1 AND r.school_id = $2;`,
+          [data.idempotency_key, schoolId]
+        );
+        if (existing.rows.length > 0) {
+          await client.query('COMMIT');
+          const ext = existing.rows[0];
+          return {
+            receipt_id: ext.receipt_id,
+            receipt_number: ext.receipt_number,
+            amount_paid: ext.amount_paid,
+            student_name: `${ext.first_name} ${ext.last_name || ''}`.trim(),
+            admission_number: ext.admission_number,
+            class_name: ext.class_name,
+            section_name: ext.section_name,
+            category: data.fee_category,
+          };
+        }
+      }
+
       const receiptNumber = await FeeService.generateReceiptNumber(client, schoolId, 'EXT');
 
       const stRes = await client.query(
@@ -1613,8 +1654,8 @@ export class FeeService {
         recRes = await client.query(
           `INSERT INTO fee_receipts (
              school_id, student_id, receipt_number, amount_paid, payment_mode, 
-             payment_date, collected_by, is_cancelled, waterfall_breakdown
-           ) VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, FALSE, $7)
+             payment_date, collected_by, is_cancelled, waterfall_breakdown, idempotency_key
+           ) VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, FALSE, $7, $8)
            RETURNING id, receipt_number, amount_paid, payment_mode, payment_date;`,
           [
             schoolId,
@@ -1624,6 +1665,7 @@ export class FeeService {
             data.payment_mode || 'CASH',
             user.userId,
             JSON.stringify([{ head: data.fee_category, amount: data.amount, remarks: data.remarks || '' }]),
+            data.idempotency_key || null,
           ]
         );
       } catch (insertErr: any) {
@@ -1632,8 +1674,8 @@ export class FeeService {
           recRes = await client.query(
             `INSERT INTO fee_receipts (
                school_id, student_id, receipt_number, amount_paid, payment_mode, 
-               payment_date, collected_by, is_cancelled, waterfall_breakdown
-             ) VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, FALSE, $7)
+               payment_date, collected_by, is_cancelled, waterfall_breakdown, idempotency_key
+             ) VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, FALSE, $7, $8)
              RETURNING id, receipt_number, amount_paid, payment_mode, payment_date;`,
             [
               schoolId,
@@ -1643,6 +1685,7 @@ export class FeeService {
               data.payment_mode || 'CASH',
               user.userId,
               JSON.stringify([{ head: data.fee_category, amount: data.amount, remarks: data.remarks || '' }]),
+              data.idempotency_key || null,
             ]
           );
         } else {

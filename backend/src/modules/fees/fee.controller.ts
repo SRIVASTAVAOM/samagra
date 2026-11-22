@@ -37,7 +37,15 @@ export class FeeController {
 
   static async collectFee(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const receipt = await FeeService.collectFee(req.user!, req.body);
+      const idempotencyKey = (req.headers['idempotency-key'] ||
+        req.headers['x-idempotency-key'] ||
+        req.body.idempotency_key ||
+        req.body.idempotencyKey) as string | undefined;
+
+      const receipt = await FeeService.collectFee(req.user!, {
+        ...req.body,
+        idempotency_key: idempotencyKey,
+      });
       res.status(201).json({
         success: true,
         message: 'Fee payment collected successfully and receipt generated',
@@ -290,7 +298,15 @@ export class FeeController {
 
   static async collectExtraFee(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = await FeeService.collectExtraFee(req.user!, req.body);
+      const idempotencyKey = (req.headers['idempotency-key'] ||
+        req.headers['x-idempotency-key'] ||
+        req.body.idempotency_key ||
+        req.body.idempotencyKey) as string | undefined;
+
+      const data = await FeeService.collectExtraFee(req.user!, {
+        ...req.body,
+        idempotency_key: idempotencyKey,
+      });
       res.status(200).json({ success: true, message: 'Extra fee collected successfully', data });
     } catch (error) {
       next(error);

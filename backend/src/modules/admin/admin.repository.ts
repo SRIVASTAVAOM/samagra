@@ -1213,29 +1213,44 @@ export class AdminRepository {
         [schoolId, data.class_id, data.section_id, academicYearId]
       );
 
-      // Insert new slots
-      const insertQuery = `
-        INSERT INTO timetable_slots (
-          school_id, academic_year_id, class_id, section_id,
-          day_of_week, period_number, start_time, end_time,
-          subject_id, teacher_id, room_number
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
-      `;
+      // Insert new slots in a single batch query (Eliminates N+1 loop)
+      if (data.slots && data.slots.length > 0) {
+        const days = data.slots.map((s) => s.day_of_week);
+        const periods = data.slots.map((s) => s.period_number);
+        const startTimes = data.slots.map((s) => s.start_time);
+        const endTimes = data.slots.map((s) => s.end_time);
+        const subjectIds = data.slots.map((s) => s.subject_id);
+        const teacherIds = data.slots.map((s) => s.teacher_id);
+        const roomNumbers = data.slots.map((s) => s.room_number || null);
 
-      for (const slot of data.slots) {
-        await client.query(insertQuery, [
-          schoolId,
-          academicYearId,
-          data.class_id,
-          data.section_id,
-          slot.day_of_week,
-          slot.period_number,
-          slot.start_time,
-          slot.end_time,
-          slot.subject_id,
-          slot.teacher_id,
-          slot.room_number || null,
-        ]);
+        await client.query(
+          `INSERT INTO timetable_slots (
+            school_id, academic_year_id, class_id, section_id,
+            day_of_week, period_number, start_time, end_time,
+            subject_id, teacher_id, room_number
+          )
+          SELECT 
+            $1, $2, $3, $4,
+            s.day_of_week, s.period_number, s.start_time::time, s.end_time::time,
+            s.subject_id, s.teacher_id, s.room_number
+          FROM UNNEST(
+            $5::int[], $6::int[], $7::text[], $8::text[], 
+            $9::uuid[], $10::uuid[], $11::text[]
+          ) AS s(day_of_week, period_number, start_time, end_time, subject_id, teacher_id, room_number);`,
+          [
+            schoolId,
+            academicYearId,
+            data.class_id,
+            data.section_id,
+            days,
+            periods,
+            startTimes,
+            endTimes,
+            subjectIds,
+            teacherIds,
+            roomNumbers,
+          ]
+        );
       }
 
       await client.query('COMMIT');
@@ -3693,25 +3708,33 @@ export class AdminRepository {
           academicYearId = ayRes.rows[0].id;
         }
 
-        for (const item of subject_allocations) {
-          // Remove existing allocation for this class-section-subject
+        const subjectIds = subject_allocations.map((a: any) => a.subject_id);
+        if (subjectIds.length > 0) {
+          // Batch delete existing allocation for these subjects in this class & section
           await client.query(
             `DELETE FROM teacher_subject_allocations 
-             WHERE class_id = $1 AND section_id = $2 AND subject_id = $3`,
-            [class_id, section_id, item.subject_id]
+             WHERE class_id = $1 AND section_id = $2 AND subject_id = ANY($3::uuid[]);`,
+            [class_id, section_id, subjectIds]
           );
 
-          // Ensure class_subjects has this subject
+          // Ensure class_subjects has these subjects (Batch insert)
           await client.query(
-            `INSERT INTO class_subjects (class_id, subject_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-            [class_id, item.subject_id]
+            `INSERT INTO class_subjects (class_id, subject_id)
+             SELECT $1, unnest($2::uuid[])
+             ON CONFLICT DO NOTHING;`,
+            [class_id, subjectIds]
           );
 
-          if (item.teacher_id && item.teacher_id.trim()) {
+          // Batch insert teacher subject allocations for teachers assigned
+          const toAssign = subject_allocations.filter((item: any) => item.teacher_id && item.teacher_id.trim());
+          if (toAssign.length > 0) {
+            const staffIds = toAssign.map((a: any) => a.teacher_id.trim());
+            const subIds = toAssign.map((a: any) => a.subject_id);
             await client.query(
               `INSERT INTO teacher_subject_allocations (staff_id, class_id, section_id, subject_id, academic_year_id)
-               VALUES ($1, $2, $3, $4, $5)`,
-              [item.teacher_id.trim(), class_id, section_id, item.subject_id, academicYearId]
+               SELECT s.staff_id, $1, $2, s.subject_id, $3
+               FROM UNNEST($4::uuid[], $5::uuid[]) AS s(staff_id, subject_id);`,
+              [class_id, section_id, academicYearId, staffIds, subIds]
             );
           }
         }

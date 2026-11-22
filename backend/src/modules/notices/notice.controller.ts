@@ -23,7 +23,15 @@ export class NoticeController {
 
   static async createNotice(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const notice = await NoticeService.createNotice(req.user!, req.body);
+      const idempotencyKey = (req.headers['idempotency-key'] ||
+        req.headers['x-idempotency-key'] ||
+        req.body.idempotencyKey ||
+        req.body.idempotency_key) as string | undefined;
+
+      const notice = await NoticeService.createNotice(req.user!, {
+        ...req.body,
+        idempotencyKey,
+      });
       res.status(201).json({ success: true, message: 'Notice published successfully', data: notice });
     } catch (error) {
       next(error);
