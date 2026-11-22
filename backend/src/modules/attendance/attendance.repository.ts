@@ -18,6 +18,7 @@ export interface StudentAttendanceRecord {
   status: 'PRESENT' | 'ABSENT';
   remarks: string | null;
   marked_by_name: string;
+  updated_at?: string | null;
 }
 
 export interface StaffAttendanceRecord {
@@ -51,11 +52,35 @@ export class AttendanceRepository {
     sectionId: string,
     markedByStaffId: string,
     attendanceDate: string,
-    records: StudentAttendanceItem[]
+    records: StudentAttendanceItem[],
+    expectedUpdatedAt?: string
   ): Promise<void> {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+
+      // Optimistic concurrency check: if expectedUpdatedAt provided, reject stale batch overwrites
+      if (expectedUpdatedAt) {
+        const checkRes = await client.query(
+          `SELECT MAX(updated_at) AS latest_updated_at
+           FROM student_attendance_records
+           WHERE school_id = $1 AND class_id = $2 AND section_id = $3 AND attendance_date = $4
+           FOR UPDATE;`,
+          [schoolId, classId, sectionId, attendanceDate]
+        );
+
+        const latestUpdatedAt = checkRes.rows[0]?.latest_updated_at;
+        if (latestUpdatedAt) {
+          const latestMs = new Date(latestUpdatedAt).getTime();
+          const expectedMs = new Date(expectedUpdatedAt).getTime();
+          // If existing records were updated more than 1 second after expectedUpdatedAt, flag conflict
+          if (latestMs - expectedMs > 1000) {
+            const conflictErr: any = new Error('ATTENDANCE_CONFLICT');
+            conflictErr.latestUpdatedAt = new Date(latestUpdatedAt).toISOString();
+            throw conflictErr;
+          }
+        }
+      }
 
       const query = `
         INSERT INTO student_attendance_records (
@@ -111,7 +136,8 @@ export class AttendanceRepository {
         COALESCE(TO_CHAR(sar.attendance_date, 'YYYY-MM-DD'), $3::text) AS attendance_date,
         sar.status,
         sar.remarks,
-        CONCAT(sp.first_name, ' ', sp.last_name) AS marked_by_name
+        CONCAT(sp.first_name, ' ', sp.last_name) AS marked_by_name,
+        sar.updated_at
       FROM student_profiles stp
       LEFT JOIN student_attendance_records sar 
         ON stp.id = sar.student_id AND sar.attendance_date = $3

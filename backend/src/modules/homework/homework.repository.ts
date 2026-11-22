@@ -1,4 +1,5 @@
 import { pool } from '../../config/db.config';
+import { PoolClient } from 'pg';
 
 export interface HomeworkAssignment {
   id: string;
@@ -26,20 +27,24 @@ export interface HomeworkAssignment {
 }
 
 export class HomeworkRepository {
-  static async createHomework(data: {
-    schoolId: string;
-    classId: string;
-    sectionId: string;
-    subjectId: string;
-    assignedByStaffId: string;
-    title: string;
-    description: string;
-    assignedDate?: string;
-    dueDate: string;
-    s3AttachmentKey?: string;
-    attachmentName?: string;
-  }): Promise<HomeworkAssignment> {
-    const { rows } = await pool.query(
+  static async createHomework(
+    data: {
+      schoolId: string;
+      classId: string;
+      sectionId: string;
+      subjectId: string;
+      assignedByStaffId: string;
+      title: string;
+      description: string;
+      assignedDate?: string;
+      dueDate: string;
+      s3AttachmentKey?: string;
+      attachmentName?: string;
+    },
+    client?: PoolClient
+  ): Promise<HomeworkAssignment> {
+    const db = client || pool;
+    const { rows } = await db.query(
       `INSERT INTO homework_assignments 
         (school_id, class_id, section_id, subject_id, assigned_by_staff_id, 
          title, description, assigned_date, due_date, s3_attachment_key, attachment_name)

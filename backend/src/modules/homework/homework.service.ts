@@ -57,29 +57,35 @@ export class HomeworkService {
 
     await this.verifyTeacherAllocation(user.profileId!, data.classId, data.sectionId, data.subjectId);
 
-    const homework = await HomeworkRepository.createHomework({
-      schoolId: user.schoolId,
-      classId: data.classId,
-      sectionId: data.sectionId,
-      subjectId: data.subjectId,
-      assignedByStaffId: user.profileId!,
-      title: data.title,
-      description: data.description,
-      assignedDate: data.assignedDate,
-      dueDate: data.dueDate,
-      s3AttachmentKey: data.s3AttachmentKey,
-      attachmentName: data.attachmentName,
-    });
-
-    // Automatically emit an in-app notice and alert for all students in target class & section
+    const client = await pool.connect();
     try {
-      const subjectResult = await pool.query(
+      await client.query('BEGIN');
+
+      const homework = await HomeworkRepository.createHomework(
+        {
+          schoolId: user.schoolId,
+          classId: data.classId,
+          sectionId: data.sectionId,
+          subjectId: data.subjectId,
+          assignedByStaffId: user.profileId!,
+          title: data.title,
+          description: data.description,
+          assignedDate: data.assignedDate,
+          dueDate: data.dueDate,
+          s3AttachmentKey: data.s3AttachmentKey,
+          attachmentName: data.attachmentName,
+        },
+        client
+      );
+
+      // Automatically emit an in-app notice and alert for all students in target class & section atomically
+      const subjectResult = await client.query(
         `SELECT name FROM subjects WHERE id = $1;`,
         [data.subjectId]
       );
       const subjectName = subjectResult.rows[0]?.name || 'Subject';
 
-      await pool.query(
+      await client.query(
         `INSERT INTO notices (
           school_id, title, content, target_role,
           target_class_id, target_section_id, priority, channel, published_at
@@ -92,11 +98,15 @@ export class HomeworkService {
           data.sectionId,
         ]
       );
-    } catch (noticeErr) {
-      console.warn('[Notice auto-generation notice]:', noticeErr);
-    }
 
-    return homework;
+      await client.query('COMMIT');
+      return homework;
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
   }
 
   static async getStudentMyClassHomework(user: TokenPayload): Promise<HomeworkAssignment[]> {

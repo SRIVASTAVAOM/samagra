@@ -21,11 +21,14 @@ const markAttendanceSchema = z.object({
   section_id: z.string().uuid().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format').optional(),
   attendance_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format').optional(),
+  expectedUpdatedAt: z.string().optional(),
+  expected_updated_at: z.string().optional(),
   records: z.array(markAttendanceRecordSchema).min(1, 'At least one student attendance record is required'),
 }).transform((data) => ({
   classId: (data.classId || data.class_id)!,
   sectionId: (data.sectionId || data.section_id)!,
   date: (data.date || data.attendance_date)!,
+  expectedUpdatedAt: data.expectedUpdatedAt || data.expected_updated_at || undefined,
   records: data.records,
 })).refine((d) => !!d.classId && !!d.sectionId && !!d.date, {
   message: 'classId, sectionId, and date are required',
@@ -78,7 +81,8 @@ export class AttendanceController {
         parsed.classId,
         parsed.sectionId,
         parsed.date,
-        mappedRecords
+        mappedRecords,
+        parsed.expectedUpdatedAt
       );
 
       res.status(200).json({
@@ -88,6 +92,14 @@ export class AttendanceController {
     } catch (err: any) {
       if (err instanceof z.ZodError) {
         res.status(400).json({ success: false, error: err.errors[0].message });
+        return;
+      }
+      if (err.message === 'ATTENDANCE_CONFLICT') {
+        res.status(409).json({
+          success: false,
+          error: 'Conflict: Attendance records were updated by another user. Please refresh and try again.',
+          latestUpdatedAt: err.latestUpdatedAt,
+        });
         return;
       }
       if (err.message === 'FORBIDDEN_SCOPE') {

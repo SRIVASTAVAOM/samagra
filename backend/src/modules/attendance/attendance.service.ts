@@ -15,7 +15,8 @@ export class AttendanceService {
     classId: string,
     sectionId: string,
     attendanceDate: string,
-    records: StudentAttendanceItem[]
+    records: StudentAttendanceItem[],
+    expectedUpdatedAt?: string
   ) {
     if (!this.isValidDateString(attendanceDate)) {
       throw new Error('INVALID_DATE');
@@ -66,7 +67,8 @@ export class AttendanceService {
       sectionId,
       markerStaffId,
       attendanceDate,
-      records
+      records,
+      expectedUpdatedAt
     );
   }
 

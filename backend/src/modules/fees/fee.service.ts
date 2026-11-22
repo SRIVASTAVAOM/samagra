@@ -1,4 +1,5 @@
 import { pool } from '../../config/db.config';
+import { PoolClient } from 'pg';
 import { TokenPayload } from '../../types/auth.types';
 
 export interface StudentFeeItem {
@@ -37,6 +38,59 @@ export interface StudentFeeOverview {
 }
 
 export class FeeService {
+  /**
+   * Concurrency-safe sequential receipt generator with transactional advisory lock.
+   * Serializes receipt numbering per school to eliminate race conditions and collisions.
+   */
+  private static async generateReceiptNumber(
+    client: PoolClient,
+    schoolId: string,
+    prefixType: 'REC' | 'EXT' = 'REC'
+  ): Promise<string> {
+    // 1. Transaction-level advisory lock serializes receipt generation for this school
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1));', [`fee_receipt_seq_${schoolId}`]);
+
+    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const prefix = `${prefixType}-${todayStr}-`;
+
+    // 2. Query highest receipt number matching prefix with FOR UPDATE lock
+    const latestRes = await client.query(
+      `SELECT receipt_number 
+       FROM fee_receipts 
+       WHERE receipt_number LIKE $1 
+       ORDER BY receipt_number DESC 
+       LIMIT 1 
+       FOR UPDATE;`,
+      [`${prefix}%`]
+    );
+
+    let nextNum = 1;
+    if (latestRes.rows.length > 0) {
+      const lastReceipt = latestRes.rows[0].receipt_number as string;
+      const match = lastReceipt.match(/-(\d+)$/);
+      if (match) {
+        nextNum = parseInt(match[1], 10) + 1;
+      }
+    }
+
+    let candidate = `${prefix}${String(nextNum).padStart(4, '0')}`;
+
+    // 3. Collision avoidance: ensure candidate does not collide with any existing record
+    let collisionCheck = await client.query(
+      `SELECT 1 FROM fee_receipts WHERE receipt_number = $1;`,
+      [candidate]
+    );
+    while (collisionCheck.rows.length > 0) {
+      nextNum++;
+      candidate = `${prefix}${String(nextNum).padStart(4, '0')}`;
+      collisionCheck = await client.query(
+        `SELECT 1 FROM fee_receipts WHERE receipt_number = $1;`,
+        [candidate]
+      );
+    }
+
+    return candidate;
+  }
   /**
    * Student: Get my personal fee dues & history
    */
@@ -451,10 +505,8 @@ export class FeeService {
         });
       }
 
-      // 5. Generate Standard Sequential Receipt Number: REC-YYYYMMDD-XXXX
-      const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const randSuffix = Math.floor(1000 + Math.random() * 9000);
-      const receiptNumber = `REC-${todayStr}-${randSuffix}`;
+      // 5. Generate Standard Sequential Receipt Number: REC-YYYYMMDD-XXXX (Concurrency safe)
+      const receiptNumber = await FeeService.generateReceiptNumber(client, user.schoolId, 'REC');
 
       const isCheque = data.payment_mode === 'CHEQUE';
       const chequeStatus = isCheque ? 'PENDING_CLEARANCE' : 'CLEARED';
@@ -465,32 +517,68 @@ export class FeeService {
         : (breakdownSummary ? `Settled: ${breakdownSummary}` : 'Fee Payment via Admin Counter');
 
       // 6. Insert Master Receipt Record
-      const insertReceipt = await client.query(
-        `INSERT INTO fee_receipts (
-           school_id, student_fee_id, student_id, receipt_number,
-           payment_date, amount_paid, payment_mode, transaction_reference,
-           cheque_number, cheque_bank, cheque_date, cheque_status,
-           idempotency_key, remarks, waterfall_breakdown, collected_by
-         ) VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-         RETURNING *;`,
-        [
-          user.schoolId,
-          primaryFeeId || null,
-          data.student_id,
-          receiptNumber,
-          data.amount_paid,
-          data.payment_mode || 'CASH',
-          data.transaction_reference || null,
-          data.cheque_number || null,
-          data.cheque_bank || null,
-          data.cheque_date || null,
-          chequeStatus,
-          data.idempotency_key || null,
-          combinedRemarks,
-          JSON.stringify(settledItems),
-          user.userId || null,
-        ]
-      );
+      let insertReceipt;
+      try {
+        insertReceipt = await client.query(
+          `INSERT INTO fee_receipts (
+             school_id, student_fee_id, student_id, receipt_number,
+             payment_date, amount_paid, payment_mode, transaction_reference,
+             cheque_number, cheque_bank, cheque_date, cheque_status,
+             idempotency_key, remarks, waterfall_breakdown, collected_by
+           ) VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+           RETURNING *;`,
+          [
+            user.schoolId,
+            primaryFeeId || null,
+            data.student_id,
+            receiptNumber,
+            data.amount_paid,
+            data.payment_mode || 'CASH',
+            data.transaction_reference || null,
+            data.cheque_number || null,
+            data.cheque_bank || null,
+            data.cheque_date || null,
+            chequeStatus,
+            data.idempotency_key || null,
+            combinedRemarks,
+            JSON.stringify(settledItems),
+            user.userId || null,
+          ]
+        );
+      } catch (insertErr: any) {
+        if (insertErr.code === '23505' && insertErr.constraint?.includes('receipt_number')) {
+          // Retry once with refreshed unique sequence on conflict
+          const retryReceiptNumber = await FeeService.generateReceiptNumber(client, user.schoolId, 'REC');
+          insertReceipt = await client.query(
+            `INSERT INTO fee_receipts (
+               school_id, student_fee_id, student_id, receipt_number,
+               payment_date, amount_paid, payment_mode, transaction_reference,
+               cheque_number, cheque_bank, cheque_date, cheque_status,
+               idempotency_key, remarks, waterfall_breakdown, collected_by
+             ) VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+             RETURNING *;`,
+            [
+              user.schoolId,
+              primaryFeeId || null,
+              data.student_id,
+              retryReceiptNumber,
+              data.amount_paid,
+              data.payment_mode || 'CASH',
+              data.transaction_reference || null,
+              data.cheque_number || null,
+              data.cheque_bank || null,
+              data.cheque_date || null,
+              chequeStatus,
+              data.idempotency_key || null,
+              combinedRemarks,
+              JSON.stringify(settledItems),
+              user.userId || null,
+            ]
+          );
+        } else {
+          throw insertErr;
+        }
+      }
       const receipt = insertReceipt.rows[0];
 
       // 7. Insert Itemized Line Items for 3-part receipt printing
@@ -1505,7 +1593,7 @@ export class FeeService {
     try {
       await client.query('BEGIN');
       const schoolId = user.schoolId;
-      const receiptNumber = `EXT-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900 + 100)}`;
+      const receiptNumber = await FeeService.generateReceiptNumber(client, schoolId, 'EXT');
 
       const stRes = await client.query(
         `SELECT sp.id, sp.first_name, sp.last_name, sp.admission_number, c.name AS class_name, sec.name AS section_name
@@ -1520,22 +1608,47 @@ export class FeeService {
       }
       const st = stRes.rows[0];
 
-      const recRes = await client.query(
-        `INSERT INTO fee_receipts (
-           school_id, student_id, receipt_number, amount_paid, payment_mode, 
-           payment_date, collected_by, is_cancelled, waterfall_breakdown
-         ) VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, FALSE, $7)
-         RETURNING id, receipt_number, amount_paid, payment_mode, payment_date;`,
-        [
-          schoolId,
-          data.student_id,
-          receiptNumber,
-          data.amount,
-          data.payment_mode || 'CASH',
-          user.userId,
-          JSON.stringify([{ head: data.fee_category, amount: data.amount, remarks: data.remarks || '' }]),
-        ]
-      );
+      let recRes;
+      try {
+        recRes = await client.query(
+          `INSERT INTO fee_receipts (
+             school_id, student_id, receipt_number, amount_paid, payment_mode, 
+             payment_date, collected_by, is_cancelled, waterfall_breakdown
+           ) VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, FALSE, $7)
+           RETURNING id, receipt_number, amount_paid, payment_mode, payment_date;`,
+          [
+            schoolId,
+            data.student_id,
+            receiptNumber,
+            data.amount,
+            data.payment_mode || 'CASH',
+            user.userId,
+            JSON.stringify([{ head: data.fee_category, amount: data.amount, remarks: data.remarks || '' }]),
+          ]
+        );
+      } catch (insertErr: any) {
+        if (insertErr.code === '23505' && insertErr.constraint?.includes('receipt_number')) {
+          const retryReceiptNumber = await FeeService.generateReceiptNumber(client, schoolId, 'EXT');
+          recRes = await client.query(
+            `INSERT INTO fee_receipts (
+               school_id, student_id, receipt_number, amount_paid, payment_mode, 
+               payment_date, collected_by, is_cancelled, waterfall_breakdown
+             ) VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, FALSE, $7)
+             RETURNING id, receipt_number, amount_paid, payment_mode, payment_date;`,
+            [
+              schoolId,
+              data.student_id,
+              retryReceiptNumber,
+              data.amount,
+              data.payment_mode || 'CASH',
+              user.userId,
+              JSON.stringify([{ head: data.fee_category, amount: data.amount, remarks: data.remarks || '' }]),
+            ]
+          );
+        } else {
+          throw insertErr;
+        }
+      }
 
       const receipt = recRes.rows[0];
 
