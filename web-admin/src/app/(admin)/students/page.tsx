@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ClassItem } from '@/lib/types';
+import PhotoUploadWidget from '@/components/shared/PhotoUploadWidget';
 
 /**
  * Robust date parser for client-side CSV processing.
@@ -181,6 +182,7 @@ export default function StudentsDirectoryPage() {
   const [admissionSubmitting, setAdmissionSubmitting] = useState(false);
   const [admissionError, setAdmissionError] = useState<string | null>(null);
   const [admissionSuccessData, setAdmissionSuccessData] = useState<any | null>(null);
+  const [admissionPhotoFile, setAdmissionPhotoFile] = useState<File | null>(null);
 
   const initialAdmissionForm = {
     // 1. Academic & Enrollment Details (18 fields)
@@ -707,6 +709,19 @@ export default function StudentsDirectoryPage() {
       setAdmissionSuccessData(created);
       setIsAdmissionModalOpen(false);
       setAdmissionForm(initialAdmissionForm);
+      setAdmissionPhotoFile(null);
+
+      // Upload and link photo if provided
+      if (admissionPhotoFile && created.id) {
+        try {
+          const uploadResult = await api.admin.uploadPhoto(admissionPhotoFile);
+          await api.admin.updateStudentPhoto(created.id, uploadResult.photoUrl);
+        } catch (photoErr) {
+          // Non-fatal - student is created, just log the photo error
+          console.warn('Photo upload failed after student creation:', photoErr);
+        }
+      }
+
       showToast(`Admission confirmed for ${created.full_name || created.first_name}!`);
 
       // Refresh live server state
@@ -1594,8 +1609,12 @@ export default function StudentsDirectoryPage() {
                     <tr key={s.id} className="hover:bg-slate-50/80 transition">
                       <td className="p-3.5 pl-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs uppercase shrink-0">
-                            {s.first_name?.[0] || 'S'}
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs uppercase shrink-0 overflow-hidden">
+                            {s.photo_url ? (
+                              <img src={s.photo_url} alt={s.first_name} className="w-full h-full object-cover" />
+                            ) : (
+                              s.first_name?.[0] || 'S'
+                            )}
                           </div>
                           <div>
                             <div className="font-bold text-slate-900 text-xs">
@@ -3064,8 +3083,12 @@ export default function StudentsDirectoryPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-lg uppercase shadow-xs">
-                  {selectedStudent.first_name?.[0] || 'S'}
+                <div className="w-16 h-16 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-lg uppercase shadow-xs overflow-hidden shrink-0">
+                  {selectedStudent.photo_url ? (
+                    <img src={selectedStudent.photo_url} alt={selectedStudent.first_name} className="w-full h-full object-cover" />
+                  ) : (
+                    selectedStudent.first_name?.[0] || 'S'
+                  )}
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-base">
@@ -3073,6 +3096,43 @@ export default function StudentsDirectoryPage() {
                   </h3>
                   <div className="text-xs text-slate-500">
                     Admission No: <span className="font-mono font-semibold text-slate-800">{selectedStudent.admission_number}</span>
+                  </div>
+                  {/* Photo actions */}
+                  <div className="flex gap-2 mt-1.5">
+                    <label className="cursor-pointer inline-flex items-center gap-1 text-[10px] font-medium text-indigo-600 hover:text-indigo-700">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const uploadResult = await api.admin.uploadPhoto(file);
+                            await api.admin.updateStudentPhoto(selectedStudent.id, uploadResult.photoUrl);
+                            setSelectedStudent((prev: any) => ({ ...prev, photo_url: uploadResult.photoUrl }));
+                            setStudents((prev: any[]) => prev.map((s) => s.id === selectedStudent.id ? { ...s, photo_url: uploadResult.photoUrl } : s));
+                          } catch (err: any) { alert(err.message || 'Photo upload failed'); }
+                        }}
+                      />
+                      📷 Change Photo
+                    </label>
+                    {selectedStudent.photo_url && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 text-[10px] font-medium text-red-500 hover:text-red-700"
+                        onClick={async () => {
+                          if (!confirm('Remove this student\'s photo?')) return;
+                          try {
+                            await api.admin.deleteStudentPhoto(selectedStudent.id);
+                            setSelectedStudent((prev: any) => ({ ...prev, photo_url: null }));
+                            setStudents((prev: any[]) => prev.map((s) => s.id === selectedStudent.id ? { ...s, photo_url: null } : s));
+                          } catch (err: any) { alert(err.message || 'Failed to remove photo'); }
+                        }}
+                      >
+                        🗑 Remove
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3702,6 +3762,21 @@ export default function StudentsDirectoryPage() {
                   <span className="font-medium">{admissionError}</span>
                 </div>
               )}
+
+              {/* Profile Photo */}
+              <div className="p-5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-700 mb-4">
+                  <User className="w-4 h-4" />
+                  <span>Profile Photo</span>
+                  <span className="text-slate-400 font-normal normal-case">(Optional)</span>
+                </div>
+                <div className="flex justify-center">
+                  <PhotoUploadWidget
+                    onPhotoChange={(file) => setAdmissionPhotoFile(file)}
+                    size="lg"
+                  />
+                </div>
+              </div>
 
               {/* SECTION 1: Academic Enrollment */}
               <div className="p-5 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-4">

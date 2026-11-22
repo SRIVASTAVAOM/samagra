@@ -85,6 +85,13 @@ router.post('/materials', MaterialsController.createAdminMaterial);
 router.patch('/materials/:id', MaterialsController.updateAdminMaterial);
 router.delete('/materials/:id', MaterialsController.deleteAdminMaterial);
 
+// Profile Photo Management (multer handles file parsing for POST /upload/photo)
+router.post('/upload/photo', AdminController.uploadPhoto);
+router.patch('/students/:id/photo', AdminController.updateStudentPhoto);
+router.delete('/students/:id/photo', AdminController.deleteStudentPhoto);
+router.patch('/staff/:id/photo', AdminController.updateStaffPhoto);
+router.delete('/staff/:id/photo', AdminController.deleteStaffPhoto);
+
 export default router;
 
 

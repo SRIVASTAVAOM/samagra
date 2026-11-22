@@ -18,6 +18,7 @@ export class ProfileRepository {
         stp.blood_group,
         stp.medical_notes,
         stp.document_url,
+        stp.photo_url,
         c.id AS class_id,
         c.name AS class_name,
         s.id AS section_id,
@@ -117,6 +118,7 @@ export class ProfileRepository {
         sch.name AS school_name,
         sch.menu_config,
         sch.branding_config,
+        sp.photo_url,
         COALESCE(
           json_agg(
             DISTINCT jsonb_build_object(

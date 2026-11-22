@@ -338,6 +338,47 @@ export const api = {
       });
     },
 
+    // Photo Management
+    uploadPhoto: async (file: File): Promise<{ photoUrl: string }> => {
+      const formData = new FormData();
+      formData.append('photo', file);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('school_erp_token') : null;
+      const response = await fetch(`${API_BASE_URL}/admin/upload/photo`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new ApiError(json.error || 'Upload failed', response.status);
+      return json.data;
+    },
+
+    updateStudentPhoto: async (id: string, photoUrl: string): Promise<any> => {
+      return request(`/admin/students/${encodeURIComponent(id)}/photo`, {
+        method: 'PATCH',
+        body: JSON.stringify({ photo_url: photoUrl }),
+      });
+    },
+
+    deleteStudentPhoto: async (id: string): Promise<any> => {
+      return request(`/admin/students/${encodeURIComponent(id)}/photo`, {
+        method: 'DELETE',
+      });
+    },
+
+    updateStaffPhoto: async (id: string, photoUrl: string): Promise<any> => {
+      return request(`/admin/staff/${encodeURIComponent(id)}/photo`, {
+        method: 'PATCH',
+        body: JSON.stringify({ photo_url: photoUrl }),
+      });
+    },
+
+    deleteStaffPhoto: async (id: string): Promise<any> => {
+      return request(`/admin/staff/${encodeURIComponent(id)}/photo`, {
+        method: 'DELETE',
+      });
+    },
+
     // Academic Class Teacher & Subject Teacher Allocations
     getAcademicAllocations: async (): Promise<any> => {
       return request<any>('/admin/academics/allocations');

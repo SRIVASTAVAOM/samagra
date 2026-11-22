@@ -36,6 +36,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import PhotoUploadWidget from '@/components/shared/PhotoUploadWidget';
 
 interface StaffItem {
   id: string;
@@ -61,6 +62,7 @@ interface StaffItem {
   role: string;
   wing_name: string | null;
   assignment_type: string | null;
+  photo_url?: string | null;
 }
 
 export default function StaffListPage() {
@@ -79,6 +81,7 @@ export default function StaffListPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [viewingStaff, setViewingStaff] = useState<StaffItem | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<StaffItem | null>(null);
+  const [addStaffPhotoFile, setAddStaffPhotoFile] = useState<File | null>(null);
 
   // Classes & Subjects metadata for allocation
   const [classesList, setClassesList] = useState<any[]>([]);
@@ -402,9 +405,22 @@ export default function StaffListPage() {
     try {
       setSaving(true);
       setErrorMessage(null);
-      await api.admin.createStaff(formData);
+      const created = await api.admin.createStaff(formData);
+      const createdData = (created as any)?.data || created;
+
+      // Upload and link photo if provided
+      if (addStaffPhotoFile && createdData?.id) {
+        try {
+          const uploadResult = await api.admin.uploadPhoto(addStaffPhotoFile);
+          await api.admin.updateStaffPhoto(createdData.id, uploadResult.photoUrl);
+        } catch (photoErr) {
+          console.warn('Photo upload failed after staff creation:', photoErr);
+        }
+      }
+
       setSuccessMessage(`Staff member "${formData.first_name}" created successfully! Login active immediately.`);
       setIsAddModalOpen(false);
+      setAddStaffPhotoFile(null);
       fetchStaff();
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to create staff member');
@@ -828,7 +844,11 @@ export default function StaffListPage() {
                                 : 'bg-gradient-to-tr from-rose-500 to-slate-600'
                             }`}
                           >
-                            {staff.staff_name.charAt(0).toUpperCase()}
+                            {(staff as any).photo_url ? (
+                              <img src={(staff as any).photo_url} alt={staff.staff_name} className="w-full h-full object-cover" />
+                            ) : (
+                              staff.staff_name.charAt(0).toUpperCase()
+                            )}
                           </div>
                           <div>
                             <p className="font-semibold text-slate-800 text-sm">{staff.staff_name}</p>
@@ -997,8 +1017,12 @@ export default function StaffListPage() {
             {/* Modal Header */}
             <div className="px-6 py-4 samagra-hero text-white flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
-                  {viewingStaff.staff_name.charAt(0).toUpperCase()}
+                <div className="w-14 h-14 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-sm overflow-hidden shrink-0">
+                  {viewingStaff.photo_url ? (
+                    <img src={viewingStaff.photo_url} alt={viewingStaff.staff_name} className="w-full h-full object-cover" />
+                  ) : (
+                    viewingStaff.staff_name.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -1016,6 +1040,43 @@ export default function StaffListPage() {
                   <p className="text-xs text-slate-300 font-mono">
                     Emp Code: {viewingStaff.employee_code} • Role: {viewingStaff.role}
                   </p>
+                  {/* Photo actions */}
+                  <div className="flex gap-3 mt-1">
+                    <label className="cursor-pointer text-[10px] font-medium text-indigo-200 hover:text-white">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const uploadResult = await api.admin.uploadPhoto(file);
+                            await api.admin.updateStaffPhoto(viewingStaff.id, uploadResult.photoUrl);
+                            setViewingStaff((prev) => prev ? { ...prev, photo_url: uploadResult.photoUrl } : null);
+                            setStaffList((prev) => prev.map((s) => s.id === viewingStaff.id ? { ...s, photo_url: uploadResult.photoUrl } : s));
+                          } catch (err: any) { alert(err.message || 'Photo upload failed'); }
+                        }}
+                      />
+                      📷 Change Photo
+                    </label>
+                    {viewingStaff.photo_url && (
+                      <button
+                        type="button"
+                        className="text-[10px] font-medium text-rose-300 hover:text-rose-100"
+                        onClick={async () => {
+                          if (!confirm('Remove this staff member\'s photo?')) return;
+                          try {
+                            await api.admin.deleteStaffPhoto(viewingStaff.id);
+                            setViewingStaff((prev) => prev ? { ...prev, photo_url: null } : null);
+                            setStaffList((prev) => prev.map((s) => s.id === viewingStaff.id ? { ...s, photo_url: null } : s));
+                          } catch (err: any) { alert(err.message || 'Failed to remove photo'); }
+                        }}
+                      >
+                        🗑 Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
               <button
@@ -1291,6 +1352,19 @@ export default function StaffListPage() {
                   </button>
                 </div>
               )}
+
+              {/* Profile Photo */}
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <label className="block text-xs font-semibold text-slate-700 mb-3">
+                  Profile Photo <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <div className="flex justify-center">
+                  <PhotoUploadWidget
+                    onPhotoChange={(file) => setAddStaffPhotoFile(file)}
+                    size="md"
+                  />
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* First Name */}
@@ -1656,6 +1730,19 @@ export default function StaffListPage() {
                   </button>
                 </div>
               )}
+
+              {/* Profile Photo */}
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <label className="block text-xs font-semibold text-slate-700 mb-3">
+                  Profile Photo <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <div className="flex justify-center">
+                  <PhotoUploadWidget
+                    onPhotoChange={(file) => setAddStaffPhotoFile(file)}
+                    size="md"
+                  />
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* First Name */}

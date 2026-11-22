@@ -1674,6 +1674,7 @@ export class AdminRepository {
         sp.father_name,
         sp.mother_name,
         sp.emergency_phone,
+        sp.photo_url,
         COALESCE(sp.login_password, 'Student@123') AS password,
         u.identifier,
         u.email,
@@ -1933,6 +1934,7 @@ export class AdminRepository {
         TO_CHAR(sp.joining_date, 'YYYY-MM-DD') AS joining_date,
         TO_CHAR(sp.date_of_birth, 'YYYY-MM-DD') AS date_of_birth,
         sp.is_active,
+        sp.photo_url,
         COALESCE(sp.login_password, 'Staff@123') AS password,
         u.email,
         u.identifier,
@@ -3930,6 +3932,67 @@ export class AdminRepository {
       today_classes: todayClasses,
     };
   }
+
+  /**
+   * Photo Management: Update student photo_url
+   */
+  static async updateStudentPhoto(schoolId: string, studentId: string, photoUrl: string): Promise<any> {
+    const query = `
+      UPDATE student_profiles
+      SET photo_url = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+        AND user_id IN (SELECT id FROM users WHERE school_id = $3)
+      RETURNING id, photo_url;
+    `;
+    const { rows } = await pool.query(query, [photoUrl, studentId, schoolId]);
+    return rows[0] || null;
+  }
+
+  /**
+   * Photo Management: Delete student photo_url (set to NULL)
+   */
+  static async deleteStudentPhoto(schoolId: string, studentId: string): Promise<any> {
+    const query = `
+      UPDATE student_profiles
+      SET photo_url = NULL, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+        AND user_id IN (SELECT id FROM users WHERE school_id = $2)
+      RETURNING id, photo_url;
+    `;
+    const { rows } = await pool.query(query, [studentId, schoolId]);
+    return rows[0] || null;
+  }
+
+  /**
+   * Photo Management: Update staff photo_url
+   */
+  static async updateStaffPhoto(schoolId: string, staffId: string, photoUrl: string): Promise<any> {
+    const query = `
+      UPDATE staff_profiles
+      SET photo_url = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+        AND user_id IN (SELECT id FROM users WHERE school_id = $3)
+      RETURNING id, photo_url;
+    `;
+    const { rows } = await pool.query(query, [photoUrl, staffId, schoolId]);
+    return rows[0] || null;
+  }
+
+  /**
+   * Photo Management: Delete staff photo_url (set to NULL)
+   */
+  static async deleteStaffPhoto(schoolId: string, staffId: string): Promise<any> {
+    const query = `
+      UPDATE staff_profiles
+      SET photo_url = NULL, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+        AND user_id IN (SELECT id FROM users WHERE school_id = $2)
+      RETURNING id, photo_url;
+    `;
+    const { rows } = await pool.query(query, [staffId, schoolId]);
+    return rows[0] || null;
+  }
 }
 
-
+// Photo Management methods added below the class - we use a module augmentation approach
+// See AdminRepository static methods at bottom of file

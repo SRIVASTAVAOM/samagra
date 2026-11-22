@@ -1,6 +1,28 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { AdminService } from './admin.service';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+// Multer configuration for photo upload
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB
+
+const photoStorage = multer.memoryStorage();
+const photoUploadMiddleware = multer({
+  storage: photoStorage,
+  limits: { fileSize: MAX_PHOTO_SIZE },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_PHOTO_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Invalid file type. Allowed: ${ALLOWED_PHOTO_TYPES.join(', ')}`));
+    }
+  },
+}).single('photo');
+
+export { photoUploadMiddleware };
 
 const saveGridSlotItemSchema = z.object({
   day_of_week: z.coerce.number().int().min(1).max(6).optional(),
@@ -573,6 +595,97 @@ export class AdminController {
       res.status(error.statusCode || 500).json({ success: false, error: error.message });
     }
   }
-}
 
+  /**
+   * POST /api/v1/admin/upload/photo
+   * Uploads a photo file. Returns photoUrl (base64 data URL in dev; S3 URL in prod)
+   */
+  static async uploadPhoto(req: Request, res: Response): Promise<void> {
+    photoUploadMiddleware(req, res, async (err: any) => {
+      if (err) {
+        res.status(400).json({ success: false, error: err.message || 'File upload error' });
+        return;
+      }
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file) {
+        res.status(400).json({ success: false, error: 'No photo file provided' });
+        return;
+      }
+      try {
+        // Convert to base64 data URL (dev mode / no S3 configured)
+        const base64 = file.buffer.toString('base64');
+        const photoUrl = `data:${file.mimetype};base64,${base64}`;
+        res.status(200).json({ success: true, data: { photoUrl } });
+      } catch (error: any) {
+        res.status(500).json({ success: false, error: error.message || 'Failed to process photo' });
+      }
+    });
+  }
+
+  /**
+   * PATCH /api/v1/admin/students/:id/photo
+   */
+  static async updateStudentPhoto(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const { photo_url } = req.body;
+      if (!photo_url) {
+        res.status(400).json({ success: false, error: 'photo_url is required' });
+        return;
+      }
+      const result = await AdminService.updateStudentPhoto(user, id, photo_url);
+      res.status(200).json({ success: true, data: result, message: 'Student photo updated successfully' });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * DELETE /api/v1/admin/students/:id/photo
+   */
+  static async deleteStudentPhoto(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const result = await AdminService.deleteStudentPhoto(user, id);
+      res.status(200).json({ success: true, data: result, message: 'Student photo removed successfully' });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * PATCH /api/v1/admin/staff/:id/photo
+   */
+  static async updateStaffPhoto(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const { photo_url } = req.body;
+      if (!photo_url) {
+        res.status(400).json({ success: false, error: 'photo_url is required' });
+        return;
+      }
+      const result = await AdminService.updateStaffPhoto(user, id, photo_url);
+      res.status(200).json({ success: true, data: result, message: 'Staff photo updated successfully' });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * DELETE /api/v1/admin/staff/:id/photo
+   */
+  static async deleteStaffPhoto(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const result = await AdminService.deleteStaffPhoto(user, id);
+      res.status(200).json({ success: true, data: result, message: 'Staff photo removed successfully' });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ success: false, error: error.message });
+    }
+  }
+}
 

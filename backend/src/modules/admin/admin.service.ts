@@ -315,6 +315,49 @@ export class AdminService {
     }
     return data;
   }
+
+  /**
+   * Photo Management
+   */
+  static async updateStudentPhoto(user: TokenPayload, studentId: string, photoUrl: string): Promise<any> {
+    const result = await AdminRepository.updateStudentPhoto(user.schoolId, studentId, photoUrl);
+    if (!result) {
+      const error: any = new Error('Student not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    return result;
+  }
+
+  static async deleteStudentPhoto(user: TokenPayload, studentId: string): Promise<any> {
+    const result = await AdminRepository.deleteStudentPhoto(user.schoolId, studentId);
+    if (!result) {
+      const error: any = new Error('Student not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    return result;
+  }
+
+  static async updateStaffPhoto(user: TokenPayload, staffId: string, photoUrl: string): Promise<any> {
+    const result = await AdminRepository.updateStaffPhoto(user.schoolId, staffId, photoUrl);
+    if (!result) {
+      const error: any = new Error('Staff member not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    return result;
+  }
+
+  static async deleteStaffPhoto(user: TokenPayload, staffId: string): Promise<any> {
+    const result = await AdminRepository.deleteStaffPhoto(user.schoolId, staffId);
+    if (!result) {
+      const error: any = new Error('Staff member not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    return result;
+  }
 }
 
 
