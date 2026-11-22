@@ -300,10 +300,19 @@ export default function StudyMaterialPage() {
       return;
     }
 
+    if (!selectedFile) {
+      setErrorMessage('Please select a study material document or image to upload.');
+      return;
+    }
+
     try {
       setSubmitting(true);
       setErrorMessage(null);
-      const fileNameToUse = formData.file_name.trim() || selectedFile?.name || `${formData.material_type.toLowerCase().replace(/ /g, '_')}_document.pdf`;
+
+      // Upload actual file bytes to backend / Cloudinary
+      const uploadRes = await api.admin.uploadMaterialFile(selectedFile);
+      const uploadedFileKey = uploadRes.fileKey || uploadRes.fileUrl;
+      const fileNameToUse = uploadRes.fileName || selectedFile.name || formData.file_name.trim();
 
       await api.admin.createMaterial({
         class_id: formData.class_id,
@@ -313,12 +322,14 @@ export default function StudyMaterialPage() {
         description: formData.description.trim() || undefined,
         material_type: formData.material_type,
         file_name: fileNameToUse,
-        file_size_bytes: selectedFile?.size || formData.file_size_bytes,
-        content_type: selectedFile?.type || formData.content_type,
+        file_size_bytes: uploadRes.sizeBytes || selectedFile.size,
+        content_type: uploadRes.contentType || selectedFile.type,
+        s3_file_key: uploadedFileKey,
       });
 
       setSuccessMessage(`Study material "${formData.title}" published! It is now immediately visible to Students and Teachers.`);
       setIsUploadModalOpen(false);
+      setSelectedFile(null);
       loadData();
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to publish study material');

@@ -390,7 +390,9 @@ export const api = {
       assigned_date?: string;
       due_date: string;
       attachment_name?: string;
+      attachmentName?: string;
       s3_attachment_key?: string;
+      s3AttachmentKey?: string;
     }): Promise<any> => {
       return request('/admin/homework', {
         method: 'POST',
@@ -410,7 +412,9 @@ export const api = {
         assigned_date?: string;
         due_date?: string;
         attachment_name?: string;
+        attachmentName?: string;
         s3_attachment_key?: string;
+        s3AttachmentKey?: string;
       }
     ): Promise<any> => {
       return request(`/admin/homework/${encodeURIComponent(id)}`, {
@@ -484,6 +488,34 @@ export const api = {
       if (filters?.search) params.set('search', filters.search);
       const qs = params.toString() ? `?${params.toString()}` : '';
       return request<any[]>(`/admin/materials${qs}`);
+    },
+
+    uploadMaterialFile: async (file: File): Promise<{
+      fileKey: string;
+      fileUrl: string;
+      fileName: string;
+      sizeBytes: number;
+      contentType: string;
+    }> => {
+      const token = getToken();
+      const url = `${API_BASE_URL}/materials/upload?fileName=${encodeURIComponent(file.name)}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: file,
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new ApiError(
+          json.error || json.message || 'Failed to upload study material file',
+          response.status,
+          json.details
+        );
+      }
+      return json.data;
     },
 
     createMaterial: async (payload: {

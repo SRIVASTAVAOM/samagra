@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../academics/bloc/academics_bloc.dart';
 import '../../academics/bloc/academics_event.dart';
@@ -195,9 +196,18 @@ class _TeacherHomeworkManageViewState extends State<TeacherHomeworkManageView> {
                 const SizedBox(width: 16),
                 InkWell(
                   onTap: () {
-                    final key = hw.s3AttachmentKey;
-                    if (key != null && key.isNotEmpty) {
-                      _showAttachmentPreviewDialog(context, key, hw.attachmentName);
+                    final targetUrl = (hw.attachmentUrl != null && hw.attachmentUrl!.isNotEmpty)
+                        ? hw.attachmentUrl!
+                        : hw.s3AttachmentKey;
+                    if (targetUrl != null && targetUrl.isNotEmpty) {
+                      _showAttachmentPreviewDialog(context, targetUrl, hw.attachmentName);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No attachment URL available for this assignment'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
                     }
                   },
                   child: Row(
@@ -273,6 +283,34 @@ class _TeacherHomeworkManageViewState extends State<TeacherHomeworkManageView> {
                               const Icon(Icons.picture_as_pdf, size: 48, color: Color(0xFFB91C1C)),
                               const SizedBox(height: 12),
                               Text(name ?? 'Homework PDF', style: const TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  try {
+                                    Clipboard.setData(ClipboardData(text: url));
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Document link copied to clipboard: $url'),
+                                          backgroundColor: const Color(0xFF16A34A),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Unable to open document: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                icon: const Icon(Icons.open_in_browser, size: 16),
+                                label: const Text('Open / Copy PDF Link'),
+                              ),
                             ],
                           ),
                         )

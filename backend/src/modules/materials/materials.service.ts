@@ -240,7 +240,13 @@ export class MaterialsService {
     }
 
     const cleanFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const s3FileKey = data.s3FileKey || data.s3_file_key || `schools/${user.schoolId}/materials/${Date.now()}_${cleanFileName}`;
+    const s3FileKey = data.s3FileKey || data.s3_file_key || data.fileUrl || data.file_url;
+    if (!s3FileKey) {
+      throw {
+        statusCode: 400,
+        message: 'File upload is required. Please upload the study material document before publishing.',
+      };
+    }
 
     return await MaterialsRepository.createAdminMaterial({
       schoolId: user.schoolId,

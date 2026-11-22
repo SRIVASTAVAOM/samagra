@@ -82,7 +82,10 @@ export class MaterialsRepository {
         m.section_id, sec.name AS section_name,
         m.subject_id, sub.name AS subject_name, sub.code AS subject_code,
         m.uploaded_by_staff_id, (sp.first_name || ' ' || sp.last_name) AS teacher_name,
-        m.title, m.description, m.s3_file_key, m.file_name,
+        m.title, m.description, 
+        m.s3_file_key AS file_url,
+        m.s3_file_key AS "fileUrl",
+        m.s3_file_key, m.file_name,
         m.file_size_bytes, m.content_type, COALESCE(m.material_type, 'Study Material') AS material_type,
         m.is_verified, m.created_at
       FROM academic_materials m
@@ -112,7 +115,10 @@ export class MaterialsRepository {
         m.section_id, sec.name AS section_name,
         m.subject_id, sub.name AS subject_name, sub.code AS subject_code,
         m.uploaded_by_staff_id, (sp.first_name || ' ' || sp.last_name) AS teacher_name,
-        m.title, m.description, m.s3_file_key, m.file_name,
+        m.title, m.description, 
+        m.s3_file_key AS file_url,
+        m.s3_file_key AS "fileUrl",
+        m.s3_file_key, m.file_name,
         m.file_size_bytes, m.content_type, COALESCE(m.material_type, 'Study Material') AS material_type,
         m.is_verified, m.created_at
       FROM academic_materials m
@@ -136,7 +142,10 @@ export class MaterialsRepository {
         m.section_id, sec.name AS section_name,
         m.subject_id, sub.name AS subject_name, sub.code AS subject_code,
         m.uploaded_by_staff_id, (sp.first_name || ' ' || sp.last_name) AS teacher_name,
-        m.title, m.description, m.s3_file_key, m.file_name,
+        m.title, m.description, 
+        m.s3_file_key AS file_url,
+        m.s3_file_key AS "fileUrl",
+        m.s3_file_key, m.file_name,
         m.file_size_bytes, m.content_type, COALESCE(m.material_type, 'Study Material') AS material_type,
         m.is_verified, m.created_at
       FROM academic_materials m

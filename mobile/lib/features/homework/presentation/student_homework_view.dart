@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../bloc/homework_bloc.dart';
@@ -464,10 +465,31 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
                               const SizedBox(height: 12),
                               ElevatedButton.icon(
                                 onPressed: () {
-                                  // Open URL
+                                  try {
+                                    Clipboard.setData(ClipboardData(text: url));
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Document link copied to clipboard: $url'),
+                                          backgroundColor: AppColors.success,
+                                          behavior: SnackBarBehavior.floating,
+                                          duration: const Duration(seconds: 4),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Unable to open document: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
                                 },
                                 icon: const Icon(Icons.open_in_browser, size: 16),
-                                label: const Text('Open PDF Document'),
+                                label: const Text('Open / Copy PDF Link'),
                               ),
                             ],
                           ),

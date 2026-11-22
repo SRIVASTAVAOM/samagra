@@ -5,15 +5,34 @@ import { HomeworkService } from './homework.service';
 import { CloudinaryService } from '../../services/cloudinary.service';
 
 const createHomeworkSchema = z.object({
-  classId: z.string().uuid(),
-  sectionId: z.string().uuid(),
-  subjectId: z.string().uuid(),
+  classId: z.string().uuid().optional(),
+  class_id: z.string().uuid().optional(),
+  sectionId: z.string().uuid().optional(),
+  section_id: z.string().uuid().optional(),
+  subjectId: z.string().uuid().optional(),
+  subject_id: z.string().uuid().optional(),
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(1, 'Description/instructions are required'),
   assignedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Valid dueDate (YYYY-MM-DD) is required'),
-  s3AttachmentKey: z.string().optional(),
-  attachmentName: z.string().optional(),
+  assigned_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Valid dueDate (YYYY-MM-DD) is required').optional(),
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Valid dueDate (YYYY-MM-DD) is required').optional(),
+  s3AttachmentKey: z.string().nullable().optional(),
+  s3_attachment_key: z.string().nullable().optional(),
+  attachmentName: z.string().nullable().optional(),
+  attachment_name: z.string().nullable().optional(),
+}).transform((data) => ({
+  classId: (data.classId || data.class_id)!,
+  sectionId: (data.sectionId || data.section_id)!,
+  subjectId: (data.subjectId || data.subject_id)!,
+  title: data.title,
+  description: data.description,
+  assignedDate: data.assignedDate || data.assigned_date,
+  dueDate: (data.dueDate || data.due_date)!,
+  s3AttachmentKey: data.s3AttachmentKey !== undefined ? (data.s3AttachmentKey || undefined) : (data.s3_attachment_key || undefined),
+  attachmentName: data.attachmentName !== undefined ? (data.attachmentName || undefined) : (data.attachment_name || undefined),
+})).refine((d) => !!d.classId && !!d.sectionId && !!d.subjectId && !!d.dueDate, {
+  message: 'classId, sectionId, subjectId, and dueDate are required',
 });
 
 const completionSchema = z.object({

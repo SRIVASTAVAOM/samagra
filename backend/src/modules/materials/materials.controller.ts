@@ -156,50 +156,183 @@ export class MaterialsController {
   }
 
   /**
-   * Universal upload handler:
-   * If Cloudinary is configured, streams directly to Cloudinary.
-   * If unconfigured, performs safe local simulation.
+   * Direct binary upload for study materials (PDF, JPEG, PNG, WebP) up to 10MB.
    */
-  static async storageUploadHandler(req: Request, res: Response): Promise<void> {
-    try {
-      const fileKey = (req.query.key as string) || `upload_${Date.now()}`;
-      if (CloudinaryService.isConfigured()) {
-        const chunks: Buffer[] = [];
-        req.on('data', (chunk) => chunks.push(chunk));
-        req.on('end', async () => {
-          try {
-            const buffer = Buffer.concat(chunks);
-            const uploadResult = await CloudinaryService.uploadBuffer(buffer, fileKey, req.headers['content-type'] as string);
-            res.status(200).json({ success: true, message: 'File uploaded to Cloudinary successfully', data: uploadResult });
-          } catch (uploadErr: any) {
-            console.error('[Cloudinary Upload Error]:', uploadErr);
-            res.status(500).json({ success: false, error: uploadErr.message || 'Cloudinary upload failed' });
-          }
-        });
-      } else {
-        console.info(`[Storage Notice]: Mock upload executed successfully for key: ${fileKey}`);
-        res.status(200).json({ success: true, message: 'Mock storage upload simulated successfully' });
+  static async uploadMaterialFile(req: Request, res: Response): Promise<void> {
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+    const ALLOWED_EXTS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.docx', '.xlsx'];
+
+    const getRawBuffer = (): Promise<Buffer> => {
+      if (Buffer.isBuffer(req.body)) {
+        return Promise.resolve(req.body);
       }
-    } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      return new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        let total = 0;
+        let limitExceeded = false;
+
+        req.on('data', (chunk: Buffer) => {
+          if (limitExceeded) return;
+          total += chunk.length;
+          if (total > MAX_FILE_SIZE) {
+            limitExceeded = true;
+            return;
+          }
+          chunks.push(chunk);
+        });
+
+        req.on('end', () => {
+          if (limitExceeded) {
+            const err: any = new Error('File size exceeds maximum allowed limit of 10 MB');
+            err.statusCode = 400;
+            return reject(err);
+          }
+          resolve(Buffer.concat(chunks));
+        });
+
+        req.on('error', (err) => reject(err));
+      });
+    };
+
+    try {
+      const buffer = await getRawBuffer();
+
+      if (!buffer || buffer.length === 0) {
+        res.status(400).json({ success: false, error: 'No file data received or uploaded file is empty' });
+        return;
+      }
+
+      if (buffer.length > MAX_FILE_SIZE) {
+        res.status(400).json({ success: false, error: 'File size exceeds maximum allowed limit of 10 MB' });
+        return;
+      }
+
+      const rawName =
+        (req.query.fileName as string) ||
+        (req.query.filename as string) ||
+        (req.headers['x-file-name'] as string) ||
+        `material_${Date.now()}.pdf`;
+
+      const safeBaseName = rawName.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const ext = (safeBaseName.includes('.') ? safeBaseName.slice(safeBaseName.lastIndexOf('.')) : '').toLowerCase();
+
+      if (!ALLOWED_EXTS.includes(ext)) {
+        res.status(400).json({
+          success: false,
+          error: `Invalid file format (${ext || 'unknown'}). Allowed: PDF, JPG, PNG, WebP, DOCX, XLSX.`,
+        });
+        return;
+      }
+
+      // Magic byte validation for primary formats
+      const isPdf = buffer.length >= 4 && buffer.slice(0, 4).toString('ascii') === '%PDF';
+      const isJpg = buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+      const isPng =
+        buffer.length >= 8 &&
+        buffer[0] === 0x89 &&
+        buffer[1] === 0x50 &&
+        buffer[2] === 0x4e &&
+        buffer[3] === 0x47;
+      const isWebp =
+        buffer.length >= 12 &&
+        buffer.slice(0, 4).toString('ascii') === 'RIFF' &&
+        buffer.slice(8, 12).toString('ascii') === 'WEBP';
+      const isZipDoc =
+        buffer.length >= 4 &&
+        buffer[0] === 0x50 &&
+        buffer[1] === 0x4b &&
+        buffer[2] === 0x03 &&
+        buffer[3] === 0x04;
+
+      if (!isPdf && !isJpg && !isPng && !isWebp && !isZipDoc) {
+        res.status(400).json({
+          success: false,
+          error: 'File content does not match allowed format signature (PDF, JPEG, PNG, WebP, Office XML).',
+        });
+        return;
+      }
+
+      const contentType =
+        ext === '.pdf'
+          ? 'application/pdf'
+          : ext === '.png'
+          ? 'image/png'
+          : ext === '.webp'
+          ? 'image/webp'
+          : ext === '.xlsx'
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : ext === '.docx'
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : 'image/jpeg';
+
+      const uniqueKey = `materials_${Date.now()}_${safeBaseName}`;
+      const uploadResult = await CloudinaryService.uploadBuffer(buffer, uniqueKey, contentType);
+
+      res.status(200).json({
+        success: true,
+        message: 'Material file uploaded successfully',
+        data: {
+          fileKey: uploadResult.url || uploadResult.publicId,
+          fileUrl: uploadResult.url,
+          fileName: safeBaseName,
+          sizeBytes: buffer.length,
+          contentType,
+        },
+      });
+    } catch (error: any) {
+      console.error('[Materials File Upload Error]:', error);
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: error.message || 'Failed to upload study material file',
+      });
     }
   }
 
   /**
-   * Safe local simulation handler for uploads when Cloudinary credentials are not configured.
+   * Upload handler for pre-signed upload URLs.
    */
-  static mockUploadHandler(req: Request, res: Response): void {
-    console.info(`[Storage Notice]: Upload simulated successfully for key: ${req.query.key}`);
-    res.status(200).json({ success: true, message: 'Storage upload simulated successfully' });
-  }
+  static async storageUploadHandler(req: Request, res: Response): Promise<void> {
+    try {
+      const fileKey = (req.query.key as string) || `upload_${Date.now()}`;
+      if (!CloudinaryService.isConfigured()) {
+        res.status(503).json({
+          success: false,
+          error: 'Cloudinary storage credentials are not configured on the server.',
+        });
+        return;
+      }
 
-  /**
-   * Safe local simulation handler for GET downloads when Cloudinary credentials are not configured.
-   */
-  static mockDownloadHandler(req: Request, res: Response): void {
-    console.info(`[Storage Notice]: Download accessed for key: ${req.query.key}`);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="simulated_document.pdf"');
-    res.status(200).send(Buffer.from('%PDF-1.4 Simulated ERP Academic Document Content'));
+      let buffer: Buffer;
+      if (Buffer.isBuffer(req.body)) {
+        buffer = req.body;
+      } else {
+        const chunks: Buffer[] = [];
+        await new Promise<void>((resolve, reject) => {
+          req.on('data', (chunk) => chunks.push(chunk));
+          req.on('end', () => resolve());
+          req.on('error', (err) => reject(err));
+        });
+        buffer = Buffer.concat(chunks);
+      }
+
+      if (!buffer || buffer.length === 0) {
+        res.status(400).json({ success: false, error: 'Empty file payload received' });
+        return;
+      }
+
+      const uploadResult = await CloudinaryService.uploadBuffer(
+        buffer,
+        fileKey,
+        req.headers['content-type'] as string
+      );
+      res.status(200).json({
+        success: true,
+        message: 'File uploaded to Cloudinary successfully',
+        data: uploadResult,
+      });
+    } catch (err: any) {
+      console.error('[Storage Upload Handler Error]:', err);
+      res.status(500).json({ success: false, error: err.message || 'Storage upload failed' });
+    }
   }
 }

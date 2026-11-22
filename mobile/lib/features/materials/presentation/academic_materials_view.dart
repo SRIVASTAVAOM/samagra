@@ -323,9 +323,10 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
-  final _fileNameController = TextEditingController(text: 'Chapter_Summary_Guide.pdf');
+  final _fileNameController = TextEditingController(text: '');
   String _selectedContentType = 'application/pdf';
   String? _pickedDocumentSource;
+  List<int>? _pickedFileBytes;
 
   @override
   void dispose() {
@@ -427,6 +428,7 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
                         if (doc != null) {
                           setState(() {
                             _fileNameController.text = doc.name;
+                            _pickedFileBytes = doc.bytes;
                             _pickedDocumentSource = doc.source == DocumentUploadSource.camera
                                 ? 'From Camera'
                                 : 'From Gallery/Device';
@@ -498,7 +500,15 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
           key: const Key('confirm_upload_btn'),
           onPressed: () {
             if (_formKey.currentState!.validate()) {
-              final sampleBytes = List<int>.filled(1024 * 100, 65);
+              if (_pickedFileBytes == null || _pickedFileBytes!.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please choose a document or photo from your device/camera before uploading.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
               widget.onSubmitted(
                 UploadMaterialEvent(
                   classId: widget.classId,
@@ -506,7 +516,7 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
                   title: _titleController.text.trim(),
                   description: _descController.text.trim(),
                   fileName: _fileNameController.text.trim(),
-                  fileBytes: sampleBytes,
+                  fileBytes: _pickedFileBytes!,
                   contentType: _selectedContentType,
                 ),
               );

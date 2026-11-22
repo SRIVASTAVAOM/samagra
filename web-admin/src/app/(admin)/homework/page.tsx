@@ -354,7 +354,9 @@ export default function HomeworkPage() {
         assigned_date: formData.assigned_date,
         due_date: formData.due_date,
         attachment_name: uploadedAttachmentName || formData.attachment_name.trim() || undefined,
+        attachmentName: uploadedAttachmentName || formData.attachment_name.trim() || undefined,
         s3_attachment_key: uploadedAttachmentKey,
+        s3AttachmentKey: uploadedAttachmentKey,
       });
       setSuccessMessage(`Homework "${formData.title}" assigned successfully!`);
       setIsAddModalOpen(false);
@@ -402,7 +404,9 @@ export default function HomeworkPage() {
         assigned_date: formData.assigned_date,
         due_date: formData.due_date,
         attachment_name: finalName,
+        attachmentName: finalName,
         s3_attachment_key: finalKey,
+        s3AttachmentKey: finalKey,
       });
       setSuccessMessage(`Homework "${formData.title}" updated successfully!`);
       setIsEditModalOpen(false);
@@ -1381,7 +1385,7 @@ export default function HomeworkPage() {
                     <div className="flex items-center gap-1.5">
                       {editAttachmentKey && (
                         <a
-                          href={editAttachmentKey.startsWith('http') ? editAttachmentKey : `http://localhost:5001/api/v1/homework/${editingHomework?.id}/attachment-download`}
+                          href={editAttachmentKey.startsWith('http') ? editAttachmentKey : `${API_BASE_URL}/homework/${editingHomework?.id}/attachment-download`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-2.5 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg flex items-center gap-1 transition"

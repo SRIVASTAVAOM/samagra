@@ -1,19 +1,23 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { authenticateToken } from '../../middlewares/auth.middleware';
 import { requireRole } from '../../middlewares/rbac.middleware';
 import { MaterialsController } from './materials.controller';
 
 const router = Router();
 
-// Cloudinary / Local storage simulation endpoints (no token required for pre-signed direct upload/download)
-router.all('/storage-upload', MaterialsController.storageUploadHandler);
-router.all('/mock-upload', MaterialsController.mockUploadHandler);
-router.all('/mock-download', MaterialsController.mockDownloadHandler);
-router.put('/mock-s3-upload', MaterialsController.mockUploadHandler);
-router.get('/mock-s3-download', MaterialsController.mockDownloadHandler);
+const uploadParser = express.raw({
+  limit: '10mb',
+  type: ['image/*', 'application/pdf', 'application/octet-stream'],
+});
+
+// Cloudinary direct upload handler (for pre-signed uploads)
+router.all('/storage-upload', uploadParser, MaterialsController.storageUploadHandler);
 
 // Authenticated API Endpoints
 router.use(authenticateToken);
+
+// Direct binary upload for Teachers and Admins (up to 10MB)
+router.post('/upload', requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']), uploadParser, MaterialsController.uploadMaterialFile);
 
 // Teacher / Admin requests pre-signed upload URL for academic material
 router.post('/presigned-upload-url', requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']), MaterialsController.initiatePresignedUpload);

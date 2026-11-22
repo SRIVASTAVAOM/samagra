@@ -26,25 +26,29 @@ export class CloudinaryService {
   }
 
   /**
+   * Resolves the API base URL dynamically.
+   * Priority: passed baseUrl > env.API_BASE_URL > http://localhost:PORT
+   */
+  static getBaseUrl(explicitBaseUrl?: string): string {
+    const raw = explicitBaseUrl || env.API_BASE_URL || `http://localhost:${env.PORT}`;
+    return raw.replace(/\/+$/, '');
+  }
+
+  /**
    * Generates an upload URL for Cloudinary storage.
    * If credentials are provided, generates a Cloudinary upload endpoint with signed parameters.
-   * If unconfigured, generates a safe local simulation URL.
+   * If unconfigured, rejects with an actionable error.
    */
   static async generatePresignedUploadUrl(
     fileKey: string,
     contentType: string,
-    expiresInSeconds = 300
+    expiresInSeconds = 300,
+    requestBaseUrl?: string
   ): Promise<PresignedUrlResult> {
+    const baseUrl = this.getBaseUrl(requestBaseUrl);
+
     if (!isCloudinaryConfigured) {
-      console.warn(`[Cloudinary Notice]: Cloudinary credentials not configured. Generating simulated upload URL for key: ${fileKey}`);
-      const mockUploadUrl = `http://localhost:${env.PORT}/api/v1/materials/mock-upload?key=${encodeURIComponent(fileKey)}&expires=${Date.now() + expiresInSeconds * 1000}`;
-      return {
-        uploadUrl: mockUploadUrl,
-        fileKey,
-        expiresInSeconds,
-        isMock: true,
-        storageProvider: 'mock',
-      };
+      throw new Error('Cloudinary storage credentials are not configured on this server. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in backend/.env.');
     }
 
     const cloudName = env.CLOUDINARY_CLOUD_NAME || cloudinary.config().cloud_name || '';
@@ -67,7 +71,7 @@ export class CloudinaryService {
     }
 
     // Direct endpoint on backend that can pipe directly to Cloudinary or accept raw PUT/POST
-    const uploadUrl = `http://localhost:${env.PORT}/api/v1/materials/storage-upload?key=${encodeURIComponent(fileKey)}&public_id=${encodeURIComponent(sanitizedPublicId)}&folder=${encodeURIComponent(folder)}`;
+    const uploadUrl = `${baseUrl}/api/v1/materials/storage-upload?key=${encodeURIComponent(fileKey)}&public_id=${encodeURIComponent(sanitizedPublicId)}&folder=${encodeURIComponent(folder)}`;
 
     return {
       uploadUrl,
@@ -91,17 +95,9 @@ export class CloudinaryService {
    */
   static async generatePresignedDownloadUrl(
     fileKey: string,
-    expiresInSeconds = 900
+    expiresInSeconds = 900,
+    requestBaseUrl?: string
   ): Promise<{ downloadUrl: string; isMock: boolean }> {
-    if (!isCloudinaryConfigured) {
-      console.warn(`[Cloudinary Notice]: Cloudinary credentials not configured. Generating simulated download URL for key: ${fileKey}`);
-      const mockDownloadUrl = `http://localhost:${env.PORT}/api/v1/materials/mock-download?key=${encodeURIComponent(fileKey)}&expires=${Date.now() + expiresInSeconds * 1000}`;
-      return {
-        downloadUrl: mockDownloadUrl,
-        isMock: true,
-      };
-    }
-
     // If fileKey is already a complete URL (e.g. https://res.cloudinary.com/...)
     if (fileKey.startsWith('http://') || fileKey.startsWith('https://')) {
       return {
@@ -110,14 +106,18 @@ export class CloudinaryService {
       };
     }
 
+    if (!isCloudinaryConfigured) {
+      throw new Error('Cloudinary storage credentials are not configured on this server.');
+    }
+
     const folder = env.CLOUDINARY_FOLDER || 'school_erp';
     const publicId = fileKey.includes('/') ? fileKey : `${folder}/${fileKey}`;
+    const isPdf = fileKey.toLowerCase().endsWith('.pdf');
     
-    // Generate secure Cloudinary delivery URL
+    // Generate secure Cloudinary delivery URL (inline rendering supported for PDFs and images)
     const deliveryUrl = cloudinary.url(publicId, {
       secure: true,
-      resource_type: 'auto',
-      flags: 'attachment',
+      resource_type: isPdf ? 'raw' : 'auto',
     });
 
     return {
@@ -135,21 +135,19 @@ export class CloudinaryService {
     contentType?: string
   ): Promise<{ url: string; publicId: string }> {
     if (!isCloudinaryConfigured) {
-      return {
-        url: `http://localhost:${env.PORT}/api/v1/materials/mock-download?key=${encodeURIComponent(fileKey)}`,
-        publicId: fileKey,
-      };
+      throw new Error('Cloudinary storage credentials are not configured on this server. File upload cannot proceed.');
     }
 
     const folder = env.CLOUDINARY_FOLDER || 'school_erp';
     const sanitizedPublicId = fileKey.replace(/^\/+/, '').replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const isPdf = (contentType && contentType.toLowerCase().includes('pdf')) || fileKey.toLowerCase().endsWith('.pdf');
 
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder,
           public_id: sanitizedPublicId,
-          resource_type: 'auto',
+          resource_type: isPdf ? 'raw' : 'auto',
         },
         (error, result) => {
           if (error || !result) {

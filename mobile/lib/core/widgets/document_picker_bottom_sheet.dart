@@ -93,35 +93,36 @@ class DocumentPickerBottomSheet extends StatelessWidget {
                 ? 'camera_capture_${DateTime.now().millisecondsSinceEpoch}.jpg'
                 : 'device_file_${DateTime.now().millisecondsSinceEpoch}.jpg');
 
-        if (onUpload != null) {
-          try {
-            fileBytes = await file.readAsBytes();
-            if (fileBytes.length > 5 * 1024 * 1024) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('File exceeds strict 5 MB limit. Please select an image under 5 MB.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-              return;
-            }
-            docUrl = await onUpload!(fileBytes, fileName);
-          } catch (e) {
+        try {
+          fileBytes = await file.readAsBytes();
+          if (fileBytes.length > 5 * 1024 * 1024) {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Upload failed: ${e.toString()}'),
+                const SnackBar(
+                  content: Text('File exceeds strict 5 MB limit. Please select an image or document under 5 MB.'),
                   backgroundColor: Colors.red,
                 ),
               );
             }
             return;
           }
-        } else {
-          docUrl =
-              'https://res.cloudinary.com/tylyaesr/image/upload/v1/uploads/${categoryPrefix}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
+
+          if (onUpload != null) {
+            docUrl = await onUpload!(fileBytes, fileName);
+          } else {
+            // Local document selection without active direct uploader
+            docUrl = '';
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Upload or file reading failed: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
         }
       } else {
         // User canceled picker or closed dialog
