@@ -48,6 +48,33 @@ class HomeworkModel {
   bool get isCompleted => studentStatus == 'COMPLETED';
   bool get hasAttachment => s3AttachmentKey != null && s3AttachmentKey!.isNotEmpty;
 
+  bool get isOverdue {
+    if (isCompleted) return false;
+    final due = DateTime.tryParse(dueDate);
+    if (due == null) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDateOnly = DateTime(due.year, due.month, due.day);
+    return dueDateOnly.isBefore(today);
+  }
+
+  bool get isDueToday {
+    if (isCompleted) return false;
+    final due = DateTime.tryParse(dueDate);
+    if (due == null) return false;
+    final now = DateTime.now();
+    return due.year == now.year && due.month == now.month && due.day == now.day;
+  }
+
+  bool get isDueTomorrow {
+    if (isCompleted) return false;
+    final due = DateTime.tryParse(dueDate);
+    if (due == null) return false;
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+    return due.year == tomorrow.year && due.month == tomorrow.month && due.day == tomorrow.day;
+  }
+
   factory HomeworkModel.fromJson(Map<String, dynamic> json) {
     return HomeworkModel(
       id: json['id'] as String,

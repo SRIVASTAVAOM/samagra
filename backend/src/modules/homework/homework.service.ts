@@ -57,7 +57,7 @@ export class HomeworkService {
 
     await this.verifyTeacherAllocation(user.profileId!, data.classId, data.sectionId, data.subjectId);
 
-    return await HomeworkRepository.createHomework({
+    const homework = await HomeworkRepository.createHomework({
       schoolId: user.schoolId,
       classId: data.classId,
       sectionId: data.sectionId,
@@ -70,6 +70,33 @@ export class HomeworkService {
       s3AttachmentKey: data.s3AttachmentKey,
       attachmentName: data.attachmentName,
     });
+
+    // Automatically emit an in-app notice and alert for all students in target class & section
+    try {
+      const subjectResult = await pool.query(
+        `SELECT name FROM subjects WHERE id = $1;`,
+        [data.subjectId]
+      );
+      const subjectName = subjectResult.rows[0]?.name || 'Subject';
+
+      await pool.query(
+        `INSERT INTO notices (
+          school_id, title, content, target_role,
+          target_class_id, target_section_id, priority, channel, published_at
+        ) VALUES ($1, $2, $3, 'STUDENT', $4, $5, 'URGENT', 'IN_APP', CURRENT_TIMESTAMP);`,
+        [
+          user.schoolId,
+          `New Homework: ${subjectName} - ${data.title}`,
+          `Due Date: ${data.dueDate}. ${data.description.substring(0, 140)}`,
+          data.classId,
+          data.sectionId,
+        ]
+      );
+    } catch (noticeErr) {
+      console.warn('[Notice auto-generation notice]:', noticeErr);
+    }
+
+    return homework;
   }
 
   static async getStudentMyClassHomework(user: TokenPayload): Promise<HomeworkAssignment[]> {

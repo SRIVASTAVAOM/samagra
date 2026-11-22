@@ -10,6 +10,7 @@ import '../../../attendance/bloc/attendance_state.dart';
 import '../../../attendance/presentation/student_attendance_history_view.dart';
 import '../../../auth/models/user_model.dart';
 import '../../../homework/bloc/homework_bloc.dart';
+import '../../../homework/models/homework_model.dart';
 import '../../../homework/presentation/student_homework_view.dart';
 import '../../../leaves/bloc/leaves_bloc.dart';
 import '../../../leaves/presentation/student_leave_view.dart';
@@ -613,10 +614,15 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
     // 3. Homework Data
     final homeworkState = context.watch<HomeworkBloc>().state;
     int pendingHomework = 0;
+    List<HomeworkModel> urgentHomeworkList = [];
     if (homeworkState is StudentHomeworkLoaded) {
-      pendingHomework = homeworkState.homeworkList
+      final list = homeworkState.homeworkList
           .where((h) => h.studentStatus != 'COMPLETED')
-          .length;
+          .toList();
+      pendingHomework = list.length;
+      urgentHomeworkList = list
+          .where((h) => h.isDueToday || h.isOverdue || h.isDueTomorrow)
+          .toList();
     }
 
     // 4. Features Data (Notices & Fees)
@@ -651,6 +657,12 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
                   // 1. Top Header Card
                   _buildTopHeaderCard(context, profile),
                   const SizedBox(height: 14),
+
+                  // 1.5 Pending Homework & Urgent Deadlines Card
+                  if (pendingHomework > 0) ...[
+                    _buildPendingHomeworkAlertCard(context, pendingHomework, urgentHomeworkList),
+                    const SizedBox(height: 14),
+                  ],
 
                   // 2. Overview Section (Row of 2 compact summary cards side-by-side)
                   _buildOverviewSection(
@@ -934,6 +946,152 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- 1.5 PENDING HOMEWORK & DEADLINES ALERT CARD ---
+  Widget _buildPendingHomeworkAlertCard(
+    BuildContext context,
+    int pendingCount,
+    List<HomeworkModel> urgentList,
+  ) {
+    final hasOverdue = urgentList.any((h) => h.isOverdue);
+    final hasDueToday = urgentList.any((h) => h.isDueToday);
+
+    Color bgColor = const Color(0xFFEEF2FF);
+    Color borderColor = const Color(0xFFC7D2FE);
+    Color accentColor = AppColors.primaryAccent;
+    String badgeText = '$pendingCount Pending';
+
+    if (hasOverdue) {
+      bgColor = const Color(0xFFFEF2F2);
+      borderColor = const Color(0xFFFECACA);
+      accentColor = const Color(0xFFDC2626);
+      badgeText = 'Attention: Overdue Homework';
+    } else if (hasDueToday) {
+      bgColor = const Color(0xFFFFFBEB);
+      borderColor = const Color(0xFFFDE68A);
+      accentColor = const Color(0xFFD97706);
+      badgeText = 'Due Today';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor, width: 1.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.assignment_outlined, size: 18, color: accentColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Homework & Deadlines',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: accentColor,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Text(
+                  badgeText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: accentColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (urgentList.isNotEmpty) ...[
+            ...urgentList.take(2).map((hw) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: hw.isOverdue
+                            ? Colors.red
+                            : (hw.isDueToday ? Colors.amber.shade800 : AppColors.primaryAccent),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${hw.subjectName ?? "Subject"}: ${hw.title}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryText,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      hw.isOverdue
+                          ? 'Overdue'
+                          : (hw.isDueToday ? 'Due Today' : (hw.isDueTomorrow ? 'Due Tomorrow' : hw.dueDate)),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: hw.isOverdue
+                            ? Colors.red
+                            : (hw.isDueToday ? Colors.amber.shade800 : AppColors.secondaryText),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ] else ...[
+            Text(
+              'You have $pendingCount pending assignment${pendingCount > 1 ? "s" : ""}. Review your deadlines.',
+              style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+            ),
+          ],
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () => _navigateToHomework(context),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  'View All Homework',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: accentColor,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_rounded, size: 14, color: accentColor),
+              ],
             ),
           ),
         ],

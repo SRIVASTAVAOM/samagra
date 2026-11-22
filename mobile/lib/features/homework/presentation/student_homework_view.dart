@@ -63,6 +63,9 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
             final filtered = allItems.where((hw) {
               if (_selectedFilter == 'PENDING') return hw.studentStatus != 'COMPLETED';
               if (_selectedFilter == 'COMPLETED') return hw.studentStatus == 'COMPLETED';
+              if (_selectedFilter == 'URGENT') {
+                return hw.studentStatus != 'COMPLETED' && (hw.isDueToday || hw.isOverdue || hw.isDueTomorrow);
+              }
               return true;
             }).toList();
 
@@ -103,18 +106,24 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
   Widget _buildFilterChips(List<HomeworkModel> allItems) {
     final pendingCount = allItems.where((h) => h.studentStatus != 'COMPLETED').length;
     final completedCount = allItems.where((h) => h.studentStatus == 'COMPLETED').length;
+    final urgentCount = allItems.where((h) => h.studentStatus != 'COMPLETED' && (h.isDueToday || h.isOverdue || h.isDueTomorrow)).length;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       color: AppColors.surface,
-      child: Row(
-        children: [
-          _filterChip('ALL', 'All (${allItems.length})'),
-          const SizedBox(width: 8),
-          _filterChip('PENDING', 'Pending ($pendingCount)'),
-          const SizedBox(width: 8),
-          _filterChip('COMPLETED', 'Completed ($completedCount)'),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _filterChip('ALL', 'All (${allItems.length})'),
+            const SizedBox(width: 8),
+            _filterChip('PENDING', 'Pending ($pendingCount)'),
+            const SizedBox(width: 8),
+            _filterChip('URGENT', 'Due Soon / Overdue ($urgentCount)'),
+            const SizedBox(width: 8),
+            _filterChip('COMPLETED', 'Completed ($completedCount)'),
+          ],
+        ),
       ),
     );
   }
@@ -212,12 +221,79 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.secondaryText),
-              const SizedBox(width: 4),
-              Text(
-                'Due: ${hw.dueDate}',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
-              ),
+              if (hw.isOverdue) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFFCA5A5)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline, size: 13, color: Color(0xFFB91C1C)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'OVERDUE: ${hw.dueDate}',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFB91C1C)),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (hw.isDueToday) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFFCD34D)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.access_time_filled, size: 13, color: Color(0xFFB45309)),
+                      SizedBox(width: 4),
+                      Text(
+                        'DUE TODAY',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (hw.isDueTomorrow) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF9C3),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFFDE047)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.schedule, size: 13, color: Color(0xFF854D0E)),
+                      SizedBox(width: 4),
+                      Text(
+                        'DUE TOMORROW',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF854D0E)),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.secondaryText),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Due: ${hw.dueDate}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
+                    ),
+                  ],
+                ),
+              ],
               if (hw.teacherName != null) ...[
                 const SizedBox(width: 12),
                 const Icon(Icons.person_outline, size: 14, color: AppColors.secondaryText),

@@ -38,6 +38,7 @@ import '../../profiles/presentation/student_profile_view.dart';
 import '../../profiles/repository/profile_repository.dart';
 import '../bloc/student_features_bloc.dart';
 import '../bloc/student_features_event.dart';
+import '../bloc/student_features_state.dart';
 import '../repository/student_features_repository.dart';
 import 'views/school_contact_view.dart';
 import 'views/student_birthdays_view.dart';
@@ -212,6 +213,52 @@ class _StudentShellState extends State<StudentShell> {
                 ],
               ),
               actions: [
+                BlocBuilder<StudentFeaturesBloc, StudentFeaturesState>(
+                  builder: (context, state) {
+                    int unreadCount = 0;
+                    if (state is StudentNoticesLoaded) {
+                      unreadCount = state.notices.length;
+                    }
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        IconButton(
+                          tooltip: 'Notifications & Homework Alerts',
+                          icon: const Icon(Icons.notifications_outlined,
+                              size: 22, color: AppColors.primaryText),
+                          onPressed: () {
+                            _navigateToTab(4, servicesSubTab: 2);
+                          },
+                        ),
+                        if (unreadCount > 0)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFE11D48),
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Text(
+                                unreadCount > 9 ? '9+' : '$unreadCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
                 IconButton(
                   tooltip: 'Sign Out',
                   icon: const Icon(Icons.logout,
