@@ -27,7 +27,8 @@ export class CurriculumRepository {
   static async getUnitsWithTopics(
     classId: string,
     subjectId: string,
-    academicYearId?: string
+    academicYearId?: string,
+    schoolId?: string
   ): Promise<CurriculumUnit[]> {
     let query = `
       SELECT 
@@ -54,8 +55,13 @@ export class CurriculumRepository {
     const params: any[] = [classId, subjectId];
 
     if (academicYearId) {
-      query += ` AND cu.academic_year_id = $3`;
       params.push(academicYearId);
+      query += ` AND cu.academic_year_id = $${params.length}`;
+    }
+
+    if (schoolId) {
+      params.push(schoolId);
+      query += ` AND cu.school_id = $${params.length}`;
     }
 
     query += ` GROUP BY cu.id ORDER BY cu.unit_number ASC;`;
@@ -91,11 +97,15 @@ export class CurriculumRepository {
     return rows[0];
   }
 
-  static async getUnitById(unitId: string): Promise<CurriculumUnit | null> {
-    const { rows } = await pool.query(
-      `SELECT * FROM curriculum_units WHERE id = $1;`,
-      [unitId]
-    );
+  static async getUnitById(unitId: string, schoolId?: string): Promise<CurriculumUnit | null> {
+    let query = `SELECT * FROM curriculum_units WHERE id = $1`;
+    const params: any[] = [unitId];
+    if (schoolId) {
+      query += ` AND school_id = $2`;
+      params.push(schoolId);
+    }
+    query += ';';
+    const { rows } = await pool.query(query, params);
     return rows[0] || null;
   }
 

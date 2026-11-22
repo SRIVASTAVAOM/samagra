@@ -86,7 +86,11 @@ export class AcademicsService {
       }
     }
 
-    return await AcademicsRepository.getClassRoster(classId, sectionId);
+    return await AcademicsRepository.getClassRoster(
+      classId,
+      sectionId,
+      user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId
+    );
   }
 
   static async getMyTeacherRoster(user: TokenPayload): Promise<StudentRosterItem[]> {
@@ -101,7 +105,10 @@ export class AcademicsService {
       throw new Error('PROFILE_NOT_FOUND');
     }
     const homeroom = await AcademicsRepository.getTeacherHomeroom(user.profileId);
-    const allocations = await AcademicsRepository.getTeacherAllocations(user.profileId);
+    const allocations = await AcademicsRepository.getTeacherAllocations(
+      user.profileId,
+      user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId
+    );
     return {
       homeroom,
       allocations,
@@ -125,7 +132,8 @@ export class AcademicsService {
     }
     return await AcademicsRepository.getClassmatesBirthdays(
       enrollment.current_class_id,
-      enrollment.current_section_id
+      enrollment.current_section_id,
+      user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId
     );
   }
 }

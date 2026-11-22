@@ -1,5 +1,6 @@
 import { pool } from '../../config/db.config';
 import bcrypt from 'bcrypt';
+import { invalidateUserStatusCache } from '../../middlewares/auth.middleware';
 
 export interface SectionSummary {
   class_id: string;
@@ -2566,6 +2567,7 @@ export class AdminRepository {
       await client.query('UPDATE users SET is_active = FALSE WHERE id = $1', [userId]);
 
       await client.query('COMMIT');
+      invalidateUserStatusCache(userId);
       return { success: true };
     } catch (err) {
       await client.query('ROLLBACK');
@@ -3524,9 +3526,10 @@ export class AdminRepository {
         sp.employee_code
       FROM staff_assignments sa
       JOIN staff_profiles sp ON sa.staff_id = sp.id
-      WHERE sa.assignment_type = 'CLASS_TEACHER';
+      JOIN users u ON sp.user_id = u.id
+      WHERE sa.assignment_type = 'CLASS_TEACHER' AND u.school_id = $1;
     `;
-    const { rows: classTeachers } = await pool.query(classTeachersQuery);
+    const { rows: classTeachers } = await pool.query(classTeachersQuery, [schoolId]);
     const ctMap = new Map<string, any>();
     classTeachers.forEach((ct: any) => ctMap.set(`${ct.class_id}_${ct.section_id}`, ct));
 
@@ -3559,9 +3562,11 @@ export class AdminRepository {
         CONCAT(sp.first_name, ' ', sp.last_name) AS staff_name,
         sp.employee_code
       FROM teacher_subject_allocations tsa
-      JOIN staff_profiles sp ON tsa.staff_id = sp.id;
+      JOIN staff_profiles sp ON tsa.staff_id = sp.id
+      JOIN users u ON sp.user_id = u.id
+      WHERE u.school_id = $1;
     `;
-    const { rows: tsaRows } = await pool.query(tsaQuery);
+    const { rows: tsaRows } = await pool.query(tsaQuery, [schoolId]);
     const tsaMap = new Map<string, any>();
     tsaRows.forEach((tsa: any) => tsaMap.set(`${tsa.class_id}_${tsa.section_id}_${tsa.subject_id}`, tsa));
 
@@ -3645,6 +3650,12 @@ export class AdminRepository {
       await client.query('BEGIN');
 
       const { class_id, section_id, class_teacher_id, subject_allocations } = data;
+
+      // Verify class belongs to the caller's school
+      const classCheck = await client.query('SELECT id FROM classes WHERE id = $1 AND school_id = $2;', [class_id, schoolId]);
+      if (classCheck.rows.length === 0) {
+        throw new Error('Class not found in this school');
+      }
 
       // 1. Update Class Teacher
       if (class_teacher_id !== undefined) {

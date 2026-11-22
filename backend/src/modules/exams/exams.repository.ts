@@ -276,8 +276,8 @@ export class ExamsRepository {
   }
 
   // 8. Get Datesheet By ID
-  static async getDatesheetById(datesheetId: string): Promise<ExamDatesheetRecord | null> {
-    const query = `
+  static async getDatesheetById(datesheetId: string, schoolId?: string): Promise<ExamDatesheetRecord | null> {
+    let query = `
       SELECT ds.*, e.name as exam_name, e.school_id, e.is_published, c.name as class_name, c.wing_id,
              sec.name as section_name, sub.name as subject_name, sub.code as subject_code
       FROM exam_datesheets ds
@@ -285,9 +285,15 @@ export class ExamsRepository {
       JOIN classes c ON ds.class_id = c.id
       LEFT JOIN sections sec ON ds.section_id = sec.id
       JOIN subjects sub ON ds.subject_id = sub.id
-      WHERE ds.id = $1;
+      WHERE ds.id = $1
     `;
-    const res = await pool.query(query, [datesheetId]);
+    const params: any[] = [datesheetId];
+    if (schoolId) {
+      query += ` AND e.school_id = $2`;
+      params.push(schoolId);
+    }
+    query += ';';
+    const res = await pool.query(query, params);
     return res.rows[0] || null;
   }
 
@@ -585,8 +591,8 @@ export class ExamsRepository {
   }
 
   // 14. Get Class Report Cards
-  static async getClassReportCards(examId: string, classId: string, sectionId: string): Promise<ReportCardRecord[]> {
-    const query = `
+  static async getClassReportCards(examId: string, classId: string, sectionId: string, schoolId?: string): Promise<ReportCardRecord[]> {
+    let query = `
       SELECT rc.*, 
              concat(sp.first_name, ' ', sp.last_name) as student_name,
              sp.roll_number, sp.admission_number,
@@ -596,9 +602,14 @@ export class ExamsRepository {
       JOIN classes c ON rc.class_id = c.id
       JOIN sections sec ON rc.section_id = sec.id
       WHERE rc.exam_id = $1 AND rc.class_id = $2 AND rc.section_id = $3
-      ORDER BY sp.roll_number ASC, sp.first_name ASC;
     `;
-    const res = await pool.query(query, [examId, classId, sectionId]);
+    const params: any[] = [examId, classId, sectionId];
+    if (schoolId) {
+      query += ` AND c.school_id = $4`;
+      params.push(schoolId);
+    }
+    query += ` ORDER BY sp.roll_number ASC, sp.first_name ASC;`;
+    const res = await pool.query(query, params);
     return res.rows.map((r) => ({
       ...r,
       total_marks_obtained: parseFloat(r.total_marks_obtained),

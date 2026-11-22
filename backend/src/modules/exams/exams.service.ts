@@ -254,7 +254,10 @@ export class ExamsService {
     datesheetId: string,
     sectionId?: string | null
   ): Promise<{ datesheet: ExamDatesheetRecord; roster: StudentMarkRosterItem[] }> {
-    const datesheet = await ExamsRepository.getDatesheetById(datesheetId);
+    const datesheet = await ExamsRepository.getDatesheetById(
+      datesheetId,
+      user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId
+    );
     if (!datesheet) {
       throw { statusCode: 404, message: 'Exam datesheet not found.' };
     }
@@ -283,7 +286,10 @@ export class ExamsService {
       entries: MarkInputEntry[];
     }
   ): Promise<void> {
-    const datesheet = await ExamsRepository.getDatesheetById(datesheetId);
+    const datesheet = await ExamsRepository.getDatesheetById(
+      datesheetId,
+      user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId
+    );
     if (!datesheet) {
       throw { statusCode: 404, message: 'Exam datesheet not found.' };
     }
@@ -353,7 +359,10 @@ export class ExamsService {
       throw { statusCode: 403, message: 'Only School Admin can verify exam marks.' };
     }
 
-    const datesheet = await ExamsRepository.getDatesheetById(datesheetId);
+    const datesheet = await ExamsRepository.getDatesheetById(
+      datesheetId,
+      user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId
+    );
     if (!datesheet) {
       throw { statusCode: 404, message: 'Exam datesheet not found.' };
     }
@@ -397,7 +406,12 @@ export class ExamsService {
     sectionId: string
   ): Promise<ReportCardRecord[]> {
     await this.verifyClassTeacherOrCoordinator(user, classId, sectionId);
-    return await ExamsRepository.getClassReportCards(examId, classId, sectionId);
+    return await ExamsRepository.getClassReportCards(
+      examId,
+      classId,
+      sectionId,
+      user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId
+    );
   }
 
   // 13. Approve Report Cards (Admin)
@@ -411,7 +425,10 @@ export class ExamsService {
       throw { statusCode: 403, message: 'Only School Admin can approve report cards.' };
     }
 
-    const classRes = await pool.query(`SELECT wing_id FROM classes WHERE id = $1;`, [classId]);
+    const classRes = await pool.query(
+      `SELECT wing_id FROM classes WHERE id = $1 AND ($2::boolean OR school_id = $3);`,
+      [classId, user.roles.includes('SUPER_ADMIN'), user.schoolId]
+    );
     if (classRes.rows.length > 0 && classRes.rows[0].wing_id) {
       await this.verifyCoordinatorWingScope(user.profileId!, classRes.rows[0].wing_id);
     }

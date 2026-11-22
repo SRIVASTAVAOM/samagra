@@ -224,17 +224,24 @@ export class AcademicsRepository {
     return (res.rowCount ?? 0) > 0;
   }
 
-  static async getClassRoster(classId: string, sectionId: string): Promise<StudentRosterItem[]> {
-    const query = `
+  static async getClassRoster(classId: string, sectionId: string, schoolId?: string): Promise<StudentRosterItem[]> {
+    let query = `
       SELECT 
-        id, admission_number, roll_number, first_name, last_name,
-        gender, emergency_phone, blood_group, medical_notes,
-        current_class_id AS class_id, current_section_id AS section_id
-      FROM student_profiles
-      WHERE current_class_id = $1 AND current_section_id = $2 AND is_active = TRUE
-      ORDER BY roll_number ASC, first_name ASC;
+        sp.id, sp.admission_number, sp.roll_number, sp.first_name, sp.last_name,
+        sp.gender, sp.emergency_phone, sp.blood_group, sp.medical_notes,
+        sp.current_class_id AS class_id, sp.current_section_id AS section_id
+      FROM student_profiles sp
+      JOIN users u ON sp.user_id = u.id
+      JOIN classes c ON sp.current_class_id = c.id
+      WHERE sp.current_class_id = $1 AND sp.current_section_id = $2 AND sp.is_active = TRUE
     `;
-    const { rows } = await pool.query(query, [classId, sectionId]);
+    const params: any[] = [classId, sectionId];
+    if (schoolId) {
+      query += ` AND u.school_id = $3 AND c.school_id = $3`;
+      params.push(schoolId);
+    }
+    query += ` ORDER BY sp.roll_number ASC, sp.first_name ASC;`;
+    const { rows } = await pool.query(query, params);
     return rows;
   }
 
@@ -283,23 +290,30 @@ export class AcademicsRepository {
     return rows;
   }
 
-  static async getClassmatesBirthdays(classId: string, sectionId: string): Promise<ClassmateBirthdayItem[]> {
-    const query = `
+  static async getClassmatesBirthdays(classId: string, sectionId: string, schoolId?: string): Promise<ClassmateBirthdayItem[]> {
+    let query = `
       SELECT 
-        id, admission_number, roll_number, first_name, last_name,
-        EXTRACT(MONTH FROM date_of_birth)::int AS birth_month,
-        EXTRACT(DAY FROM date_of_birth)::int AS birth_day,
-        TO_CHAR(date_of_birth, 'Mon DD') AS birthday_formatted
-      FROM student_profiles
-      WHERE current_class_id = $1 AND current_section_id = $2 AND is_active = TRUE
-      ORDER BY EXTRACT(MONTH FROM date_of_birth), EXTRACT(DAY FROM date_of_birth), first_name ASC;
+        sp.id, sp.admission_number, sp.roll_number, sp.first_name, sp.last_name,
+        EXTRACT(MONTH FROM sp.date_of_birth)::int AS birth_month,
+        EXTRACT(DAY FROM sp.date_of_birth)::int AS birth_day,
+        TO_CHAR(sp.date_of_birth, 'Mon DD') AS birthday_formatted
+      FROM student_profiles sp
+      JOIN users u ON sp.user_id = u.id
+      JOIN classes c ON sp.current_class_id = c.id
+      WHERE sp.current_class_id = $1 AND sp.current_section_id = $2 AND sp.is_active = TRUE
     `;
-    const { rows } = await pool.query(query, [classId, sectionId]);
+    const params: any[] = [classId, sectionId];
+    if (schoolId) {
+      query += ` AND u.school_id = $3 AND c.school_id = $3`;
+      params.push(schoolId);
+    }
+    query += ` ORDER BY EXTRACT(MONTH FROM sp.date_of_birth), EXTRACT(DAY FROM sp.date_of_birth), sp.first_name ASC;`;
+    const { rows } = await pool.query(query, params);
     return rows;
   }
 
-  static async getTeacherAllocations(staffProfileId: string) {
-    const query = `
+  static async getTeacherAllocations(staffProfileId: string, schoolId?: string) {
+    let query = `
       SELECT 
         tsa.id,
         c.id AS class_id,
@@ -313,9 +327,15 @@ export class AcademicsRepository {
       JOIN classes c ON tsa.class_id = c.id
       JOIN sections s ON tsa.section_id = s.id
       JOIN subjects sub ON tsa.subject_id = sub.id
-      WHERE tsa.staff_id = $1;
+      WHERE tsa.staff_id = $1
     `;
-    const { rows } = await pool.query(query, [staffProfileId]);
+    const params: any[] = [staffProfileId];
+    if (schoolId) {
+      query += ` AND c.school_id = $2 AND sub.school_id = $2`;
+      params.push(schoolId);
+    }
+    query += ';';
+    const { rows } = await pool.query(query, params);
     return rows;
   }
 

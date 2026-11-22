@@ -170,6 +170,11 @@ export class HomeworkService {
       throw { statusCode: 404, message: 'Homework assignment not found.' };
     }
 
+    // Tenant check
+    if (!user.roles.includes('SUPER_ADMIN') && homework.school_id !== user.schoolId) {
+      throw { statusCode: 403, message: 'Forbidden: Access denied to homework from another school.' };
+    }
+
     // Scope check
     if (user.roles.includes('STUDENT')) {
       const { rows } = await pool.query(
@@ -196,6 +201,11 @@ export class HomeworkService {
     const homework = await HomeworkRepository.getHomeworkById(homeworkId);
     if (!homework) {
       throw { statusCode: 404, message: 'Homework assignment not found.' };
+    }
+
+    // Tenant check
+    if (!user.roles.includes('SUPER_ADMIN') && homework.school_id !== user.schoolId) {
+      throw { statusCode: 403, message: 'Forbidden: Access denied to homework from another school.' };
     }
 
     // Verify student belongs to that class/section
@@ -245,6 +255,11 @@ export class HomeworkService {
     const homework = await HomeworkRepository.getHomeworkById(id);
     if (!homework) {
       throw { statusCode: 404, message: 'Homework assignment not found.' };
+    }
+
+    // Tenant check
+    if (!user.roles.includes('SUPER_ADMIN') && homework.school_id !== user.schoolId) {
+      throw { statusCode: 403, message: 'Forbidden: Access denied to homework from another school.' };
     }
 
     if (homework.school_id !== user.schoolId || homework.assigned_by_staff_id !== user.profileId) {

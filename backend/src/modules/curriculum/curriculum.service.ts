@@ -45,7 +45,12 @@ export class CurriculumService {
     academicYearId?: string
   ): Promise<CurriculumUnit[]> {
     await this.verifyClassAccess(user, classId, subjectId);
-    return await CurriculumRepository.getUnitsWithTopics(classId, subjectId, academicYearId);
+    return await CurriculumRepository.getUnitsWithTopics(
+      classId,
+      subjectId,
+      academicYearId,
+      user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId
+    );
   }
 
   static async createUnit(
@@ -102,7 +107,10 @@ export class CurriculumService {
       throw { statusCode: 403, message: 'Only authorized academic staff can add curriculum topics.' };
     }
 
-    const unit = await CurriculumRepository.getUnitById(data.unitId);
+    const unit = await CurriculumRepository.getUnitById(
+      data.unitId,
+      user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId
+    );
     if (!unit) {
       throw { statusCode: 404, message: 'Curriculum unit not found.' };
     }
