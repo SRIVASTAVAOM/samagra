@@ -32,14 +32,24 @@ void main() {
     );
   }
 
-  group('LoginScreen Widget Tests', () {
-    testWidgets('renders all required minimalist UI elements cleanly',
-        (tester) async {
-      await tester.pumpWidget(createWidgetUnderTest());
+  // The login screen has a continuously floating illustration (web parity),
+  // so use pump() with a duration instead of pumpAndSettle().
+  Future<void> settle(WidgetTester tester) =>
+      tester.pump(const Duration(milliseconds: 500));
 
-      // Header
+  group('LoginScreen Widget Tests', () {
+    testWidgets('renders web-matched login UI elements', (tester) async {
+      await tester.pumpWidget(createWidgetUnderTest());
+      await settle(tester);
+
+      // Header branding
       expect(find.text('SAMAGRA'), findsOneWidget);
-      expect(find.text('THE COMPLETE SCHOOL PLATFORM'), findsOneWidget);
+
+      // Card header
+      expect(find.text('Welcome back!'), findsOneWidget);
+      expect(find.text('Login ID'), findsOneWidget);
+      expect(find.text('Password'), findsOneWidget);
+      expect(find.text('Forgot Password?'), findsOneWidget);
 
       // Form Fields
       expect(find.byKey(const Key('identifierField')), findsOneWidget);
@@ -47,20 +57,31 @@ void main() {
 
       // Sign In CTA
       expect(find.byKey(const Key('signInButton')), findsOneWidget);
-      expect(find.text('Sign In'), findsOneWidget);
+      expect(find.text('Sign in'), findsOneWidget);
     });
 
     testWidgets('triggers validation errors when fields are empty',
         (tester) async {
       await tester.pumpWidget(createWidgetUnderTest());
+      await settle(tester);
 
       // Tap Sign In directly
       await tester.tap(find.byKey(const Key('signInButton')));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Check validation error messages
       expect(find.text('Identifier is required'), findsOneWidget);
       expect(find.text('Password is required'), findsOneWidget);
+    });
+
+    testWidgets('toggles password visibility', (tester) async {
+      await tester.pumpWidget(createWidgetUnderTest());
+      await settle(tester);
+
+      expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.visibility_outlined));
+      await settle(tester);
+      expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
     });
   });
 }
