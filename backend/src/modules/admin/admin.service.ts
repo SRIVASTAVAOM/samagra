@@ -315,6 +315,22 @@ export class AdminService {
     }
     return data;
   }
+
+  static async updateStudentPhoto(user: TokenPayload, studentId: string, photoUrl: string): Promise<any> {
+    return await AdminRepository.updateStudentPhoto(user.schoolId, studentId, photoUrl);
+  }
+
+  static async deleteStudentPhoto(user: TokenPayload, studentId: string): Promise<any> {
+    return await AdminRepository.deleteStudentPhoto(user.schoolId, studentId);
+  }
+
+  static async updateStaffPhoto(user: TokenPayload, staffId: string, photoUrl: string): Promise<any> {
+    return await AdminRepository.updateStaffPhoto(user.schoolId, staffId, photoUrl);
+  }
+
+  static async deleteStaffPhoto(user: TokenPayload, staffId: string): Promise<any> {
+    return await AdminRepository.deleteStaffPhoto(user.schoolId, staffId);
+  }
 }
 
 

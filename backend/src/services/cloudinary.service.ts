@@ -162,5 +162,101 @@ export class CloudinaryService {
       uploadStream.end(buffer);
     });
   }
+
+  /**
+   * Extracts public_id from Cloudinary URL
+   */
+  static extractPublicIdFromUrl(url: string): string | null {
+    if (!url || typeof url !== 'string' || !url.includes('cloudinary.com')) {
+      return null;
+    }
+    try {
+      const parts = url.split('/upload/');
+      if (parts.length < 2) return null;
+      let pathAfterUpload = parts[1];
+      pathAfterUpload = pathAfterUpload.replace(/^s--[^/]+--\//, '');
+      pathAfterUpload = pathAfterUpload.replace(/^v\d+\//, '');
+      const lastDot = pathAfterUpload.lastIndexOf('.');
+      if (lastDot > 0) {
+        pathAfterUpload = pathAfterUpload.substring(0, lastDot);
+      }
+      return pathAfterUpload;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Uploads an image buffer directly to Cloudinary and returns secure_url and metadata
+   */
+  static async uploadPhoto(
+    buffer: Buffer,
+    options?: {
+      fileName?: string;
+      mimeType?: string;
+      userId?: string;
+      role?: string;
+      subfolder?: string;
+    } | string
+  ): Promise<{
+    url: string;
+    secureUrl: string;
+    publicId: string;
+    format: string;
+    width: number;
+    height: number;
+    bytes: number;
+  }> {
+    const opts = typeof options === 'string' ? { fileName: options } : options || {};
+    const folder = `${env.CLOUDINARY_FOLDER || 'school_erp'}/${opts.subfolder || 'photos'}`;
+    const timestamp = Date.now();
+    const sanitizedName = opts.fileName ? opts.fileName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_') : `photo_${timestamp}`;
+    const publicId = `photo_${timestamp}_${sanitizedName}`;
+
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          public_id: publicId,
+          resource_type: 'image',
+          overwrite: true,
+        },
+        (error, result) => {
+          if (error || !result) {
+            return reject(error || new Error('Cloudinary photo upload failed'));
+          }
+          resolve({
+            url: result.url,
+            secureUrl: result.secure_url,
+            publicId: result.public_id,
+            format: result.format,
+            width: result.width,
+            height: result.height,
+            bytes: result.bytes,
+          });
+        }
+      );
+      uploadStream.end(buffer);
+    });
+  }
+
+  /**
+   * Deletes a photo from Cloudinary by public ID or URL
+   */
+  static async deletePhoto(publicIdOrUrl: string): Promise<boolean> {
+    if (!publicIdOrUrl) return false;
+    let publicId = publicIdOrUrl;
+    if (publicIdOrUrl.includes('cloudinary.com')) {
+      const extracted = this.extractPublicIdFromUrl(publicIdOrUrl);
+      if (extracted) publicId = extracted;
+    }
+    try {
+      const result = await cloudinary.uploader.destroy(publicId);
+      return result.result === 'ok';
+    } catch (err: any) {
+      console.warn('[Cloudinary Delete Error]:', err?.message);
+      return false;
+    }
+  }
 }
 

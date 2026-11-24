@@ -20,7 +20,12 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
   CLOUDINARY_URL: z.string().optional(),
+  CLOUDINARY_UPLOAD_PRESET: z.string().optional(),
   CLOUDINARY_FOLDER: z.string().default('school_erp'),
+  AWS_REGION: z.string().default('ap-south-1'),
+  AWS_S3_BUCKET_NAME: z.string().default('school-erp-dev-private-storage'),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
   MAX_UPLOAD_SIZE_BYTES: z.string().default('10485760'), // Provisional 10MB default
   ALLOWED_MIME_TYPES: z.string().default('application/pdf,image/jpeg,image/png'),
 }).refine((data) => {

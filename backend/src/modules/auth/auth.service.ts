@@ -20,6 +20,7 @@ export interface LoginResult {
     classId: string | null;
     sectionId: string | null;
     school?: any;
+    photoUrl?: string | null;
   };
 }
 
@@ -122,6 +123,7 @@ export class AuthService {
           branding: schoolBranding,
           features: schoolFeatures,
         },
+        photoUrl: user.photo_url || null,
       },
     };
   }
@@ -174,6 +176,7 @@ export class AuthService {
         branding: schoolBranding,
         features: schoolFeatures,
       },
+      photoUrl: user.photo_url || null,
     };
   }
 

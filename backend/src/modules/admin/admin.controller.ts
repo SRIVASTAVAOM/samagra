@@ -2,6 +2,29 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { AdminService } from './admin.service';
 import { pool } from '../../config/db.config';
+import { CloudinaryService } from '../../services/cloudinary.service';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+// Multer configuration for photo upload
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB
+
+const photoStorage = multer.memoryStorage();
+const photoUploadMiddleware = multer({
+  storage: photoStorage,
+  limits: { fileSize: MAX_PHOTO_SIZE },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_PHOTO_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Invalid file type. Allowed: ${ALLOWED_PHOTO_TYPES.join(', ')}`));
+    }
+  },
+}).single('photo');
+
+export { photoUploadMiddleware };
 
 const saveGridSlotItemSchema = z.object({
   day_of_week: z.coerce.number().int().min(1).max(6).optional(),
@@ -666,6 +689,190 @@ export class AdminController {
 
       res.status(200).json({ success: true, message: 'Tenant configuration updated successfully' });
     } catch (error: any) {
+      res.status(error.statusCode || 500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * POST /api/v1/admin/upload/photo
+   * Uploads a photo file directly to Cloudinary Media Library.
+   * Returns Cloudinary secure_url, publicId, and asset metadata.
+   */
+  static async uploadPhoto(req: Request, res: Response): Promise<void> {
+    photoUploadMiddleware(req, res, async (err: any) => {
+      if (err) {
+        console.error('[Upload Photo Middleware Error]:', err.message);
+        res.status(400).json({ success: false, error: err.message || 'File upload error' });
+        return;
+      }
+      const file = (req as any).file as Express.Multer.File | undefined;
+      const user = (req as any).user;
+      if (!file) {
+        console.warn(`[Upload Photo Error]: No photo file provided in request from user ${user?.userId || 'unknown'}`);
+        res.status(400).json({ success: false, error: 'No photo file provided' });
+        return;
+      }
+
+      console.info(`[Upload Photo API] Request received - User: ${user?.userId || 'system'}, Role: ${user?.roles?.join(',') || 'unknown'}, File: ${file.originalname}, MIME: ${file.mimetype}, Size: ${(file.size / 1024).toFixed(2)} KB`);
+
+      try {
+        const uploadResult = await CloudinaryService.uploadPhoto(file.buffer, {
+          fileName: file.originalname,
+          mimeType: file.mimetype,
+          userId: user?.userId,
+          role: user?.roles?.join(','),
+          subfolder: 'photos',
+        });
+
+        console.info(`[Upload Photo API] Cloudinary upload successful - Public ID: ${uploadResult.publicId}, Secure URL: ${uploadResult.secureUrl}`);
+
+        res.status(200).json({
+          success: true,
+          message: 'Photo uploaded successfully to Cloudinary',
+          data: {
+            photoUrl: uploadResult.secureUrl,
+            publicId: uploadResult.publicId,
+            format: uploadResult.format,
+            bytes: uploadResult.bytes,
+          },
+        });
+      } catch (error: any) {
+        console.error('[Upload Photo API Error]: Cloudinary upload failed:', error.message);
+        res.status(error.statusCode || 502).json({
+          success: false,
+          error: error.message || 'Failed to upload photo to Cloudinary',
+        });
+      }
+    });
+  }
+
+  /**
+   * PATCH /api/v1/admin/students/:id/photo
+   */
+  static async updateStudentPhoto(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const { photo_url } = req.body;
+
+      if (!photo_url || typeof photo_url !== 'string') {
+        res.status(400).json({ success: false, error: 'Valid photo_url is required' });
+        return;
+      }
+
+      console.info(`[Update Student Photo] Admin: ${user?.userId}, Target Student ID: ${id}, New Photo: ${photo_url}`);
+
+      const result = await AdminService.updateStudentPhoto(user, id, photo_url);
+      console.info(`[Update Student Photo Success] Student ID: ${id} updated in database.`);
+
+      // Clean up previous Cloudinary photo asynchronously if present
+      if (result && result.oldPhotoUrl && result.oldPhotoUrl !== photo_url && result.oldPhotoUrl.includes('cloudinary')) {
+        CloudinaryService.deletePhoto(result.oldPhotoUrl).catch((delErr) => {
+          console.warn('[Old Student Photo Cleanup Warning]:', delErr?.message);
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.updated || result,
+        message: 'Student photo updated successfully in database',
+      });
+    } catch (error: any) {
+      console.error(`[Update Student Photo Failed] Student ID: ${req.params.id}:`, error.message);
+      res.status(error.statusCode || 500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * DELETE /api/v1/admin/students/:id/photo
+   */
+  static async deleteStudentPhoto(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      console.info(`[Delete Student Photo] Admin: ${user?.userId}, Target Student ID: ${id}`);
+
+      const result = await AdminService.deleteStudentPhoto(user, id);
+      console.info(`[Delete Student Photo Success] Student ID: ${id} photo removed from database.`);
+
+      if (result && result.oldPhotoUrl && result.oldPhotoUrl.includes('cloudinary')) {
+        CloudinaryService.deletePhoto(result.oldPhotoUrl).catch((delErr) => {
+          console.warn('[Student Photo Cloudinary Delete Warning]:', delErr?.message);
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.deleted || result,
+        message: 'Student photo removed successfully',
+      });
+    } catch (error: any) {
+      console.error(`[Delete Student Photo Failed] Student ID: ${req.params.id}:`, error.message);
+      res.status(error.statusCode || 500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * PATCH /api/v1/admin/staff/:id/photo
+   */
+  static async updateStaffPhoto(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const { photo_url } = req.body;
+
+      if (!photo_url || typeof photo_url !== 'string') {
+        res.status(400).json({ success: false, error: 'Valid photo_url is required' });
+        return;
+      }
+
+      console.info(`[Update Staff Photo] Admin: ${user?.userId}, Target Staff ID: ${id}, New Photo: ${photo_url}`);
+
+      const result = await AdminService.updateStaffPhoto(user, id, photo_url);
+      console.info(`[Update Staff Photo Success] Staff ID: ${id} updated in database.`);
+
+      if (result && result.oldPhotoUrl && result.oldPhotoUrl !== photo_url && result.oldPhotoUrl.includes('cloudinary')) {
+        CloudinaryService.deletePhoto(result.oldPhotoUrl).catch((delErr) => {
+          console.warn('[Old Staff Photo Cleanup Warning]:', delErr?.message);
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.updated || result,
+        message: 'Staff photo updated successfully in database',
+      });
+    } catch (error: any) {
+      console.error(`[Update Staff Photo Failed] Staff ID: ${req.params.id}:`, error.message);
+      res.status(error.statusCode || 500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * DELETE /api/v1/admin/staff/:id/photo
+   */
+  static async deleteStaffPhoto(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      console.info(`[Delete Staff Photo] Admin: ${user?.userId}, Target Staff ID: ${id}`);
+
+      const result = await AdminService.deleteStaffPhoto(user, id);
+      console.info(`[Delete Staff Photo Success] Staff ID: ${id} photo removed from database.`);
+
+      if (result && result.oldPhotoUrl && result.oldPhotoUrl.includes('cloudinary')) {
+        CloudinaryService.deletePhoto(result.oldPhotoUrl).catch((delErr) => {
+          console.warn('[Staff Photo Cloudinary Delete Warning]:', delErr?.message);
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.deleted || result,
+        message: 'Staff photo removed successfully',
+      });
+    } catch (error: any) {
+      console.error(`[Delete Staff Photo Failed] Staff ID: ${req.params.id}:`, error.message);
       res.status(error.statusCode || 500).json({ success: false, error: error.message });
     }
   }

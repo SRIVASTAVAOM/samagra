@@ -23,5 +23,32 @@ if (env.CLOUDINARY_URL) {
   console.info('[Cloudinary Notice]: Cloudinary credentials not provided in environment. Operations will fallback to safe local simulation.');
 }
 
+/**
+ * Tests Cloudinary connectivity and returns the status
+ */
+export async function testCloudinaryConnection(): Promise<{ success: boolean; message: string; cloudName?: string }> {
+  if (!isCloudinaryConfigured) {
+    return {
+      success: false,
+      message: 'Cloudinary credentials are not configured.',
+    };
+  }
+  try {
+    const pingResult = await cloudinary.api.ping();
+    const cloudName = cloudinary.config().cloud_name;
+    return {
+      success: true,
+      message: 'Cloudinary connection verified successfully',
+      cloudName,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      message: `Failed to connect to Cloudinary: ${error.message}`,
+      cloudName: cloudinary.config().cloud_name,
+    };
+  }
+}
+
 export { cloudinary, isCloudinaryConfigured };
 

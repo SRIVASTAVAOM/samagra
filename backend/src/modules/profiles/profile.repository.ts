@@ -39,8 +39,9 @@ export class ProfileRepository {
       const { rows } = await pool.query(query, [profileId]);
       return rows[0] || null;
     } catch (err: any) {
-      if (err.message && err.message.includes('document_url')) {
+      if (err.message && (err.message.includes('document_url') || err.message.includes('photo_url'))) {
         await pool.query('ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS document_url TEXT NULL;').catch(() => {});
+        await pool.query('ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS photo_url TEXT NULL;').catch(() => {});
         const { rows } = await pool.query(query, [profileId]);
         return rows[0] || null;
       }
@@ -135,8 +136,17 @@ export class ProfileRepository {
       WHERE sp.id = $1
       GROUP BY sp.id, sch.name, sch.menu_config, sch.branding_config;
     `;
-    const { rows } = await pool.query(query, [profileId]);
-    return rows[0] || null;
+    try {
+      const { rows } = await pool.query(query, [profileId]);
+      return rows[0] || null;
+    } catch (err: any) {
+      if (err.message && err.message.includes('photo_url')) {
+        await pool.query('ALTER TABLE staff_profiles ADD COLUMN IF NOT EXISTS photo_url TEXT NULL;').catch(() => {});
+        const { rows } = await pool.query(query, [profileId]);
+        return rows[0] || null;
+      }
+      throw err;
+    }
   }
 
   static async updateStaffProfile(

@@ -3964,6 +3964,114 @@ export class AdminRepository {
       today_classes: todayClasses,
     };
   }
+
+  /**
+   * Photo Management: Update student photo_url
+   */
+  static async updateStudentPhoto(schoolId: string, studentId: string, photoUrl: string): Promise<any> {
+    const oldQuery = `
+      SELECT photo_url FROM student_profiles
+      WHERE (id = $1 OR user_id = $1)
+        AND user_id IN (SELECT id FROM users WHERE school_id = $2)
+      LIMIT 1;
+    `;
+    const oldRes = await pool.query(oldQuery, [studentId, schoolId]);
+    const oldPhotoUrl = oldRes.rows[0]?.photo_url;
+
+    const query = `
+      UPDATE student_profiles
+      SET photo_url = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE (id = $2 OR user_id = $2)
+        AND user_id IN (SELECT id FROM users WHERE school_id = $3)
+      RETURNING id, photo_url;
+    `;
+    const { rows } = await pool.query(query, [photoUrl, studentId, schoolId]);
+    return {
+      updated: rows[0] || null,
+      oldPhotoUrl,
+    };
+  }
+
+  /**
+   * Photo Management: Delete student photo_url (set to NULL)
+   */
+  static async deleteStudentPhoto(schoolId: string, studentId: string): Promise<any> {
+    const oldQuery = `
+      SELECT photo_url FROM student_profiles
+      WHERE (id = $1 OR user_id = $1)
+        AND user_id IN (SELECT id FROM users WHERE school_id = $2)
+      LIMIT 1;
+    `;
+    const oldRes = await pool.query(oldQuery, [studentId, schoolId]);
+    const oldPhotoUrl = oldRes.rows[0]?.photo_url;
+
+    const query = `
+      UPDATE student_profiles
+      SET photo_url = NULL, updated_at = CURRENT_TIMESTAMP
+      WHERE (id = $1 OR user_id = $1)
+        AND user_id IN (SELECT id FROM users WHERE school_id = $2)
+      RETURNING id, photo_url;
+    `;
+    const { rows } = await pool.query(query, [studentId, schoolId]);
+    return {
+      deleted: rows[0] || null,
+      oldPhotoUrl,
+    };
+  }
+
+  /**
+   * Photo Management: Update staff photo_url
+   */
+  static async updateStaffPhoto(schoolId: string, staffId: string, photoUrl: string): Promise<any> {
+    const oldQuery = `
+      SELECT photo_url FROM staff_profiles
+      WHERE (id = $1 OR user_id = $1)
+        AND user_id IN (SELECT id FROM users WHERE school_id = $2)
+      LIMIT 1;
+    `;
+    const oldRes = await pool.query(oldQuery, [staffId, schoolId]);
+    const oldPhotoUrl = oldRes.rows[0]?.photo_url;
+
+    const query = `
+      UPDATE staff_profiles
+      SET photo_url = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE (id = $2 OR user_id = $2)
+        AND user_id IN (SELECT id FROM users WHERE school_id = $3)
+      RETURNING id, photo_url;
+    `;
+    const { rows } = await pool.query(query, [photoUrl, staffId, schoolId]);
+    return {
+      updated: rows[0] || null,
+      oldPhotoUrl,
+    };
+  }
+
+  /**
+   * Photo Management: Delete staff photo_url (set to NULL)
+   */
+  static async deleteStaffPhoto(schoolId: string, staffId: string): Promise<any> {
+    const oldQuery = `
+      SELECT photo_url FROM staff_profiles
+      WHERE (id = $1 OR user_id = $1)
+        AND user_id IN (SELECT id FROM users WHERE school_id = $2)
+      LIMIT 1;
+    `;
+    const oldRes = await pool.query(oldQuery, [staffId, schoolId]);
+    const oldPhotoUrl = oldRes.rows[0]?.photo_url;
+
+    const query = `
+      UPDATE staff_profiles
+      SET photo_url = NULL, updated_at = CURRENT_TIMESTAMP
+      WHERE (id = $1 OR user_id = $1)
+        AND user_id IN (SELECT id FROM users WHERE school_id = $2)
+      RETURNING id, photo_url;
+    `;
+    const { rows } = await pool.query(query, [staffId, schoolId]);
+    return {
+      deleted: rows[0] || null,
+      oldPhotoUrl,
+    };
+  }
 }
 
 

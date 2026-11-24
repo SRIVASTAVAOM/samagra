@@ -22,6 +22,7 @@ export interface UserAuthRecord {
   wing_id: string | null;
   class_id: string | null;
   section_id: string | null;
+  photo_url?: string | null;
 }
 
 export class AuthRepository {
@@ -66,7 +67,8 @@ export class AuthRepository {
         COALESCE(MAX(sp.last_name), MAX(stp.last_name)) AS last_name,
         MAX(sa.wing_id::text) AS wing_id,
         COALESCE(MAX(sa.class_id::text), MAX(stp.current_class_id::text)) AS class_id,
-        COALESCE(MAX(sa.section_id::text), MAX(stp.current_section_id::text)) AS section_id
+        COALESCE(MAX(sa.section_id::text), MAX(stp.current_section_id::text)) AS section_id,
+        COALESCE(MAX(sp.photo_url), MAX(stp.photo_url)) AS photo_url
       FROM users u
       LEFT JOIN schools s ON u.school_id = s.id
       LEFT JOIN user_roles ur ON u.id = ur.user_id
@@ -113,6 +115,7 @@ export class AuthRepository {
       wing_id: r.wing_id,
       class_id: r.class_id,
       section_id: r.section_id,
+      photo_url: r.photo_url || null,
     };
   }
 
@@ -145,7 +148,8 @@ export class AuthRepository {
         COALESCE(MAX(sp.last_name), MAX(stp.last_name)) AS last_name,
         MAX(sa.wing_id::text) AS wing_id,
         COALESCE(MAX(sa.class_id::text), MAX(stp.current_class_id::text)) AS class_id,
-        COALESCE(MAX(sa.section_id::text), MAX(stp.current_section_id::text)) AS section_id
+        COALESCE(MAX(sa.section_id::text), MAX(stp.current_section_id::text)) AS section_id,
+        COALESCE(MAX(sp.photo_url), MAX(stp.photo_url)) AS photo_url
       FROM users u
       LEFT JOIN schools s ON u.school_id = s.id
       LEFT JOIN user_roles ur ON u.id = ur.user_id
@@ -183,6 +187,7 @@ export class AuthRepository {
       wing_id: r.wing_id,
       class_id: r.class_id,
       section_id: r.section_id,
+      photo_url: r.photo_url || null,
     };
   }
 
