@@ -582,31 +582,28 @@ export default function HomeworkPage() {
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
             <button
               onClick={() => setStatusFilter('ALL')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
-                statusFilter === 'ALL'
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${statusFilter === 'ALL'
                   ? 'bg-white text-slate-800 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setStatusFilter('ACTIVE')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
-                statusFilter === 'ACTIVE'
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${statusFilter === 'ACTIVE'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               Active
             </button>
             <button
               onClick={() => setStatusFilter('PAST_DUE')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
-                statusFilter === 'PAST_DUE'
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${statusFilter === 'PAST_DUE'
                   ? 'bg-rose-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               Past Due
             </button>
@@ -717,9 +714,8 @@ export default function HomeworkPage() {
                         <p className="flex items-center gap-1.5">
                           Due:{' '}
                           <span
-                            className={`font-semibold ${
-                              isPastDue ? 'text-rose-600' : 'text-emerald-700'
-                            }`}
+                            className={`font-semibold ${isPastDue ? 'text-rose-600' : 'text-emerald-700'
+                              }`}
                           >
                             {hw.due_date}
                           </span>
@@ -746,13 +742,12 @@ export default function HomeworkPage() {
                           </div>
                           <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                             <div
-                              className={`h-full rounded-full transition-all ${
-                                percent === 100
+                              className={`h-full rounded-full transition-all ${percent === 100
                                   ? 'bg-emerald-500'
                                   : percent > 50
-                                  ? 'bg-indigo-600'
-                                  : 'bg-amber-500'
-                              }`}
+                                    ? 'bg-indigo-600'
+                                    : 'bg-amber-500'
+                                }`}
                               style={{ width: `${percent}%` }}
                             />
                           </div>

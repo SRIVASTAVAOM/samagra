@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/document_picker_bottom_sheet.dart';
@@ -28,6 +29,162 @@ class _TeacherLeaveViewState extends State<TeacherLeaveView> {
     if (_currentTab == 1) {
       context.read<LeavesBloc>().add(const LoadClassStudentLeavesEvent());
     }
+  }
+
+  void _showAttachmentViewer(BuildContext context, String url, String? name) {
+    if (url.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No document URL available for this leave request.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final lowerName = (name ?? url).toLowerCase();
+    final isPdf = lowerName.endsWith('.pdf');
+    final isImage = lowerName.endsWith('.png') ||
+        lowerName.endsWith('.jpg') ||
+        lowerName.endsWith('.jpeg') ||
+        lowerName.endsWith('.webp');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.border)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name ?? (isPdf ? 'Leave Document (PDF)' : 'Leave Document'),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: isImage
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: InteractiveViewer(
+                              panEnabled: true,
+                              minScale: 0.5,
+                              maxScale: 3.0,
+                              child: Image.network(
+                                url,
+                                fit: BoxFit.contain,
+                                loadingBuilder: (context, child, progress) {
+                                  if (progress == null) return child;
+                                  return const Padding(
+                                    padding: EdgeInsets.all(32),
+                                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) => const Padding(
+                                  padding: EdgeInsets.all(32),
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.broken_image, size: 48, color: AppColors.error),
+                                        SizedBox(height: 8),
+                                        Text('Failed to load image preview', style: TextStyle(color: AppColors.secondaryText)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isPdf ? Icons.picture_as_pdf : Icons.insert_drive_file,
+                                size: 56,
+                                color: isPdf ? AppColors.error : AppColors.primaryAccent,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                name ?? 'Attached Document',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: SelectableText(
+                                  url,
+                                  style: const TextStyle(fontSize: 12, color: AppColors.primaryAccent),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: url));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Document URL copied to clipboard'),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.copy, size: 16),
+                                label: const Text('Copy Document Link'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryAccent,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.border)),
+                ),
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
 
@@ -690,24 +847,38 @@ class _TeacherLeaveViewState extends State<TeacherLeaveView> {
             if ((leave.documentUrl != null && leave.documentUrl!.isNotEmpty) ||
                 (leave.attachmentName != null && leave.attachmentName!.isNotEmpty)) ...[
               const SizedBox(height: 6),
-              Row(
-                children: [
-                  const Icon(Icons.attach_file, size: 13, color: Color(0xFF1D4ED8)),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      leave.attachmentName != null && leave.attachmentName!.isNotEmpty
-                          ? 'Doc: ${leave.attachmentName}'
-                          : 'Supporting Document Attached',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1D4ED8),
+              InkWell(
+                onTap: () => _showAttachmentViewer(
+                  context,
+                  leave.documentUrl ?? '',
+                  leave.attachmentName,
+                ),
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.attach_file, size: 13, color: Color(0xFF1D4ED8)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          leave.attachmentName != null && leave.attachmentName!.isNotEmpty
+                              ? 'Doc: ${leave.attachmentName}'
+                              : 'Supporting Document Attached',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1D4ED8),
+                            decoration: TextDecoration.underline,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.open_in_new, size: 12, color: Color(0xFF1D4ED8)),
+                    ],
                   ),
-                ],
+                ),
               ),
             ],
             const SizedBox(height: 12),
@@ -864,32 +1035,43 @@ class _TeacherLeaveViewState extends State<TeacherLeaveView> {
           if ((leave.documentUrl != null && leave.documentUrl!.isNotEmpty) ||
               (leave.attachmentName != null && leave.attachmentName!.isNotEmpty)) ...[
             const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFFBFDBFE)),
+            InkWell(
+              onTap: () => _showAttachmentViewer(
+                context,
+                leave.documentUrl ?? '',
+                leave.attachmentName,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.attach_file, size: 12, color: Color(0xFF1D4ED8)),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      leave.attachmentName != null && leave.attachmentName!.isNotEmpty
-                          ? 'Doc: ${leave.attachmentName}'
-                          : 'Supporting Document Attached',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1D4ED8),
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.attach_file, size: 12, color: Color(0xFF1D4ED8)),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        leave.attachmentName != null && leave.attachmentName!.isNotEmpty
+                            ? 'Doc: ${leave.attachmentName}'
+                            : 'Supporting Document Attached',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1D4ED8),
+                          decoration: TextDecoration.underline,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    const Icon(Icons.open_in_new, size: 11, color: Color(0xFF1D4ED8)),
+                  ],
+                ),
               ),
             ),
           ],
@@ -1036,32 +1218,43 @@ class _TeacherLeaveViewState extends State<TeacherLeaveView> {
           if ((leave.documentUrl != null && leave.documentUrl!.isNotEmpty) ||
               (leave.attachmentName != null && leave.attachmentName!.isNotEmpty)) ...[
             const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFFBFDBFE)),
+            InkWell(
+              onTap: () => _showAttachmentViewer(
+                context,
+                leave.documentUrl ?? '',
+                leave.attachmentName,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.attach_file, size: 12, color: Color(0xFF1D4ED8)),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      leave.attachmentName != null && leave.attachmentName!.isNotEmpty
-                          ? 'Doc: ${leave.attachmentName}'
-                          : 'Supporting Document Attached',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1D4ED8),
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.attach_file, size: 12, color: Color(0xFF1D4ED8)),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        leave.attachmentName != null && leave.attachmentName!.isNotEmpty
+                            ? 'Doc: ${leave.attachmentName}'
+                            : 'Supporting Document Attached',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1D4ED8),
+                          decoration: TextDecoration.underline,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    const Icon(Icons.open_in_new, size: 11, color: Color(0xFF1D4ED8)),
+                  ],
+                ),
               ),
             ),
           ],

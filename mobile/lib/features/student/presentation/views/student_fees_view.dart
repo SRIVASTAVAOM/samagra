@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../bloc/student_features_bloc.dart';
@@ -349,74 +350,84 @@ class _StudentFeesViewState extends State<StudentFeesView> {
             itemBuilder: (context, index) {
               final r = receipts[index];
               return Container(
-                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.scaffoldBackground,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Icon(Icons.receipt_outlined, size: 22, color: AppColors.primaryText),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _showReceiptBreakdownSheet(context, r),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
                         children: [
-                          Text(
-                            r.receiptNumber,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primaryText,
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.scaffoldBackground,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(Icons.receipt_outlined, size: 22, color: AppColors.primaryText),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  r.receiptNumber,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primaryText,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${r.paymentDate}  •  ${r.paymentMode}',
+                                  style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
+                                ),
+                                if (r.feeTitle != null) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    r.feeTitle!,
+                                    style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${r.paymentDate}  •  ${r.paymentMode}',
-                            style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '₹${r.amountPaid.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.success,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              OutlinedButton(
+                                onPressed: () => _showReceiptBreakdownSheet(context, r),
+                                style: OutlinedButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                  side: const BorderSide(color: AppColors.border),
+                                ),
+                                child: const Text('View', style: TextStyle(fontSize: 11)),
+                              ),
+                            ],
                           ),
-                          if (r.feeTitle != null) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              r.feeTitle!,
-                              style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
-                            ),
-                          ],
                         ],
                       ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '₹${r.amountPaid.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.success,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        OutlinedButton(
-                          onPressed: () => _showReceiptDialog(context, r),
-                          style: OutlinedButton.styleFrom(
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                            side: const BorderSide(color: AppColors.border),
-                          ),
-                          child: const Text('View', style: TextStyle(fontSize: 11)),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               );
             },
@@ -428,53 +439,238 @@ class _StudentFeesViewState extends State<StudentFeesView> {
     );
   }
 
-  void _showReceiptDialog(BuildContext context, FeeReceiptModel r) {
-    showDialog(
+  void _showReceiptBreakdownSheet(BuildContext context, FeeReceiptModel r) {
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: const [
-            Icon(Icons.verified_outlined, color: AppColors.success, size: 20),
-            SizedBox(width: 8),
-            Text('Fee Receipt Details', style: TextStyle(fontSize: 16)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildDialogRow('Receipt #', r.receiptNumber),
-            _buildDialogRow('Payment Date', r.paymentDate),
-            _buildDialogRow('Amount Paid', '₹${r.amountPaid.toStringAsFixed(2)}'),
-            _buildDialogRow('Payment Mode', r.paymentMode),
-            if (r.feeTitle != null) _buildDialogRow('Fee Head', r.feeTitle!),
-            if (r.transactionReference != null) _buildDialogRow('Reference', r.transactionReference!),
-            if (r.remarks != null) _buildDialogRow('Remarks', r.remarks!),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Pill Drag Handle
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.verified, color: AppColors.success, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Fee Receipt Breakdown',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20, color: AppColors.border),
+
+                // Total Paid Highlight Box
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFBBF7D0)),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Total Amount Paid',
+                        style: TextStyle(fontSize: 12, color: AppColors.secondaryText, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '₹${r.amountPaid.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.success,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCFCE7),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'PAID  •  ${r.paymentDate}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF15803D),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Itemized Breakdown Rows
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.scaffoldBackground,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    children: [
+                      // Receipt Number with Copy Action
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Receipt No', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                r.receiptNumber,
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+                              ),
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: () {
+                                  Clipboard.setData(ClipboardData(text: r.receiptNumber));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Receipt #${r.receiptNumber} copied to clipboard'),
+                                      duration: const Duration(seconds: 2),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: AppColors.primaryText,
+                                    ),
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(4),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(4.0),
+                                  child: Icon(Icons.copy, size: 14, color: AppColors.primaryAccent),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 16, color: AppColors.border),
+                      _buildBreakdownRow('Payment Date', r.paymentDate),
+                      const Divider(height: 16, color: AppColors.border),
+                      _buildBreakdownRow('Payment Mode', r.paymentMode),
+                      const Divider(height: 16, color: AppColors.border),
+                      _buildBreakdownRow('Fee Head', r.feeTitle ?? 'Composite Annual / Term Fee'),
+                      if (r.transactionReference != null && r.transactionReference!.isNotEmpty) ...[
+                        const Divider(height: 16, color: AppColors.border),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Reference ID', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  r.transactionReference!,
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryText),
+                                ),
+                                const SizedBox(width: 4),
+                                InkWell(
+                                  onTap: () {
+                                    Clipboard.setData(ClipboardData(text: r.transactionReference!));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Reference ID copied to clipboard'),
+                                        duration: const Duration(seconds: 2),
+                                        behavior: SnackBarBehavior.floating,
+                                        backgroundColor: AppColors.primaryText,
+                                      ),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(4.0),
+                                    child: Icon(Icons.copy, size: 14, color: AppColors.primaryAccent),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                      if (r.remarks != null && r.remarks!.isNotEmpty) ...[
+                        const Divider(height: 16, color: AppColors.border),
+                        _buildBreakdownRow('Remarks', r.remarks!),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Done Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryAccent,
+                      foregroundColor: AppColors.surface,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Done', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildDialogRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-          Text(
+  Widget _buildBreakdownRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+        Flexible(
+          child: Text(
             value,
+            textAlign: TextAlign.end,
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryText),
+            overflow: TextOverflow.ellipsis,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

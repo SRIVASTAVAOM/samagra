@@ -215,7 +215,7 @@ class _StudentOnlineClassesViewState extends State<StudentOnlineClassesView> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => _joinMeeting(context, session.meetingUrl),
+                onPressed: () => _joinMeeting(context, session),
                 icon: const Icon(Icons.videocam, size: 16),
                 label: const Text('Join Live Class'),
                 style: ElevatedButton.styleFrom(
@@ -235,12 +235,41 @@ class _StudentOnlineClassesViewState extends State<StudentOnlineClassesView> {
     );
   }
 
-  void _joinMeeting(BuildContext context, String url) {
+  void _joinMeeting(BuildContext context, OnlineClassModel session) {
+    final url = session.meetingUrl.trim();
+    if (url.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Row(
+            children: [
+              Icon(Icons.info_outline, color: AppColors.warning),
+              SizedBox(width: 8),
+              Text('Meeting Link Pending', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+          content: Text(
+            'The meeting link has not been provided yet by ${session.teacherName ?? "the teacher"}. Please check back closer to class time (${session.startTime}).',
+            style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     Clipboard.setData(ClipboardData(text: url));
     showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: const Row(
             children: [
               Icon(Icons.video_call, color: AppColors.info),
@@ -252,9 +281,35 @@ class _StudentOnlineClassesViewState extends State<StudentOnlineClassesView> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                '${session.subjectName ?? "Class"}: ${session.title}',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 14, color: AppColors.success),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Meeting link copied to clipboard!',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.success),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
               const Text(
-                'Meeting link has been copied to your clipboard. Paste into your browser or meeting app to join:',
-                style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                'Paste into your browser or meeting app (Google Meet, Zoom, MS Teams) to join:',
+                style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
               ),
               const SizedBox(height: 10),
               Container(
@@ -264,20 +319,61 @@ class _StudentOnlineClassesViewState extends State<StudentOnlineClassesView> {
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: SelectableText(
-                  url,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.info,
-                  ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        url,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.info,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy, size: 16, color: AppColors.primaryAccent),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Copy Link',
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: url));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Meeting link copied to clipboard'),
+                            duration: Duration(seconds: 2),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: AppColors.primaryText,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           actions: [
-            TextButton(
+            OutlinedButton(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: url));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Meeting link copied to clipboard'),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: AppColors.primaryText,
+                  ),
+                );
+              },
+              child: const Text('Copy Again'),
+            ),
+            ElevatedButton(
               onPressed: () => Navigator.pop(dialogContext),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryAccent,
+                foregroundColor: AppColors.surface,
+              ),
               child: const Text('Done'),
             ),
           ],

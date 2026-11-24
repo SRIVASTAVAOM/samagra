@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../auth/bloc/auth_bloc.dart';
@@ -96,14 +97,16 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
           : BlocConsumer<MaterialsBloc, MaterialsState>(
         listener: (context, state) {
           if (state is MaterialOperationSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.downloadUrl != null
-                    ? 'Download link ready: ${state.fileName ?? "Document"}'
-                    : state.message),
-                backgroundColor: AppColors.primaryText,
-              ),
-            );
+            if (state.downloadUrl != null && state.downloadUrl!.isNotEmpty) {
+              _showAttachmentViewer(context, state.downloadUrl!, state.fileName);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: AppColors.primaryText,
+                ),
+              );
+            }
           } else if (state is MaterialsError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
@@ -199,90 +202,239 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.indigo50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.indigo100),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            context.read<MaterialsBloc>().add(DownloadMaterialEvent(item.id));
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.indigo50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.indigo100),
+                      ),
+                      child: Icon(
+                        item.contentType.contains('pdf') ? Icons.picture_as_pdf : Icons.image,
+                        color: AppColors.primaryAccent,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            item.fileName,
+                            style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.scaffoldBackground,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Text(
+                        item.formattedSize,
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
+                      ),
+                    ),
+                  ],
                 ),
-                child: Icon(
-                  item.contentType.contains('pdf') ? Icons.picture_as_pdf : Icons.image,
-                  color: AppColors.primaryAccent,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                if (item.description != null && item.description!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    item.description!,
+                    style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      item.title,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primaryText),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.fileName,
+                      'By ${item.teacherName ?? "Teacher"}',
                       style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
-                      overflow: TextOverflow.ellipsis,
+                    ),
+                    OutlinedButton.icon(
+                      key: Key('download_material_${item.id}'),
+                      onPressed: () {
+                        context.read<MaterialsBloc>().add(DownloadMaterialEvent(item.id));
+                      },
+                      icon: const Icon(Icons.download_outlined, size: 16),
+                      label: const Text('Download Document'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryAccent,
+                        side: const BorderSide(color: AppColors.indigo200),
+                        backgroundColor: AppColors.indigo50,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAttachmentViewer(BuildContext context, String url, String? name) {
+    final lowerName = (name ?? url).toLowerCase();
+    final isPdf = lowerName.endsWith('.pdf');
+    final isImage = lowerName.endsWith('.png') ||
+        lowerName.endsWith('.jpg') ||
+        lowerName.endsWith('.jpeg') ||
+        lowerName.endsWith('.webp');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.border)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name ?? (isPdf ? 'Study Material (PDF)' : 'Study Material'),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.scaffoldBackground,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Text(
-                  item.formattedSize,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: isImage
+                      ? InteractiveViewer(
+                          panEnabled: true,
+                          minScale: 0.5,
+                          maxScale: 4.0,
+                          child: Image.network(
+                            url,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24.0),
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+                                    const SizedBox(height: 8),
+                                    const Text('Unable to load image preview'),
+                                    const SizedBox(height: 4),
+                                    Text(url, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      : Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isPdf ? Icons.picture_as_pdf : Icons.description_outlined,
+                                size: 48,
+                                color: isPdf ? const Color(0xFFB91C1C) : AppColors.primaryAccent,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                name ?? 'Study Material Document',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 12),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  try {
+                                    Clipboard.setData(ClipboardData(text: url));
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Document link copied to clipboard: $url'),
+                                          backgroundColor: AppColors.success,
+                                          behavior: SnackBarBehavior.floating,
+                                          duration: const Duration(seconds: 4),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Unable to copy link: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                icon: const Icon(Icons.open_in_browser, size: 16),
+                                label: Text(isPdf ? 'Open / Copy PDF Link' : 'Open / Copy Document Link'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryAccent,
+                                  foregroundColor: AppColors.surface,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                 ),
               ),
             ],
           ),
-          if (item.description != null && item.description!.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              item.description!,
-              style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
-            ),
-          ],
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'By ${item.teacherName ?? "Teacher"}',
-                style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
-              ),
-              OutlinedButton.icon(
-                key: Key('download_material_${item.id}'),
-                onPressed: () {
-                  context.read<MaterialsBloc>().add(DownloadMaterialEvent(item.id));
-                },
-                icon: const Icon(Icons.download_outlined, size: 16),
-                label: const Text('Download Document'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primaryAccent,
-                  side: const BorderSide(color: AppColors.indigo200),
-                  backgroundColor: AppColors.indigo50,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }

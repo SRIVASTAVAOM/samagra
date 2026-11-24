@@ -22,16 +22,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final user = await authRepository.checkAuthStatus();
       if (user != null) {
         final upperRoles = user.roles.map((r) => r.toUpperCase()).toList();
+        if (upperRoles.contains('SUPER_ADMIN')) {
+          await authRepository.logout();
+          emit(const AuthFailure(
+            'Access Restricted: Platform Super-Administrators must log in via the SAMAGRA Web Portal.',
+          ));
+          return;
+        }
+
         final hasValidRole = upperRoles.any((r) =>
-            ['STUDENT', 'TEACHER', 'ADMIN', 'SUPER_ADMIN', 'PRINCIPAL', 'STAFF'].contains(r));
+            ['STUDENT', 'TEACHER', 'ADMIN', 'PRINCIPAL', 'STAFF'].contains(r));
 
         if (!hasValidRole) {
           await authRepository.logout();
           emit(Unauthenticated());
         } else {
-          final activeRole = upperRoles.contains('STUDENT')
-              ? 'STUDENT'
-              : 'TEACHER';
+          final activeRole = upperRoles.contains('ADMIN') || upperRoles.contains('PRINCIPAL')
+              ? 'ADMIN'
+              : (upperRoles.contains('STUDENT') ? 'STUDENT' : 'TEACHER');
 
           emit(Authenticated(
             user: user,
@@ -58,8 +66,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
 
       final upperRoles = user.roles.map((r) => r.toUpperCase()).toList();
+      if (upperRoles.contains('SUPER_ADMIN')) {
+        await authRepository.logout();
+        emit(const AuthFailure(
+          'Access Restricted: Platform Super-Administrators must log in via the SAMAGRA Web Portal.',
+        ));
+        return;
+      }
+
       final hasValidRole = upperRoles.any((r) =>
-          ['STUDENT', 'TEACHER', 'ADMIN', 'SUPER_ADMIN', 'PRINCIPAL', 'STAFF'].contains(r));
+          ['STUDENT', 'TEACHER', 'ADMIN', 'PRINCIPAL', 'STAFF'].contains(r));
 
       if (!hasValidRole) {
         await authRepository.logout();
@@ -69,9 +85,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return;
       }
 
-      final activeRole = upperRoles.contains('STUDENT')
-          ? 'STUDENT'
-          : 'TEACHER';
+      final activeRole = upperRoles.contains('ADMIN') || upperRoles.contains('PRINCIPAL')
+          ? 'ADMIN'
+          : (upperRoles.contains('STUDENT') ? 'STUDENT' : 'TEACHER');
 
       emit(Authenticated(
         user: user,

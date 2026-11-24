@@ -28,6 +28,8 @@ import '../../repository/student_features_repository.dart';
 import '../../../academics/presentation/student_roster_view.dart';
 import '../../../academics/presentation/subject_teachers_view.dart';
 import '../../../curriculum/presentation/curriculum_view.dart';
+import '../../../curriculum/bloc/curriculum_bloc.dart';
+import '../../../academics/repository/academics_repository.dart';
 import '../../../profiles/presentation/student_profile_view.dart';
 import 'school_contact_view.dart';
 import 'student_birthdays_view.dart';
@@ -296,30 +298,44 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
     }
   }
 
-  void _navigateToStudyMaterials(BuildContext context) {
+  void _navigateToStudyMaterials(BuildContext context) async {
     if (widget.onNavigateToTab != null) {
       widget.onNavigateToTab!(2, academicSubTab: 1);
-    } else {
-      MaterialsBloc? bloc;
-      try {
-        bloc = context.read<MaterialsBloc>();
-      } catch (_) {}
-
-      Widget content = Scaffold(
-        appBar: AppBar(title: const Text('Study Materials')),
-        body: AcademicMaterialsView(
-          classId: widget.user.classId ?? '',
-          subjectId: '',
-        ),
-      );
-      if (bloc != null) {
-        content = BlocProvider<MaterialsBloc>.value(value: bloc, child: content);
-      }
-
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => content),
-      );
+      return;
     }
+
+    String subjectId = '';
+    String? subjectName;
+    try {
+      final repo = context.read<AcademicsRepository>();
+      final subjects = await repo.getSubjects();
+      if (subjects.isNotEmpty) {
+        subjectId = subjects.first.id;
+        subjectName = subjects.first.name;
+      }
+    } catch (_) {}
+
+    if (!context.mounted) return;
+    MaterialsBloc? bloc;
+    try {
+      bloc = context.read<MaterialsBloc>();
+    } catch (_) {}
+
+    Widget content = Scaffold(
+      appBar: AppBar(title: const Text('Study Materials')),
+      body: AcademicMaterialsView(
+        classId: widget.user.classId ?? '',
+        subjectId: subjectId,
+        subjectName: subjectName,
+      ),
+    );
+    if (bloc != null) {
+      content = BlocProvider<MaterialsBloc>.value(value: bloc, child: content);
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => content),
+    );
   }
 
   void _navigateToLeaves(BuildContext context) {
@@ -345,19 +361,41 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
     }
   }
 
-  void _navigateToSyllabus(BuildContext context) {
+  void _navigateToSyllabus(BuildContext context) async {
     if (widget.onNavigateToTab != null) {
       widget.onNavigateToTab!(2, academicSubTab: 2);
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => Scaffold(
-            appBar: AppBar(title: const Text('Syllabus')),
-            body: CurriculumView(classId: widget.user.classId ?? '', subjectId: ''),
-          ),
-        ),
-      );
+      return;
     }
+
+    String subjectId = '';
+    try {
+      final repo = context.read<AcademicsRepository>();
+      final subjects = await repo.getSubjects();
+      if (subjects.isNotEmpty) {
+        subjectId = subjects.first.id;
+      }
+    } catch (_) {}
+
+    if (!context.mounted) return;
+    CurriculumBloc? bloc;
+    try {
+      bloc = context.read<CurriculumBloc>();
+    } catch (_) {}
+
+    Widget content = Scaffold(
+      appBar: AppBar(title: const Text('Syllabus')),
+      body: CurriculumView(
+        classId: widget.user.classId ?? '',
+        subjectId: subjectId,
+      ),
+    );
+    if (bloc != null) {
+      content = BlocProvider<CurriculumBloc>.value(value: bloc, child: content);
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => content),
+    );
   }
 
   void _navigateToClassmates(BuildContext context) {
@@ -992,33 +1030,44 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.assignment_outlined, size: 18, color: accentColor),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Homework & Deadlines',
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.assignment_outlined, size: 18, color: accentColor),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Homework & Deadlines',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: accentColor,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: Text(
+                    badgeText,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 11,
                       fontWeight: FontWeight.bold,
                       color: accentColor,
                     ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: borderColor),
-                ),
-                child: Text(
-                  badgeText,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: accentColor,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ),
