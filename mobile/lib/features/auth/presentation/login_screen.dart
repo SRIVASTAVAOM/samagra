@@ -306,7 +306,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildHeroPanel(),
-                    const _StatsPanel(),
                     const _Footer(),
                   ],
                 ),
@@ -341,10 +340,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     _Hero(branding: _branding),
                     const SizedBox(height: 18),
                     _buildLoginCard(),
-                    const SizedBox(height: 18),
-                    const _FeatureGrid(),
-                    const SizedBox(height: 18),
-                    const _BottomRow(),
                   ],
                 ),
               ),
@@ -490,53 +485,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ),
-                ),
-
-                // Portal switcher (web: `.aln-back-home`)
-                const SizedBox(height: 14),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.home_outlined, size: 15, color: _Aln.primary),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: _TextLink(
-                        key: const Key('portalSwitchLink'),
-                        label: _superAdminMode
-                            ? 'Go to School Admin Portal (/login)'
-                            : 'Go to Super Admin Portal (/super-admin/login)',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        onTap: isLoading ? null : _togglePortal,
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Quick test preset (web: `.aln-presets`)
-                const SizedBox(height: 14),
-                const Divider(height: 1, thickness: 1, color: _Aln.divider),
-                const SizedBox(height: 14),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    const Text(
-                      'Quick test:',
-                      style: TextStyle(fontSize: 12, color: _Aln.muted),
-                    ),
-                    _TextLink(
-                      label: (_superAdminMode ? _superAdminPreset : _schoolAdminPreset).key,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: _Aln.deep,
-                      onTap: isLoading
-                          ? null
-                          : () => _fillPreset((_superAdminMode ? _superAdminPreset : _schoolAdminPreset).value),
-                    ),
-                  ],
                 ),
               ],
             );

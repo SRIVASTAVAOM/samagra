@@ -13,7 +13,7 @@ pool.query(`
 `).catch((e) => console.warn('[DB Bootstrap Warning]:', e.message));
 
 // Verify Cloudinary connectivity on startup
-testCloudinaryConnection().catch((err) => console.warn('[Cloudinary Startup Check Warning]:', err.message));
+testCloudinaryConnection().catch((err: any) => console.warn('[Cloudinary Startup Check Warning]:', err?.message));
 
 app.listen(PORT, () => {
   console.log(`[School ERP Server]: Running on http://localhost:${PORT} in ${env.NODE_ENV} mode`);

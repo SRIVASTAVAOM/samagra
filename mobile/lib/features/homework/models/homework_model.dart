@@ -47,6 +47,9 @@ class HomeworkModel {
 
   bool get isCompleted => studentStatus == 'COMPLETED';
   bool get hasAttachment => s3AttachmentKey != null && s3AttachmentKey!.isNotEmpty;
+  /// Returns the URL (or key) for the attached file, if any.
+  /// Used by UI components that previously referenced `attachmentUrl`.
+  String? get attachmentUrl => s3AttachmentKey;
 
   bool get isOverdue {
     if (isCompleted) return false;

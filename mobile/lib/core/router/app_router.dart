@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/admin/presentation/admin_shell.dart';
 import '../../features/auth/bloc/auth_bloc.dart';
 import '../../features/auth/bloc/auth_state.dart';
 import '../../features/auth/presentation/login_screen.dart';
@@ -17,11 +18,11 @@ class AppRouter {
     switch (role.toUpperCase()) {
       case 'STUDENT':
         return '/student';
-      case 'TEACHER':
       case 'ADMIN':
-      case 'SUPER_ADMIN':
-      case 'STAFF':
       case 'PRINCIPAL':
+        return '/admin';
+      case 'TEACHER':
+      case 'STAFF':
         return '/teacher';
       default:
         return '/login';
@@ -58,10 +59,18 @@ class AppRouter {
       if (location.startsWith('/student') && authState.activeRole != 'STUDENT') {
         return roleHome;
       }
+      if (location.startsWith('/admin') &&
+          authState.activeRole != 'ADMIN' &&
+          authState.activeRole != 'PRINCIPAL' &&
+          !authState.user.roles.any((r) =>
+              ['ADMIN', 'PRINCIPAL'].contains(r.toUpperCase()))) {
+        return roleHome;
+      }
       if (location.startsWith('/teacher') &&
           authState.activeRole != 'TEACHER' &&
-          authState.activeRole != 'ADMIN' &&
-          authState.activeRole != 'SUPER_ADMIN') {
+          authState.activeRole != 'STAFF' &&
+          !authState.user.roles.any((r) =>
+              ['TEACHER', 'STAFF'].contains(r.toUpperCase()))) {
         return roleHome;
       }
 
@@ -75,6 +84,19 @@ class AppRouter {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/admin',
+        builder: (context, state) {
+          final authState = authBloc.state;
+          if (authState is Authenticated &&
+              (authState.activeRole == 'ADMIN' ||
+               authState.activeRole == 'PRINCIPAL' ||
+               authState.user.roles.any((r) => ['ADMIN', 'PRINCIPAL'].contains(r.toUpperCase())))) {
+            return AdminShell(user: authState.user);
+          }
+          return const LoginScreen();
+        },
       ),
       GoRoute(
         path: '/student',
@@ -92,10 +114,9 @@ class AppRouter {
           final authState = authBloc.state;
           if (authState is Authenticated &&
               (authState.activeRole == 'TEACHER' ||
-               authState.activeRole == 'ADMIN' ||
-               authState.activeRole == 'SUPER_ADMIN' ||
+               authState.activeRole == 'STAFF' ||
                authState.user.roles.any((r) =>
-                   ['TEACHER', 'ADMIN', 'SUPER_ADMIN', 'STAFF', 'PRINCIPAL'].contains(r.toUpperCase())))) {
+                   ['TEACHER', 'STAFF'].contains(r.toUpperCase())))) {
             return TeacherShell(user: authState.user);
           }
           return const LoginScreen();

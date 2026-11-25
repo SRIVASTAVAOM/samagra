@@ -68,6 +68,8 @@ class _StudentShellState extends State<StudentShell> {
   List<SubjectModel> _subjects = [];
   SubjectModel? _selectedSubject;
   bool _loadingSubjects = false;
+  CurriculumBloc? _curriculumBloc;
+  MaterialsBloc? _materialsBloc;
 
   @override
   void initState() {
@@ -91,6 +93,16 @@ class _StudentShellState extends State<StudentShell> {
           }
           _loadingSubjects = false;
         });
+
+        // Immediately dispatch events so Materials and Syllabus are pre-loaded
+        if (subjects.isNotEmpty) {
+          final classId = widget.user.classId ?? '';
+          final firstSubId = subjects.first.id;
+          if (classId.isNotEmpty) {
+            _materialsBloc?.add(LoadClassMaterialsEvent(classId, firstSubId));
+            _curriculumBloc?.add(LoadCurriculumUnitsEvent(classId, firstSubId));
+          }
+        }
       }
     } catch (_) {
       if (mounted) setState(() => _loadingSubjects = false);
@@ -107,6 +119,16 @@ class _StudentShellState extends State<StudentShell> {
         _servicesSubTab = servicesSubTab;
       }
     });
+
+    final classId = widget.user.classId ?? '';
+    final subjectId = _selectedSubject?.id ?? (_subjects.isNotEmpty ? _subjects.first.id : '');
+    if (tabIndex == 2 && classId.isNotEmpty && subjectId.isNotEmpty) {
+      if (academicSubTab == 1) {
+        _materialsBloc?.add(LoadClassMaterialsEvent(classId, subjectId));
+      } else if (academicSubTab == 2) {
+        _curriculumBloc?.add(LoadCurriculumUnitsEvent(classId, subjectId));
+      }
+    }
   }
 
   @override
@@ -144,14 +166,32 @@ class _StudentShellState extends State<StudentShell> {
           )..add(const LoadStudentHomeworkEvent()),
         ),
         BlocProvider(
-          create: (ctx) => CurriculumBloc(
-            ctx.read<CurriculumRepository>(),
-          ),
+          create: (ctx) {
+            final bloc = CurriculumBloc(
+              ctx.read<CurriculumRepository>(),
+            );
+            _curriculumBloc = bloc;
+            final classId = widget.user.classId ?? '';
+            final subjectId = _selectedSubject?.id ?? (_subjects.isNotEmpty ? _subjects.first.id : '');
+            if (classId.isNotEmpty && subjectId.isNotEmpty) {
+              bloc.add(LoadCurriculumUnitsEvent(classId, subjectId));
+            }
+            return bloc;
+          },
         ),
         BlocProvider(
-          create: (ctx) => MaterialsBloc(
-            ctx.read<MaterialsRepository>(),
-          ),
+          create: (ctx) {
+            final bloc = MaterialsBloc(
+              ctx.read<MaterialsRepository>(),
+            );
+            _materialsBloc = bloc;
+            final classId = widget.user.classId ?? '';
+            final subjectId = _selectedSubject?.id ?? (_subjects.isNotEmpty ? _subjects.first.id : '');
+            if (classId.isNotEmpty && subjectId.isNotEmpty) {
+              bloc.add(LoadClassMaterialsEvent(classId, subjectId));
+            }
+            return bloc;
+          },
         ),
         BlocProvider(
           create: (ctx) => ExamsBloc(
@@ -459,28 +499,33 @@ class _StudentShellState extends State<StudentShell> {
                 return const StudentHomeworkView();
               }
               if (_academicSubTab == 1) {
+                final classId = widget.user.classId ?? '';
+                final currentSub = _selectedSubject ?? (_subjects.isNotEmpty ? _subjects.first : null);
                 return Column(
                   children: [
                     _buildSubjectSelectorChips(context, isMaterials: true),
                     Expanded(
                       child: AcademicMaterialsView(
-                        key: ValueKey('mat-${widget.user.classId}-${_selectedSubject?.id}'),
-                        classId: widget.user.classId ?? '',
-                        subjectId: _selectedSubject?.id ?? '',
+                        key: ValueKey('mat-$classId-${currentSub?.id}'),
+                        classId: classId,
+                        subjectId: currentSub?.id ?? '',
+                        subjectName: currentSub?.name,
                       ),
                     ),
                   ],
                 );
               }
               if (_academicSubTab == 2) {
+                final classId = widget.user.classId ?? '';
+                final currentSub = _selectedSubject ?? (_subjects.isNotEmpty ? _subjects.first : null);
                 return Column(
                   children: [
                     _buildSubjectSelectorChips(context, isMaterials: false),
                     Expanded(
                       child: CurriculumView(
-                        key: ValueKey('curr-${widget.user.classId}-${_selectedSubject?.id}'),
-                        classId: widget.user.classId ?? '',
-                        subjectId: _selectedSubject?.id ?? '',
+                        key: ValueKey('curr-$classId-${currentSub?.id}'),
+                        classId: classId,
+                        subjectId: currentSub?.id ?? '',
                       ),
                     ),
                   ],

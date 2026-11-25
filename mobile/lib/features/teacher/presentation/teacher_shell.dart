@@ -209,12 +209,14 @@ class _TeacherShellState extends State<TeacherShell> {
         BlocProvider(
           create: (ctx) => LeavesBloc(
             repository: ctx.read<LeavesRepository>(),
-          )..add(const LoadStaffMyLeavesEvent()),
+          )
+            ..add(const LoadStaffMyLeavesEvent())
+            ..add(const LoadClassStudentLeavesEvent()),
         ),
         BlocProvider(
           create: (ctx) => HomeworkBloc(
             ctx.read<HomeworkRepository>(),
-          ),
+          )..add(const LoadTeacherHomeworkEvent()),
         ),
         BlocProvider(
           create: (ctx) => CurriculumBloc(
@@ -331,7 +333,10 @@ class _TeacherShellState extends State<TeacherShell> {
       case 2:
         return _buildClassesTab(context);
       case 3:
-        return TeacherLeaveView(initialTab: _leavesInitialTab);
+        return TeacherLeaveView(
+          key: ValueKey('teacher-leaves-$_leavesInitialTab'),
+          initialTab: _leavesInitialTab,
+        );
       case 4:
       default:
         return const TeacherProfileView();
