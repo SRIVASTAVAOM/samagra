@@ -7,6 +7,14 @@ import '../../bloc/student_features_event.dart';
 import '../../bloc/student_features_state.dart';
 import '../../models/student_features_model.dart';
 
+/// Premium Student Fees View with Premium Blue & White Theme
+/// Features:
+/// - Fee Structure & Dues tab
+/// - Fee Receipts tab
+/// - Three-column fee summary (Total Dues, Total Paid, Outstanding)
+/// - Payment information card
+/// - Fee installments & heads with status badges
+/// - Refresh functionality
 class StudentFeesView extends StatefulWidget {
   const StudentFeesView({super.key});
 
@@ -15,7 +23,7 @@ class StudentFeesView extends StatefulWidget {
 }
 
 class _StudentFeesViewState extends State<StudentFeesView> {
-  int _activeSubTab = 0; // 0: Dues & Structure, 1: Receipts
+  int _activeSubTab = 0; // 0: Fee Structure & Dues, 1: Fee Receipts
 
   @override
   void initState() {
@@ -23,84 +31,157 @@ class _StudentFeesViewState extends State<StudentFeesView> {
     context.read<StudentFeaturesBloc>().add(const LoadStudentFeesEvent());
   }
 
+  void _refreshCurrentTab() {
+    if (_activeSubTab == 0) {
+      context.read<StudentFeaturesBloc>().add(const LoadStudentFeesEvent());
+    } else {
+      context.read<StudentFeaturesBloc>().add(const LoadStudentReceiptsEvent());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.scaffoldBackground,
+      color: const Color(0xFFF4F8FF), // Very light blue background
       child: Column(
         children: [
-          // Sub-Tab Switcher
-          Container(
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border(bottom: BorderSide(color: AppColors.border)),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                _buildSubTabButton('Fee Structure & Dues', 0),
-                const SizedBox(width: 8),
-                _buildSubTabButton('Fee Receipts', 1),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.refresh, size: 20, color: AppColors.secondaryText),
-                  tooltip: 'Refresh',
-                  onPressed: () {
-                    if (_activeSubTab == 0) {
-                      context
-                          .read<StudentFeaturesBloc>()
-                          .add(const LoadStudentFeesEvent());
-                    } else {
-                      context
-                          .read<StudentFeaturesBloc>()
-                          .add(const LoadStudentReceiptsEvent());
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
+          // Fee Navigation Tabs
+          _buildTabNavigationBar(),
+
+          // Content Area
           Expanded(
-            child: _activeSubTab == 0
-                ? _buildDuesTab()
-                : _buildReceiptsTab(),
+            child: _activeSubTab == 0 ? _buildDuesTab() : _buildReceiptsTab(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSubTabButton(String title, int index) {
-    final isSelected = _activeSubTab == index;
-    return InkWell(
-      onTap: () {
-        setState(() => _activeSubTab = index);
-        if (index == 0) {
-          context.read<StudentFeaturesBloc>().add(const LoadStudentFeesEvent());
-        } else {
-          context
-              .read<StudentFeaturesBloc>()
-              .add(const LoadStudentReceiptsEvent());
-        }
-      },
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryText : AppColors.scaffoldBackground,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: isSelected ? AppColors.primaryText : AppColors.border,
+  Widget _buildTabNavigationBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: const Color(0xFFE3ECF8))),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          // Fee Structure & Dues Tab
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _activeSubTab = 0);
+                context.read<StudentFeaturesBloc>().add(const LoadStudentFeesEvent());
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  gradient: _activeSubTab == 0
+                      ? const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF0284C7), Color(0xFF00B4D8)],
+                        )
+                      : null,
+                  color: _activeSubTab == 0 ? null : AppColors.surface,
+                  border: _activeSubTab == 0
+                      ? null
+                      : Border.all(color: const Color(0xFFE3ECF8), width: 1.5),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.receipt_long_outlined,
+                      size: 18,
+                      color: _activeSubTab == 0 ? Colors.white : AppColors.primaryAccent,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Fee Structure & Dues',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color:
+                            _activeSubTab == 0 ? Colors.white : AppColors.primaryText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: isSelected ? AppColors.surface : AppColors.primaryText,
+          const SizedBox(width: 10),
+
+          // Fee Receipts Tab
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _activeSubTab = 1);
+                context
+                    .read<StudentFeaturesBloc>()
+                    .add(const LoadStudentReceiptsEvent());
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  gradient: _activeSubTab == 1
+                      ? const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF0284C7), Color(0xFF00B4D8)],
+                        )
+                      : null,
+                  color: _activeSubTab == 1 ? null : AppColors.surface,
+                  border: _activeSubTab == 1
+                      ? null
+                      : Border.all(color: const Color(0xFFE3ECF8), width: 1.5),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.description_outlined,
+                      size: 18,
+                      color: _activeSubTab == 1 ? Colors.white : AppColors.primaryAccent,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Fee Receipts',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color:
+                            _activeSubTab == 1 ? Colors.white : AppColors.primaryText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(width: 10),
+
+          // Refresh Button
+          InkWell(
+            onTap: _refreshCurrentTab,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE3ECF8), width: 1.5),
+              ),
+              child: Icon(
+                Icons.refresh_rounded,
+                size: 20,
+                color: AppColors.primaryAccent,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -109,7 +190,29 @@ class _StudentFeesViewState extends State<StudentFeesView> {
     return BlocBuilder<StudentFeaturesBloc, StudentFeaturesState>(
       builder: (context, state) {
         if (state is StudentFeaturesLoading) {
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.primaryAccent),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading fee details...',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.secondaryText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
 
         if (state is StudentFeaturesError) {
@@ -117,23 +220,38 @@ class _StudentFeesViewState extends State<StudentFeesView> {
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline, size: 36, color: AppColors.error),
-                  const SizedBox(height: 12),
+                  Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to Load Fees',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryText,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
                     state.message,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                    style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
                   ),
-                  const SizedBox(height: 16),
-                  OutlinedButton(
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
                     onPressed: () {
                       context
                           .read<StudentFeaturesBloc>()
                           .add(const LoadStudentFeesEvent());
                     },
-                    child: const Text('Retry'),
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryAccent,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
                 ],
               ),
@@ -143,76 +261,62 @@ class _StudentFeesViewState extends State<StudentFeesView> {
 
         if (state is StudentFeesLoaded) {
           final overview = state.overview;
+          final installments = state.installments ?? [];
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Summary Banner Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        _buildSummaryItem('Total Dues', '₹${overview.totalDues.toStringAsFixed(0)}', AppColors.primaryText),
-                        Container(width: 1, height: 36, color: AppColors.border),
-                        _buildSummaryItem('Total Paid', '₹${overview.totalPaid.toStringAsFixed(0)}', AppColors.success),
-                        Container(width: 1, height: 36, color: AppColors.border),
-                        _buildSummaryItem('Outstanding', '₹${overview.totalOutstanding.toStringAsFixed(0)}', AppColors.error),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.scaffoldBackground,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        children: const [
-                          Icon(Icons.info_outline, size: 16, color: AppColors.secondaryText),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Online payment gateway is currently deferred. Fee payments can be made directly at the school accounts counter.',
-                              style: TextStyle(fontSize: 11, color: AppColors.secondaryText),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // Fee Summary Card (3 columns)
+              _buildFeeSummaryCard(overview),
               const SizedBox(height: 16),
-              const Text(
-                'Fee Installments & Heads',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryText,
+
+              // Payment Information Card
+              _buildPaymentInformationCard(),
+              const SizedBox(height: 24),
+
+              // Fee Installments & Heads Heading
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Fee Installments & Heads',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryText,
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
-              if (overview.fees.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(32.0),
-                  child: Center(
-                    child: Text(
-                      'No fee installments scheduled',
-                      style: TextStyle(color: AppColors.secondaryText),
-                    ),
+
+              // Installment Cards
+              if (installments.isEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 48),
+                  alignment: Alignment.center,
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.receipt_long_outlined,
+                        size: 48,
+                        color: AppColors.secondaryText,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No fee installments found',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.primaryText,
+                        ),
+                      ),
+                    ],
                   ),
                 )
               else
-                ...overview.fees.map((fee) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _buildFeeCard(fee),
+                ...installments.map((inst) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildInstallmentCard(inst),
                     )),
+
+              const SizedBox(height: 20),
             ],
           );
         }
@@ -222,18 +326,151 @@ class _StudentFeesViewState extends State<StudentFeesView> {
     );
   }
 
-  Widget _buildSummaryItem(String label, String value, Color valueColor) {
-    return Expanded(
-      child: Column(
+  Widget _buildFeeSummaryCard(StudentFeeOverviewModel overview) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE3ECF8)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      child: Row(
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.secondaryText)),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: valueColor,
+          // Total Dues Column
+          Expanded(
+            child: Column(
+              children: [
+                Text(
+                  'Total Dues',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.secondaryText,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '₹${_formatAmount(overview.totalDues)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0284C7),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0F2FE),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.wallet_outlined,
+                    size: 24,
+                    color: Color(0xFF0284C7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Vertical Divider
+          Container(
+            width: 1,
+            height: 100,
+            color: const Color(0xFFE3ECF8),
+          ),
+
+          // Total Paid Column
+          Expanded(
+            child: Column(
+              children: [
+                Text(
+                  'Total Paid',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.secondaryText,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '₹${_formatAmount(overview.totalPaid)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF16A765),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAF9F0),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_outline,
+                    size: 24,
+                    color: Color(0xFF16A765),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Vertical Divider
+          Container(
+            width: 1,
+            height: 100,
+            color: const Color(0xFFE3ECF8),
+          ),
+
+          // Outstanding Column
+          Expanded(
+            child: Column(
+              children: [
+                Text(
+                  'Outstanding',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.secondaryText,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '₹${_formatAmount(overview.outstanding)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFE53935),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.warning_outlined,
+                    size: 24,
+                    color: Color(0xFFE53935),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -241,73 +478,202 @@ class _StudentFeesViewState extends State<StudentFeesView> {
     );
   }
 
-  Widget _buildFeeCard(FeeItemModel fee) {
-    Color statusColor;
-    switch (fee.status.toUpperCase()) {
-      case 'PAID':
-        statusColor = AppColors.success;
-        break;
-      case 'PARTIAL':
-        statusColor = AppColors.info;
-        break;
-      default:
-        statusColor = AppColors.warning;
-    }
-
+  Widget _buildPaymentInformationCard() {
     return Container(
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
+        color: const Color(0xFFE0F2FE),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFBAE6FD)),
       ),
+      padding: const EdgeInsets.all(14),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.primaryAccent,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.info_outlined,
+              size: 20,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  fee.feeTitle,
-                  style: const TextStyle(
+                  'Online payment gateway is currently deferred.',
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primaryText,
+                    color: AppColors.primaryAccent,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Due: ${fee.dueDate}  •  Paid: ₹${fee.amountPaid.toStringAsFixed(0)}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
+                  'Fee payments can be made directly at the school accounts counter.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.primaryAccent,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstallmentCard(StudentFeeInstallmentModel installment) {
+    final status = installment.paymentStatus ?? 'PENDING';
+    final isPaid = status == 'PAID';
+    final isPending = status == 'PENDING';
+    final isOverdue = status == 'OVERDUE';
+
+    // Determine colors based on status
+    Color iconBg;
+    Color iconColor;
+    Color statusBgColor;
+    Color statusTextColor;
+
+    if (isPaid) {
+      iconBg = const Color(0xFFEAF9F0);
+      iconColor = const Color(0xFF16A765);
+      statusBgColor = const Color(0xFFEAF9F0);
+      statusTextColor = const Color(0xFF16A765);
+    } else if (isOverdue) {
+      iconBg = const Color(0xFFFEF2F2);
+      iconColor = const Color(0xFFE53935);
+      statusBgColor = const Color(0xFFFEF2F2);
+      statusTextColor = const Color(0xFFE53935);
+    } else {
+      iconBg = const Color(0xFFFEF3C7);
+      iconColor = const Color(0xFFF59E0B);
+      statusBgColor = const Color(0xFFFEF3C7);
+      statusTextColor = const Color(0xFFF59E0B);
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE3ECF8)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Icon
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.description_outlined,
+              size: 24,
+              color: iconColor,
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Center Content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  installment.name,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryText,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    if (installment.dueDate != null) ...[
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 12,
+                        color: AppColors.secondaryText,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        installment.dueDate ?? '',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.secondaryText,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 12,
+                      color: AppColors.secondaryText,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Paid: ₹${_formatAmount(installment.paidAmount)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.secondaryText,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Right Side: Amount & Status
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '₹${fee.amount.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 14,
+                '₹${_formatAmount(installment.amount)}',
+                style: TextStyle(
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primaryText,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
+                  color: statusBgColor,
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  fee.status,
+                  status,
                   style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: statusTextColor,
+                    letterSpacing: 0.3,
                   ),
                 ),
               ),
@@ -322,115 +688,110 @@ class _StudentFeesViewState extends State<StudentFeesView> {
     return BlocBuilder<StudentFeaturesBloc, StudentFeaturesState>(
       builder: (context, state) {
         if (state is StudentFeaturesLoading) {
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-        }
-
-        if (state is StudentReceiptsLoaded) {
-          final receipts = state.receipts;
-          if (receipts.isEmpty) {
-            return Center(
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.secondaryText),
-                  SizedBox(height: 12),
+                children: [
+                  const CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.primaryAccent),
+                  ),
+                  const SizedBox(height: 16),
                   Text(
-                    'No payment receipts recorded yet',
-                    style: TextStyle(color: AppColors.secondaryText),
+                    'Loading receipts...',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.secondaryText,
+                    ),
                   ),
                 ],
               ),
-            );
-          }
+            ),
+          );
+        }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: receipts.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final r = receipts[index];
-              return Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () => _showReceiptBreakdownSheet(context, r),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppColors.scaffoldBackground,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Icon(Icons.receipt_outlined, size: 22, color: AppColors.primaryText),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  r.receiptNumber,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.primaryText,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${r.paymentDate}  •  ${r.paymentMode}',
-                                  style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
-                                ),
-                                if (r.feeTitle != null) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    r.feeTitle!,
-                                    style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '₹${r.amountPaid.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.success,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              OutlinedButton(
-                                onPressed: () => _showReceiptBreakdownSheet(context, r),
-                                style: OutlinedButton.styleFrom(
-                                  visualDensity: VisualDensity.compact,
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                                  side: const BorderSide(color: AppColors.border),
-                                ),
-                                child: const Text('View', style: TextStyle(fontSize: 11)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+        if (state is StudentFeaturesError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to Load Receipts',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryText,
                     ),
                   ),
-                ),
-              );
-            },
+                  const SizedBox(height: 8),
+                  Text(
+                    state.message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      context
+                          .read<StudentFeaturesBloc>()
+                          .add(const LoadStudentReceiptsEvent());
+                    },
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryAccent,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (state is StudentReceiptsLoaded) {
+          final receipts = state.receipts ?? [];
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              if (receipts.isEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 48),
+                  alignment: Alignment.center,
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.description_outlined,
+                        size: 48,
+                        color: AppColors.secondaryText,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No receipts found',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.primaryText,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...receipts.map((receipt) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildReceiptCard(receipt),
+                    )),
+              const SizedBox(height: 20),
+            ],
           );
         }
 
@@ -439,238 +800,107 @@ class _StudentFeesViewState extends State<StudentFeesView> {
     );
   }
 
-  void _showReceiptBreakdownSheet(BuildContext context, FeeReceiptModel r) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+  Widget _buildReceiptCard(StudentFeeReceiptModel receipt) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE3ECF8)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE0F2FE),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.receipt_long_outlined,
+              size: 24,
+              color: Color(0xFF0284C7),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Pill Drag Handle
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+                Text(
+                  receipt.receiptNumber ?? 'Receipt',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryText,
                   ),
                 ),
-                const SizedBox(height: 14),
-
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.verified, color: AppColors.success, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'Fee Receipt Breakdown',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryText),
-                        ),
-                      ],
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 20),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-                const Divider(height: 20, color: AppColors.border),
-
-                // Total Paid Highlight Box
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDF4),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFBBF7D0)),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Total Amount Paid',
-                        style: TextStyle(fontSize: 12, color: AppColors.secondaryText, fontWeight: FontWeight.w500),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '₹${r.amountPaid.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.success,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDCFCE7),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'PAID  •  ${r.paymentDate}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF15803D),
-                          ),
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 4),
+                Text(
+                  receipt.receiptDate ?? '',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.secondaryText,
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                // Itemized Breakdown Rows
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.scaffoldBackground,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    children: [
-                      // Receipt Number with Copy Action
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Receipt No', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                r.receiptNumber,
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryText),
-                              ),
-                              const SizedBox(width: 4),
-                              InkWell(
-                                onTap: () {
-                                  Clipboard.setData(ClipboardData(text: r.receiptNumber));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Receipt #${r.receiptNumber} copied to clipboard'),
-                                      duration: const Duration(seconds: 2),
-                                      behavior: SnackBarBehavior.floating,
-                                      backgroundColor: AppColors.primaryText,
-                                    ),
-                                  );
-                                },
-                                borderRadius: BorderRadius.circular(4),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(4.0),
-                                  child: Icon(Icons.copy, size: 14, color: AppColors.primaryAccent),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 16, color: AppColors.border),
-                      _buildBreakdownRow('Payment Date', r.paymentDate),
-                      const Divider(height: 16, color: AppColors.border),
-                      _buildBreakdownRow('Payment Mode', r.paymentMode),
-                      const Divider(height: 16, color: AppColors.border),
-                      _buildBreakdownRow('Fee Head', r.feeTitle ?? 'Composite Annual / Term Fee'),
-                      if (r.transactionReference != null && r.transactionReference!.isNotEmpty) ...[
-                        const Divider(height: 16, color: AppColors.border),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Reference ID', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  r.transactionReference!,
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryText),
-                                ),
-                                const SizedBox(width: 4),
-                                InkWell(
-                                  onTap: () {
-                                    Clipboard.setData(ClipboardData(text: r.transactionReference!));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Reference ID copied to clipboard'),
-                                        duration: const Duration(seconds: 2),
-                                        behavior: SnackBarBehavior.floating,
-                                        backgroundColor: AppColors.primaryText,
-                                      ),
-                                    );
-                                  },
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(4.0),
-                                    child: Icon(Icons.copy, size: 14, color: AppColors.primaryAccent),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                      if (r.remarks != null && r.remarks!.isNotEmpty) ...[
-                        const Divider(height: 16, color: AppColors.border),
-                        _buildBreakdownRow('Remarks', r.remarks!),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-
-                // Done Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryAccent,
-                      foregroundColor: AppColors.surface,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text('Done', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  ),
-                ),
-                const SizedBox(height: 8),
               ],
             ),
           ),
-        );
-      },
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '₹${_formatAmount(receipt.amount)}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryText,
+                ),
+              ),
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: () {
+                  // Download/view receipt action
+                },
+                child: Icon(
+                  Icons.download_outlined,
+                  size: 18,
+                  color: AppColors.primaryAccent,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildBreakdownRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.end,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryText),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
+  String _formatAmount(dynamic amount) {
+    if (amount == null) return '0';
+    if (amount is String) {
+      return amount;
+    }
+    if (amount is int) {
+      return amount.toString();
+    }
+    if (amount is double) {
+      return amount.toStringAsFixed(0);
+    }
+    return amount.toString();
   }
+}
+
+// Extension for StudentFeaturesBloc events
+extension on StudentFeaturesBloc {
+  // Events are defined in student_features_event.dart
+  // LoadStudentFeesEvent, LoadStudentReceiptsEvent
 }

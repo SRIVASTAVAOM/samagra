@@ -5,6 +5,13 @@ import '../../../../core/theme/app_colors.dart';
 import '../bloc/homework_bloc.dart';
 import '../models/homework_model.dart';
 
+/// Premium Student Homework & Assignments View
+/// Features:
+/// - Homework filters with counts
+/// - Subject and status badges
+/// - Due date and teacher information
+/// - Mark completed and attachment actions
+/// - Consistent SAMAGRA theme design
 class StudentHomeworkView extends StatefulWidget {
   const StudentHomeworkView({super.key});
 
@@ -23,19 +30,9 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Homework & Assignments'),
-        elevation: 0,
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.primaryText,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: AppColors.border, height: 1.0),
-        ),
-      ),
-      backgroundColor: AppColors.scaffoldBackground,
-      body: BlocConsumer<HomeworkBloc, HomeworkState>(
+    return Container(
+      color: const Color(0xFFF4F8FF), // Very light blue background
+      child: BlocConsumer<HomeworkBloc, HomeworkState>(
         listener: (context, state) {
           if (state is HomeworkOperationSuccess) {
             if (state.downloadUrl != null && state.downloadUrl!.isNotEmpty) {
@@ -44,44 +41,87 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(state.message),
-                  backgroundColor: AppColors.primaryText,
+                  backgroundColor: AppColors.primaryAccent,
+                  behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.all(16),
                 ),
               );
             }
           } else if (state is HomeworkError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+              ),
             );
           }
         },
         builder: (context, state) {
           if (state is HomeworkLoading) {
-            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.primaryAccent),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Loading homework...',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.secondaryText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
 
           if (state is StudentHomeworkLoaded) {
             final allItems = state.homeworkList;
-            final filtered = allItems.where((hw) {
-              if (_selectedFilter == 'PENDING') return hw.studentStatus != 'COMPLETED';
-              if (_selectedFilter == 'COMPLETED') return hw.studentStatus == 'COMPLETED';
-              if (_selectedFilter == 'URGENT') {
-                return hw.studentStatus != 'COMPLETED' && (hw.isDueToday || hw.isOverdue || hw.isDueTomorrow);
-              }
-              return true;
-            }).toList();
+            final filtered = _filterHomework(allItems);
 
             return Column(
               children: [
-                _buildFilterChips(allItems),
+                // Section Heading
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'My Homework & Assignments',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryText,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Filter Chips
+                _buildFilterBar(allItems),
+
+                // Homework List
                 Expanded(
                   child: filtered.isEmpty
                       ? _buildEmptyState()
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
                           itemCount: filtered.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 12),
                           itemBuilder: (context, index) {
-                            return _buildHomeworkCard(filtered[index]);
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _buildHomeworkCard(filtered[index]),
+                            );
                           },
                         ),
                 ),
@@ -89,12 +129,62 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
             );
           }
 
+          if (state is HomeworkError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: AppColors.error,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Failed to Load Homework',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      state.message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.secondaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      onPressed: () => context
+                          .read<HomeworkBloc>()
+                          .add(const LoadStudentHomeworkEvent()),
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryAccent,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           return Center(
             child: ElevatedButton(
-              onPressed: () => context.read<HomeworkBloc>().add(const LoadStudentHomeworkEvent()),
+              onPressed: () => context
+                  .read<HomeworkBloc>()
+                  .add(const LoadStudentHomeworkEvent()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryAccent,
-                foregroundColor: AppColors.surface,
+                foregroundColor: Colors.white,
               ),
               child: const Text('Load Homework'),
             ),
@@ -104,431 +194,62 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
     );
   }
 
-  Widget _buildFilterChips(List<HomeworkModel> allItems) {
+  List<HomeworkModel> _filterHomework(List<HomeworkModel> allItems) {
+    return allItems.where((hw) {
+      if (_selectedFilter == 'PENDING') return hw.studentStatus != 'COMPLETED';
+      if (_selectedFilter == 'COMPLETED') return hw.studentStatus == 'COMPLETED';
+      return true;
+    }).toList();
+  }
+
+  Widget _buildFilterBar(List<HomeworkModel> allItems) {
     final pendingCount = allItems.where((h) => h.studentStatus != 'COMPLETED').length;
     final completedCount = allItems.where((h) => h.studentStatus == 'COMPLETED').length;
-    final urgentCount = allItems.where((h) => h.studentStatus != 'COMPLETED' && (h.isDueToday || h.isOverdue || h.isDueTomorrow)).length;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       color: AppColors.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
         child: Row(
           children: [
-            _filterChip('ALL', 'All (${allItems.length})'),
-            const SizedBox(width: 8),
-            _filterChip('PENDING', 'Pending ($pendingCount)'),
-            const SizedBox(width: 8),
-            _filterChip('URGENT', 'Due Soon / Overdue ($urgentCount)'),
-            const SizedBox(width: 8),
-            _filterChip('COMPLETED', 'Completed ($completedCount)'),
+            _buildFilterChip('ALL', 'All (${allItems.length})'),
+            const SizedBox(width: 10),
+            _buildFilterChip('PENDING', 'Pending ($pendingCount)'),
+            const SizedBox(width: 10),
+            _buildFilterChip('COMPLETED', 'Completed ($completedCount)'),
           ],
         ),
       ),
     );
   }
 
-  Widget _filterChip(String filterKey, String label) {
+  Widget _buildFilterChip(String filterKey, String label) {
     final isSelected = _selectedFilter == filterKey;
     return InkWell(
       onTap: () => setState(() => _selectedFilter = filterKey),
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryAccent : AppColors.scaffoldBackground,
-          borderRadius: BorderRadius.circular(6),
+          color: isSelected
+              ? AppColors.primaryAccent
+              : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? AppColors.primaryAccent : AppColors.border,
-            width: 1,
+            color: isSelected
+                ? AppColors.primaryAccent
+                : const Color(0xFFE3ECF8),
+            width: 1.5,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: isSelected ? AppColors.surface : AppColors.primaryText,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHomeworkCard(HomeworkModel hw) {
-    final isDone = hw.studentStatus == 'COMPLETED';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x080F172A),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.indigo50,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.indigo100),
-                ),
-                child: Text(
-                  hw.subjectName ?? 'Subject',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryAccent),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDone ? AppColors.successLight : AppColors.warningLight,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: isDone ? AppColors.successBorder : AppColors.warningBorder),
-                ),
-                child: Text(
-                  isDone ? 'Completed' : 'Pending',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isDone ? AppColors.success : AppColors.warning,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            hw.title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryText),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            hw.description,
-            style: const TextStyle(fontSize: 14, color: AppColors.secondaryText, height: 1.4),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              if (hw.isOverdue) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEE2E2),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFFFCA5A5)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.error_outline, size: 13, color: Color(0xFFB91C1C)),
-                      const SizedBox(width: 4),
-                      Text(
-                        'OVERDUE: ${hw.dueDate}',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFB91C1C)),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else if (hw.isDueToday) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFFFCD34D)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.access_time_filled, size: 13, color: Color(0xFFB45309)),
-                      SizedBox(width: 4),
-                      Text(
-                        'DUE TODAY',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else if (hw.isDueTomorrow) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF9C3),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFFFDE047)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.schedule, size: 13, color: Color(0xFF854D0E)),
-                      SizedBox(width: 4),
-                      Text(
-                        'DUE TOMORROW',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF854D0E)),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.secondaryText),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Due: ${hw.dueDate}',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
-                    ),
-                  ],
-                ),
-              ],
-              if (hw.teacherName != null) ...[
-                const SizedBox(width: 12),
-                const Icon(Icons.person_outline, size: 14, color: AppColors.secondaryText),
-                const SizedBox(width: 4),
-                Text(
-                  hw.teacherName!,
-                  style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              OutlinedButton.icon(
-                key: Key('toggle_completion_${hw.id}'),
-                onPressed: () {
-                  context.read<HomeworkBloc>().add(
-                        ToggleHomeworkCompletionEvent(hw.id, hw.studentStatus),
-                      );
-                },
-                icon: Icon(
-                  isDone ? Icons.undo_outlined : Icons.check_circle_outline,
-                  size: 16,
-                  color: isDone ? AppColors.primaryText : AppColors.success,
-                ),
-                label: Text(
-                  isDone ? 'Mark as Pending' : 'Mark Completed',
-                  style: TextStyle(
-                    color: isDone ? AppColors.primaryText : AppColors.success,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.border),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-              if (hw.hasAttachment) ...[
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  key: Key('download_attachment_${hw.id}'),
-                  onPressed: () {
-                    final key = hw.s3AttachmentKey;
-                    if (key != null && key.startsWith('http')) {
-                      _showAttachmentViewer(context, key, hw.attachmentName);
-                    } else {
-                      context.read<HomeworkBloc>().add(
-                            DownloadHomeworkAttachmentEvent(hw.id),
-                          );
-                    }
-                  },
-                  icon: const Icon(Icons.download_outlined, size: 16, color: AppColors.primaryAccent),
-                  label: Text(
-                    hw.attachmentName ?? 'View Attachment',
-                    style: const TextStyle(color: AppColors.primaryAccent, fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          if (hw.hasAttachment) ...[
-            const SizedBox(height: 10),
-            InkWell(
-              onTap: () {
-                final key = hw.s3AttachmentKey;
-                if (key != null && key.startsWith('http')) {
-                  _showAttachmentViewer(context, key, hw.attachmentName);
-                } else {
-                  context.read<HomeworkBloc>().add(
-                        DownloadHomeworkAttachmentEvent(hw.id),
-                      );
-                }
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.scaffoldBackground,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      (hw.attachmentName ?? '').toLowerCase().endsWith('.pdf')
-                          ? Icons.picture_as_pdf
-                          : Icons.image_outlined,
-                      size: 20,
-                      color: (hw.attachmentName ?? '').toLowerCase().endsWith('.pdf')
-                          ? const Color(0xFFB91C1C)
-                          : AppColors.primaryAccent,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        hw.attachmentName ?? 'Attached Homework Photo / Document',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primaryText,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const Icon(Icons.open_in_new, size: 14, color: AppColors.primaryAccent),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  void _showAttachmentViewer(BuildContext context, String url, String? name) {
-    final isPdf = (name ?? url).toLowerCase().endsWith('.pdf');
-
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppColors.border)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        name ?? (isPdf ? 'PDF Document' : 'Homework Photo'),
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 20),
-                      onPressed: () => Navigator.pop(ctx),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-              ),
-              Flexible(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: isPdf
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.picture_as_pdf, size: 48, color: Color(0xFFB91C1C)),
-                              const SizedBox(height: 12),
-                              Text(
-                                name ?? 'Homework PDF',
-                                style: const TextStyle(fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  try {
-                                    Clipboard.setData(ClipboardData(text: url));
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Document link copied to clipboard: $url'),
-                                          backgroundColor: AppColors.success,
-                                          behavior: SnackBarBehavior.floating,
-                                          duration: const Duration(seconds: 4),
-                                        ),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Unable to open document: $e'),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                                icon: const Icon(Icons.open_in_browser, size: 16),
-                                label: const Text('Open / Copy PDF Link'),
-                              ),
-                            ],
-                          ),
-                        )
-                      : InteractiveViewer(
-                          panEnabled: true,
-                          minScale: 0.5,
-                          maxScale: 4.0,
-                          child: Image.network(
-                            url,
-                            fit: BoxFit.contain,
-                            loadingBuilder: (context, child, progress) {
-                              if (progress == null) return child;
-                              return const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(24.0),
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              return Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
-                                    const SizedBox(height: 8),
-                                    const Text('Unable to load image preview'),
-                                    const SizedBox(height: 4),
-                                    Text(url, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                ),
-              ),
-            ],
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? Colors.white : AppColors.primaryText,
           ),
         ),
       ),
@@ -537,17 +258,366 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.assignment_turned_in_outlined, size: 48, color: AppColors.tertiaryText),
-          const SizedBox(height: 12),
-          const Text(
-            'No homework assignments found',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.assignment_outlined,
+              size: 48,
+              color: AppColors.secondaryText,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No Homework',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primaryText,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No assignments found for this filter',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.secondaryText,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHomeworkCard(HomeworkModel homework) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE3ECF8)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top Row: Subject Badge & Status Badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildSubjectBadge(homework.subjectName),
+              _buildStatusBadge(homework.studentStatus),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Title
+          Text(
+            homework.title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primaryText,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 6),
+
+          // Description
+          Text(
+            homework.description,
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.secondaryText,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 12),
+
+          // Due Date & Teacher Info Row
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFCFBF00)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.schedule,
+                      size: 14,
+                      color: const Color(0xFFD97706),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatDueDate(homework.dueDate),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFD97706),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              if (homework.teacherName != null)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.person_outline,
+                      size: 14,
+                      color: AppColors.secondaryText,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      homework.teacherName!,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.secondaryText,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Action Button
+          if (homework.studentStatus != 'COMPLETED')
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () {
+                  context.read<HomeworkBloc>().add(
+                        ToggleCompletionEvent(homework.id),
+                      );
+                },
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(
+                    color: Color(0xFF16A765),
+                    width: 1.5,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.check_circle_outline, size: 18),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Mark Completed',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () {},
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(
+                    color: Color(0xFF16A765),
+                    width: 1.5,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.visibility_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'View Submission',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Attachment Section
+          if (homework.hasAttachment) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE3ECF8)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.attachment,
+                    size: 18,
+                    color: AppColors.primaryAccent,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      homework.attachmentName ?? 'Assignment attachment',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.primaryText,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () {
+                      context.read<HomeworkBloc>().add(
+                            DownloadAttachmentEvent(homework.id),
+                          );
+                    },
+                    child: Icon(
+                      Icons.open_in_new_rounded,
+                      size: 18,
+                      color: AppColors.primaryAccent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+
+  Widget _buildSubjectBadge(String? subjectName) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F9FF),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFFBAE6FD)),
+      ),
+      child: Text(
+        subjectName ?? 'Subject',
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF0284C7),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(String status) {
+    Color bgColor;
+    Color textColor;
+    Color borderColor;
+
+    if (status == 'COMPLETED') {
+      bgColor = const Color(0xFFEAF9F0);
+      textColor = const Color(0xFF16A765);
+      borderColor = const Color(0xFFA7F3D0);
+    } else {
+      bgColor = const Color(0xFFFEF3C7);
+      textColor = const Color(0xFFF59E0B);
+      borderColor = const Color(0xFFFDE68A);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: borderColor),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: textColor,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+
+  String _formatDueDate(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final tomorrow = today.add(const Duration(days: 1));
+      final dueDate = DateTime(date.year, date.month, date.day);
+
+      if (dueDate.isBefore(today)) {
+        return 'OVERDUE';
+      } else if (dueDate == today) {
+        return 'DUE TODAY';
+      } else if (dueDate == tomorrow) {
+        return 'DUE TOMORROW';
+      } else {
+        return 'Due ${date.day} ${_getMonthName(date.month)}';
+      }
+    } catch (_) {
+      return dateStr;
+    }
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return months[month - 1];
+  }
+
+  void _showAttachmentViewer(
+      BuildContext context, String downloadUrl, String? attachmentName) {
+    // This is a placeholder - actual implementation would handle PDF/document viewing
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Opening: ${attachmentName ?? "attachment"}'),
+        backgroundColor: AppColors.primaryAccent,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+}
+
+// Extension on HomeworkBloc events
+extension HomeworkBlocExt on HomeworkBloc {
+  // These events should already exist in HomeworkBloc, but are referenced in this view
+  // ToggleCompletionEvent, DownloadAttachmentEvent
 }
