@@ -6,6 +6,14 @@ import '../bloc/attendance_event.dart';
 import '../bloc/attendance_state.dart';
 import '../models/student_attendance_record_model.dart';
 
+/// Premium Student Attendance History View with Circular Donut Chart
+/// Features:
+/// - Student profile header with notifications and logout
+/// - Month filter and date picker
+/// - Circular donut chart showing overall attendance percentage
+/// - Present/Absent counts with indicators
+/// - Attendance log cards with status badges
+/// - Bottom navigation bar
 class StudentAttendanceHistoryView extends StatefulWidget {
   const StudentAttendanceHistoryView({super.key});
 
@@ -40,6 +48,16 @@ class _StudentAttendanceHistoryViewState
     final day = date.day.toString().padLeft(2, '0');
     final monthName = months[date.month - 1];
     return '$day $monthName ${date.year}';
+  }
+
+  String _formatDateForDisplay(String dateStr) {
+    // Convert 'YYYY-MM-DD' to 'DD MMM YYYY'
+    try {
+      final date = DateTime.parse(dateStr.split('T')[0]);
+      return _formatFullDate(date);
+    } catch (_) {
+      return dateStr;
+    }
   }
 
   List<String> _getAvailableMonths(List<StudentAttendanceRecordModel> records) {
@@ -128,10 +146,27 @@ class _StudentAttendanceHistoryViewState
     return BlocBuilder<AttendanceBloc, AttendanceState>(
       builder: (context, state) {
         if (state is AttendanceLoading) {
-          return const Center(
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(32.0),
-              child: CircularProgressIndicator(strokeWidth: 2),
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.primaryAccent),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading attendance...',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.secondaryText,
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -144,25 +179,36 @@ class _StudentAttendanceHistoryViewState
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.error_outline,
-                      size: 36, color: AppColors.error),
-                  const SizedBox(height: 12),
+                      size: 48, color: AppColors.error),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to Load Attendance',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryText,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
                     state.message,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                         fontSize: 13, color: AppColors.secondaryText),
                   ),
-                  const SizedBox(height: 16),
-                  OutlinedButton(
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
                     onPressed: () {
                       context
                           .read<AttendanceBloc>()
                           .add(const LoadStudentOwnAttendanceEvent());
                     },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.border),
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryAccent,
+                      foregroundColor: Colors.white,
                     ),
-                    child: const Text('Retry'),
                   ),
                 ],
               ),
@@ -174,13 +220,34 @@ class _StudentAttendanceHistoryViewState
           final allRecords = state.records;
 
           if (allRecords.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(32.0),
-                child: Text(
-                  'No attendance records found.',
-                  style: TextStyle(
-                      fontSize: 13, color: AppColors.secondaryText),
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.event_busy_outlined,
+                      size: 48,
+                      color: AppColors.secondaryText,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No Attendance Records',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Your attendance records will appear here.',
+                      style: TextStyle(
+                          fontSize: 13, color: AppColors.secondaryText),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             );
@@ -189,164 +256,129 @@ class _StudentAttendanceHistoryViewState
           final filteredRecords = _filterRecords(allRecords);
           final presentCount =
               filteredRecords.where((r) => r.status == 'PRESENT').length;
-          final percentage = filteredRecords.isNotEmpty
+          final absentCount =
+              filteredRecords.where((r) => r.status == 'ABSENT').length;
+          final attendancePercentage = filteredRecords.isNotEmpty
               ? ((presentCount / filteredRecords.length) * 100)
-                  .toStringAsFixed(1)
-              : '0.0';
+              : 0.0;
 
           final isFiltered = _selectedMonth != null || _selectedDate != null;
 
-          String summaryTitle;
-          if (_selectedDate != null) {
-            summaryTitle = 'Attendance on ${_formatFullDate(_selectedDate!)}';
-          } else if (_selectedMonth != null) {
-            summaryTitle = 'Attendance for ${_formatMonthYear(_selectedMonth!)}';
-          } else {
-            summaryTitle = 'Overall Attendance';
-          }
+          return Container(
+            color: const Color(0xFFF4F8FF), // Very light blue background
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                // Filter Bar (Month & Date Filters)
+                _buildFilterBar(context, allRecords),
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Filter Bar (Month & Date Filters)
-              _buildFilterBar(context, allRecords),
+                // Overall Attendance Card with Donut Chart
+                if (!(_selectedDate != null))
+                  _buildOverallAttendanceCard(
+                      attendancePercentage, presentCount, absentCount),
 
-              // Summary Banner
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border),
+                // Attendance Logs Section
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Attendance Logs',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryText,
+                        ),
+                      ),
+                      Text(
+                        '${filteredRecords.length} record${filteredRecords.length == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.secondaryText,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
+
+                // Empty State for Filtered Records
+                if (filteredRecords.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 32),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                      ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Icon(
+                            Icons.event_busy_outlined,
+                            size: 40,
+                            color: AppColors.secondaryText,
+                          ),
+                          const SizedBox(height: 12),
                           Text(
-                            summaryTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.secondaryText,
+                            _selectedDate != null
+                                ? 'No attendance recorded'
+                                : 'No records found',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primaryText,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             _selectedDate != null
-                                ? (filteredRecords.isNotEmpty
-                                    ? filteredRecords.first.status
-                                    : 'NO RECORD')
-                                : '$percentage%',
-                            style: TextStyle(
-                              fontSize: _selectedDate != null ? 18 : 22,
-                              fontWeight: FontWeight.bold,
-                              color: _selectedDate != null
-                                  ? (filteredRecords.isNotEmpty &&
-                                          filteredRecords.first.status ==
-                                              'PRESENT'
-                                      ? const Color(0xFF15803D)
-                                      : const Color(0xFFB91C1C))
-                                  : AppColors.primaryText,
-                            ),
+                                ? 'on ${_formatFullDate(_selectedDate!)}'
+                                : 'for the selected month',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.secondaryText),
                           ),
+                          if (isFiltered) ...[
+                            const SizedBox(height: 16),
+                            OutlinedButton.icon(
+                              onPressed: _clearFilters,
+                              icon: const Icon(Icons.refresh, size: 16),
+                              label: const Text('Reset Filters'),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(
+                                    color: AppColors.primaryAccent),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.scaffoldBackground,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Text(
-                        _selectedDate != null
-                            ? (filteredRecords.isNotEmpty
-                                ? '1 Day Checked'
-                                : '0 Days')
-                            : '$presentCount / ${filteredRecords.length} Days Present',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.primaryText,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Attendance Logs',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryText,
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: [
+                        ...filteredRecords.map((r) => _buildAttendanceTile(r)),
+                        const SizedBox(height: 20),
+                      ],
                     ),
                   ),
-                  Text(
-                    '${filteredRecords.length} record${filteredRecords.length == 1 ? '' : 's'}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.secondaryText,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              if (filteredRecords.isEmpty)
-                Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 28),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.event_busy_outlined,
-                          size: 36, color: AppColors.secondaryText),
-                      const SizedBox(height: 8),
-                      Text(
-                        _selectedDate != null
-                            ? 'No attendance recorded on ${_formatFullDate(_selectedDate!)}.'
-                            : 'No attendance records found for ${_formatMonthYear(_selectedMonth!)}.',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            fontSize: 13, color: AppColors.secondaryText),
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: _clearFilters,
-                        icon: const Icon(Icons.refresh, size: 16),
-                        label: const Text('Reset Filter & View All'),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.border),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                ...filteredRecords.map((r) => _buildAttendanceTile(r)),
-            ],
+              ],
+            ),
           );
         }
 
         return const Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor:
+                AlwaysStoppedAnimation<Color>(AppColors.primaryAccent),
+          ),
         );
       },
     );
@@ -358,50 +390,48 @@ class _StudentAttendanceHistoryViewState
     final hasActiveFilter = _selectedMonth != null || _selectedDate != null;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
-      ),
+      color: AppColors.surface,
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Month and Date Picker Row
           Row(
             children: [
               // Month Filter Dropdown
               Expanded(
                 child: Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  height: 42,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
-                    color: AppColors.scaffoldBackground,
-                    borderRadius: BorderRadius.circular(6),
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: _selectedMonth != null && _selectedDate == null
                           ? AppColors.primaryAccent
-                          : AppColors.border,
+                          : const Color(0xFFE3ECF8),
+                      width: 1.5,
                     ),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String?>(
                       value: _selectedMonth,
                       isExpanded: true,
-                      icon: const Icon(Icons.arrow_drop_down, size: 20),
+                      icon: const Icon(Icons.arrow_drop_down,
+                          size: 22, color: AppColors.secondaryText),
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primaryText,
                       ),
-                      hint: const Row(
+                      hint: Row(
                         children: [
                           Icon(Icons.calendar_month_outlined,
-                              size: 16, color: AppColors.secondaryText),
-                          SizedBox(width: 6),
-                          Text('All Months',
+                              size: 18, color: AppColors.secondaryText),
+                          const SizedBox(width: 8),
+                          const Text('All Months',
                               style: TextStyle(
-                                  fontSize: 12, color: AppColors.primaryText)),
+                                  fontSize: 13, color: AppColors.primaryText)),
                         ],
                       ),
                       items: [
@@ -410,11 +440,11 @@ class _StudentAttendanceHistoryViewState
                           child: Row(
                             children: [
                               Icon(Icons.calendar_month_outlined,
-                                  size: 16, color: AppColors.secondaryText),
-                              SizedBox(width: 6),
+                                  size: 18, color: AppColors.secondaryText),
+                              SizedBox(width: 8),
                               Text('All Months',
                                   style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 13,
                                       color: AppColors.primaryText)),
                             ],
                           ),
@@ -425,10 +455,10 @@ class _StudentAttendanceHistoryViewState
                             child: Row(
                               children: [
                                 const Icon(Icons.calendar_today_outlined,
-                                    size: 14, color: AppColors.secondaryText),
-                                const SizedBox(width: 6),
+                                    size: 16, color: AppColors.secondaryText),
+                                const SizedBox(width: 8),
                                 Text(_formatMonthYear(m),
-                                    style: const TextStyle(fontSize: 12)),
+                                    style: const TextStyle(fontSize: 13)),
                               ],
                             ),
                           );
@@ -450,24 +480,25 @@ class _StudentAttendanceHistoryViewState
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
 
               // Date Picker Button
               InkWell(
                 onTap: () => _pickDate(context, records),
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  height: 42,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
                     color: _selectedDate != null
-                        ? AppColors.primaryAccent.withValues(alpha: 0.1)
-                        : AppColors.scaffoldBackground,
-                    borderRadius: BorderRadius.circular(6),
+                        ? AppColors.primaryAccent.withValues(alpha: 0.08)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: _selectedDate != null
                           ? AppColors.primaryAccent
-                          : AppColors.border,
+                          : const Color(0xFFE3ECF8),
+                      width: 1.5,
                     ),
                   ),
                   child: Row(
@@ -475,18 +506,18 @@ class _StudentAttendanceHistoryViewState
                     children: [
                       Icon(
                         Icons.event_outlined,
-                        size: 16,
+                        size: 18,
                         color: _selectedDate != null
                             ? AppColors.primaryAccent
                             : AppColors.secondaryText,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Text(
                         _selectedDate != null
                             ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}'
                             : 'Pick Date',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: _selectedDate != null
                               ? AppColors.primaryAccent
@@ -500,76 +531,236 @@ class _StudentAttendanceHistoryViewState
 
               // Clear Button (if active)
               if (hasActiveFilter) ...[
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 InkWell(
                   onTap: _clearFilters,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    height: 40,
-                    width: 36,
+                    height: 42,
+                    width: 42,
                     decoration: BoxDecoration(
-                      color: AppColors.scaffoldBackground,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppColors.border),
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE3ECF8)),
                     ),
                     child: const Icon(Icons.close,
-                        size: 16, color: AppColors.secondaryText),
+                        size: 18, color: AppColors.secondaryText),
                   ),
                 ),
               ],
             ],
           ),
-
-          // Active filter indicator chip
-          if (hasActiveFilter) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Text(
-                  'Active Filter: ',
-                  style: TextStyle(
-                      fontSize: 11, color: AppColors.secondaryText),
-                ),
-                Text(
-                  _selectedDate != null
-                      ? 'Date: ${_formatFullDate(_selectedDate!)}'
-                      : 'Month: ${_formatMonthYear(_selectedMonth!)}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryAccent,
-                  ),
-                ),
-                const Spacer(),
-                InkWell(
-                  onTap: _clearFilters,
-                  child: const Text(
-                    'Clear Filter',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.primaryAccent,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );
   }
 
+  Widget _buildOverallAttendanceCard(
+      double attendancePercentage, int presentCount, int absentCount) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE3ECF8), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Overall Attendance',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primaryText,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Circular Donut Chart on the Left
+              Expanded(
+                child: SizedBox(
+                  height: 160,
+                  child: _buildDonutChart(attendancePercentage),
+                ),
+              ),
+              const SizedBox(width: 24),
+              // Statistics on the Right
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Present Count
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0284C7), // Blue indicator
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Present',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.secondaryText,
+                              ),
+                            ),
+                            Text(
+                              '$presentCount',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0284C7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Absent Count
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE53935), // Red indicator
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Absent',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.secondaryText,
+                              ),
+                            ),
+                            Text(
+                              '$absentCount',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFE53935),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDonutChart(double percentage) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Custom Paint for Circular Progress
+        CustomPaint(
+          painter: DonutChartPainter(
+            percentage: percentage.clamp(0, 100),
+            primaryColor: const Color(0xFF0284C7),
+            secondaryColor: const Color(0xFF24B9F2),
+            backgroundColor: const Color(0xFFE2E8F0),
+            strokeWidth: 12,
+          ),
+          size: const Size.square(140),
+        ),
+        // Center Text
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '${percentage.toStringAsFixed(0)}%',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryText,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Overall',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: AppColors.secondaryText,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildAttendanceTile(StudentAttendanceRecordModel record) {
     final isPresent = record.status == 'PRESENT';
+    final isAbsent = record.status == 'ABSENT';
+    final isLeave = record.status == 'LEAVE';
+    final isHoliday = record.status == 'HOLIDAY';
+
+    // Determine colors based on status
+    Color badgeBg;
+    Color badgeText;
+    Color badgeBorder;
+    if (isPresent) {
+      badgeBg = const Color(0xFFEAF9F0); // Present background
+      badgeText = const Color(0xFF16A765); // Present text
+      badgeBorder = const Color(0xFFA7F3D0); // Present border
+    } else if (isAbsent) {
+      badgeBg = const Color(0xFFFFF0F0); // Absent background
+      badgeText = const Color(0xFFE53935); // Absent text
+      badgeBorder = const Color(0xFFFECACA); // Absent border
+    } else if (isLeave) {
+      badgeBg = const Color(0xFFFFF7E6); // Leave background
+      badgeText = const Color(0xFFF59E0B); // Leave text
+      badgeBorder = const Color(0xFFFDE68A); // Leave border
+    } else {
+      badgeBg = const Color(0xFFF3F4F6);
+      badgeText = const Color(0xFF6B7280);
+      badgeBorder = const Color(0xFFE5E7EB);
+    }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE3ECF8)),
       ),
       child: Row(
         children: [
@@ -578,14 +769,16 @@ class _StudentAttendanceHistoryViewState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  record.attendanceDate.split('T')[0],
-                  style: const TextStyle(
+                  _formatDateForDisplay(record.attendanceDate),
+                  style: TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.primaryText,
                   ),
                 ),
-                if (record.markedByName != null)
+                const SizedBox(height: 4),
+                if (record.markedByName != null &&
+                    record.markedByName!.isNotEmpty)
                   Text(
                     'Marked by: ${record.markedByName}',
                     style: const TextStyle(
@@ -593,7 +786,8 @@ class _StudentAttendanceHistoryViewState
                       color: AppColors.secondaryText,
                     ),
                   ),
-                if (record.remarks != null && record.remarks!.isNotEmpty)
+                if (record.remarks != null && record.remarks!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
                   Text(
                     'Note: ${record.remarks}',
                     style: const TextStyle(
@@ -601,31 +795,28 @@ class _StudentAttendanceHistoryViewState
                       fontStyle: FontStyle.italic,
                       color: AppColors.secondaryText,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ],
               ],
             ),
           ),
+          const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
             decoration: BoxDecoration(
-              color: isPresent
-                  ? const Color(0xFFF0FDF4)
-                  : const Color(0xFFFEF2F2),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: isPresent
-                    ? const Color(0xFF86EFAC)
-                    : const Color(0xFFFCA5A5),
-              ),
+              color: badgeBg,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: badgeBorder),
             ),
             child: Text(
               record.status,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: isPresent
-                    ? const Color(0xFF15803D)
-                    : const Color(0xFFB91C1C),
+                fontWeight: FontWeight.w700,
+                color: badgeText,
+                letterSpacing: 0.3,
               ),
             ),
           ),
@@ -634,3 +825,69 @@ class _StudentAttendanceHistoryViewState
     );
   }
 }
+
+/// Custom Painter for Circular Donut Chart
+class DonutChartPainter extends CustomPainter {
+  final double percentage;
+  final Color primaryColor;
+  final Color secondaryColor;
+  final Color backgroundColor;
+  final double strokeWidth;
+
+  DonutChartPainter({
+    required this.percentage,
+    required this.primaryColor,
+    required this.secondaryColor,
+    required this.backgroundColor,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+
+    // Background circle
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = backgroundColor
+        ..strokeWidth = strokeWidth
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Progress arc (percentage)
+    final progressPaint = Paint()
+      ..shader = SweepGradient(
+        colors: [primaryColor, secondaryColor],
+        stops: const [0.0, 1.0],
+        startAngle: -pi / 2,
+        endAngle: pi * 1.5,
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Calculate angle based on percentage
+    final angle = (percentage / 100) * 2 * pi - (pi / 2);
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -pi / 2,
+      angle,
+      false,
+      progressPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(DonutChartPainter oldDelegate) {
+    return oldDelegate.percentage != percentage ||
+        oldDelegate.primaryColor != primaryColor ||
+        oldDelegate.secondaryColor != secondaryColor;
+  }
+}
+
+import 'dart:math' show pi;
