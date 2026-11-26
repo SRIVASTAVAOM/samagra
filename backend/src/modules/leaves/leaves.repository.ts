@@ -233,6 +233,24 @@ export class LeavesRepository {
   }
 
   /**
+   * Get student's class and section enrollment from student_profiles
+   */
+  static async getStudentEnrollment(
+    studentProfileId: string,
+    schoolId: string
+  ): Promise<{ class_id: string; section_id: string } | null> {
+    const query = `
+      SELECT sp.current_class_id AS class_id, sp.current_section_id AS section_id
+      FROM student_profiles sp
+      JOIN users u ON sp.user_id = u.id
+      WHERE sp.id = $1 AND u.school_id = $2 AND sp.current_class_id IS NOT NULL AND sp.current_section_id IS NOT NULL
+      LIMIT 1;
+    `;
+    const { rows } = await pool.query(query, [studentProfileId, schoolId]);
+    return rows[0] || null;
+  }
+
+  /**
    * Submit a student leave application.
    */
   static async createStudentLeave(

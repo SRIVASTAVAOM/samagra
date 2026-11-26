@@ -136,7 +136,7 @@ class LeavesBloc extends Bloc<LeavesEvent, LeavesState> {
   ) async {
     emit(LeavesLoading());
     try {
-      await repository.applyStudentLeave(
+      final createdLeave = await repository.applyStudentLeave(
         startDate: event.startDate,
         endDate: event.endDate,
         reason: event.reason,
@@ -144,8 +144,13 @@ class LeavesBloc extends Bloc<LeavesEvent, LeavesState> {
         attachmentName: event.attachmentName,
       );
       emit(const LeaveActionSuccess('Student leave submitted successfully.'));
-      final leaves = await repository.getStudentMyLeaves();
-      emit(StudentMyLeavesLoaded(leaves));
+      try {
+        final leaves = await repository.getStudentMyLeaves();
+        emit(StudentMyLeavesLoaded(leaves));
+      } catch (_) {
+        // Fallback: If re-fetching fails transiently, keep the created leave visible in PENDING status
+        emit(StudentMyLeavesLoaded([createdLeave]));
+      }
     } catch (e) {
       emit(LeavesError(e.toString().replaceAll('Exception: ', '')));
     }

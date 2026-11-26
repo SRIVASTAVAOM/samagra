@@ -302,7 +302,14 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
-              backgroundColor: AppColors.primaryText,
+              backgroundColor: const Color(0xFF15803D),
+            ),
+          );
+        } else if (state is LeavesError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.error,
             ),
           );
         }
@@ -409,24 +416,45 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                   final leaves = state.leaves;
 
                   if (leaves.isEmpty) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: Text(
-                          'No leave applications submitted yet.',
-                          style: TextStyle(
-                              fontSize: 13, color: AppColors.secondaryText),
-                        ),
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        context
+                            .read<LeavesBloc>()
+                            .add(const LoadStudentMyLeavesEvent());
+                      },
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          Padding(
+                            padding: EdgeInsets.all(48.0),
+                            child: Center(
+                              child: Text(
+                                'No leave applications submitted yet.',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.secondaryText),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   }
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: leaves.length,
-                    itemBuilder: (context, index) {
-                      return _buildLeaveCard(leaves[index]);
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      context
+                          .read<LeavesBloc>()
+                          .add(const LoadStudentMyLeavesEvent());
                     },
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: leaves.length,
+                      itemBuilder: (context, index) {
+                        return _buildLeaveCard(leaves[index]);
+                      },
+                    ),
                   );
                 }
 

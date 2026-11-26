@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../bloc/student_features_bloc.dart';
@@ -61,7 +60,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: const Color(0xFFE3ECF8))),
+        border: Border(bottom: BorderSide(color: Color(0xFFE3ECF8))),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -261,7 +260,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
 
         if (state is StudentFeesLoaded) {
           final overview = state.overview;
-          final installments = state.installments ?? [];
+          final installments = overview.fees;
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -326,7 +325,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
     );
   }
 
-  Widget _buildFeeSummaryCard(StudentFeeOverviewModel overview) {
+  Widget _buildFeeSummaryCard(FeeOverviewModel overview) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -449,7 +448,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '₹${_formatAmount(overview.outstanding)}',
+                  '₹${_formatAmount(overview.totalOutstanding)}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -532,10 +531,9 @@ class _StudentFeesViewState extends State<StudentFeesView> {
     );
   }
 
-  Widget _buildInstallmentCard(StudentFeeInstallmentModel installment) {
-    final status = installment.paymentStatus ?? 'PENDING';
+  Widget _buildInstallmentCard(FeeItemModel installment) {
+    final status = installment.status;
     final isPaid = status == 'PAID';
-    final isPending = status == 'PENDING';
     final isOverdue = status == 'OVERDUE';
 
     // Determine colors based on status
@@ -600,7 +598,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  installment.name,
+                  installment.feeTitle,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -612,7 +610,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    if (installment.dueDate != null) ...[
+                    if (installment.dueDate.isNotEmpty) ...[
                       Icon(
                         Icons.calendar_today_outlined,
                         size: 12,
@@ -620,7 +618,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        installment.dueDate ?? '',
+                        installment.dueDate,
                         style: TextStyle(
                           fontSize: 11,
                           color: AppColors.secondaryText,
@@ -635,7 +633,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'Paid: ₹${_formatAmount(installment.paidAmount)}',
+                      'Paid: ₹${_formatAmount(installment.amountPaid)}',
                       style: TextStyle(
                         fontSize: 11,
                         color: AppColors.secondaryText,
@@ -758,7 +756,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
         }
 
         if (state is StudentReceiptsLoaded) {
-          final receipts = state.receipts ?? [];
+          final receipts = state.receipts;
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -800,7 +798,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
     );
   }
 
-  Widget _buildReceiptCard(StudentFeeReceiptModel receipt) {
+  Widget _buildReceiptCard(FeeReceiptModel receipt) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -837,7 +835,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  receipt.receiptNumber ?? 'Receipt',
+                  receipt.receiptNumber,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -846,7 +844,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  receipt.receiptDate ?? '',
+                  receipt.paymentDate,
                   style: TextStyle(
                     fontSize: 11,
                     color: AppColors.secondaryText,
@@ -859,7 +857,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '₹${_formatAmount(receipt.amount)}',
+                '₹${_formatAmount(receipt.amountPaid)}',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,

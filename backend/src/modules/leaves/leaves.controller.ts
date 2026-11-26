@@ -99,6 +99,18 @@ export class LeavesController {
         res.status(400).json({ success: false, error: 'End date cannot be earlier than start date.' });
         return;
       }
+      if (err.message === 'INVALID_DATE') {
+        res.status(400).json({ success: false, error: 'Invalid start date or end date format.' });
+        return;
+      }
+      if (err.message === 'STUDENT_ENROLLMENT_NOT_FOUND') {
+        res.status(400).json({ success: false, error: 'Student is not actively enrolled in a class and section.' });
+        return;
+      }
+      if (err.message === 'PROFILE_NOT_FOUND') {
+        res.status(404).json({ success: false, error: 'Student profile not found.' });
+        return;
+      }
       res.status(500).json({ success: false, error: err.message || 'Internal server error' });
     }
   }
@@ -236,6 +248,18 @@ export class LeavesController {
       }
       if (err.message === 'INVALID_DATE_RANGE') {
         res.status(400).json({ success: false, error: 'End date cannot be earlier than start date.' });
+        return;
+      }
+      if (err.message === 'INVALID_DATE') {
+        res.status(400).json({ success: false, error: 'Invalid start date or end date format.' });
+        return;
+      }
+      if (err.message === 'STUDENT_ENROLLMENT_NOT_FOUND') {
+        res.status(400).json({ success: false, error: 'Student is not actively enrolled in a class and section.' });
+        return;
+      }
+      if (err.message === 'PROFILE_NOT_FOUND') {
+        res.status(404).json({ success: false, error: 'Student profile not found.' });
         return;
       }
       res.status(500).json({ success: false, error: err.message || 'Internal server error' });
