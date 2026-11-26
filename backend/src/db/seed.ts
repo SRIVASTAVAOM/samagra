@@ -316,17 +316,19 @@ export async function runSeeds(): Promise<void> {
         [schoolId, tId]
       );
 
-      // 13. Seed a pending Staff Leave for Teacher 1
-      await client.query(
-        `INSERT INTO staff_leaves (school_id, staff_id, leave_type, start_date, end_date, reason, status)
-         VALUES ($1, $2, 'CASUAL', '2026-10-20', '2026-10-21', 'Attending family function', 'PENDING')
-         ON CONFLICT DO NOTHING;`,
-        [schoolId, tId]
-      );
+      // 13. Seed a pending Staff Leave for Teacher 1 (only if SEED_MOCK_LEAVES is enabled)
+      if (process.env.SEED_MOCK_LEAVES === 'true') {
+        await client.query(
+          `INSERT INTO staff_leaves (school_id, staff_id, leave_type, start_date, end_date, reason, status)
+           VALUES ($1, $2, 'CASUAL', '2026-10-20', '2026-10-21', 'Attending family function', 'PENDING')
+           ON CONFLICT DO NOTHING;`,
+          [schoolId, tId]
+        );
+      }
     }
 
-    // 14. Seed a pending Student Leave for Student 1
-    if (std1Res.rows.length > 0) {
+    // 14. Seed a pending Student Leave for Student 1 (only if SEED_MOCK_LEAVES is enabled)
+    if (std1Res.rows.length > 0 && process.env.SEED_MOCK_LEAVES === 'true') {
       const s1Id = std1Res.rows[0].id;
       await client.query(
         `INSERT INTO student_leaves (school_id, student_id, class_id, section_id, start_date, end_date, reason, status)

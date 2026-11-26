@@ -92,7 +92,21 @@ class StubLeavesRepository implements LeavesRepository {
   @override
   Future<List<StudentLeaveModel>> getStudentMyLeaves() async => [];
   @override
-  Future<List<StudentLeaveModel>> getClassStudentLeaves() async => [];
+  Future<List<StudentLeaveModel>> getClassStudentLeaves({
+    String? status,
+    String? timeframe,
+    String? startDate,
+    String? endDate,
+    String? search,
+  }) async => [];
+
+  @override
+  Future<Map<String, dynamic>> uploadAttachment(List<int> bytes, String fileName) async => {
+        'attachmentUrl': 'https://mock.example.com/doc.pdf',
+        'fileKey': 'mock_key',
+        'attachmentName': fileName,
+      };
+
   @override
   Future<void> updateStudentLeaveStatus(String leaveId, {required String status, String? remarks}) async {}
 }
@@ -144,11 +158,12 @@ void main() {
       );
 
       expect(find.text('Overall Attendance'), findsOneWidget);
-      expect(find.text('50.0%'), findsOneWidget);
-      expect(find.text('1 / 2 Days Present'), findsOneWidget);
-      expect(find.text('2026-10-10'), findsOneWidget);
+      expect(find.text('50%'), findsOneWidget);
+      expect(find.text('Present'), findsWidgets);
+      expect(find.text('Absent'), findsWidgets);
+      expect(find.text('10 Oct 2026'), findsOneWidget);
       expect(find.text('PRESENT'), findsOneWidget);
-      expect(find.text('2026-10-09'), findsOneWidget);
+      expect(find.text('09 Oct 2026'), findsOneWidget);
       expect(find.text('ABSENT'), findsOneWidget);
     });
 

@@ -1,7 +1,9 @@
 import { Response } from 'express';
+import path from 'path';
 import { z } from 'zod';
 import { AuthenticatedRequest } from '../../types/auth.types';
 import { LeavesService } from './leaves.service';
+import { CloudinaryService } from '../../services/cloudinary.service';
 
 const createStaffLeaveSchema = z.object({
   leaveType: z.enum(['SICK', 'CASUAL', 'EARNED']).optional(),
@@ -167,7 +169,7 @@ export class LeavesController {
         res.status(400).json({ success: false, error: err.errors[0].message });
         return;
       }
-      if (err.message === 'FORBIDDEN_SCOPE') {
+      if (err.message === 'COORDINATOR_CONTEXT_MISSING' || err.message === 'FORBIDDEN_SCOPE') {
         res.status(403).json({
           success: false,
           error: 'Forbidden: You can only recommend leaves for staff in your assigned wing.',
@@ -275,10 +277,120 @@ export class LeavesController {
     }
   }
 
+  static async uploadLeaveAttachment(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+    const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+
+    const getRawBuffer = (): Promise<Buffer> => {
+      if (Buffer.isBuffer(req.body)) {
+        return Promise.resolve(req.body);
+      }
+      return new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        let total = 0;
+        let limitExceeded = false;
+
+        req.on('data', (chunk: Buffer) => {
+          if (limitExceeded) return;
+          total += chunk.length;
+          if (total > MAX_FILE_SIZE) {
+            limitExceeded = true;
+            return;
+          }
+          chunks.push(chunk);
+        });
+
+        req.on('end', () => {
+          if (limitExceeded) {
+            const err: any = new Error('File size exceeds maximum allowed limit of 5 MB');
+            err.statusCode = 400;
+            return reject(err);
+          }
+          resolve(Buffer.concat(chunks));
+        });
+
+        req.on('error', (err) => reject(err));
+      });
+    };
+
+    try {
+      const buffer = await getRawBuffer();
+
+      if (!buffer || buffer.length === 0) {
+        res.status(400).json({ success: false, error: 'No file data received or uploaded file is empty' });
+        return;
+      }
+
+      if (buffer.length > MAX_FILE_SIZE) {
+        res.status(400).json({ success: false, error: 'File size exceeds maximum allowed limit of 5 MB' });
+        return;
+      }
+
+      const rawName =
+        (req.query.fileName as string) ||
+        (req.query.filename as string) ||
+        (req.headers['x-file-name'] as string) ||
+        `leave_attachment_${Date.now()}.pdf`;
+
+      const safeBaseName = path.basename(rawName).replace(/[^a-zA-Z0-9._-]/g, '_');
+      const ext = path.extname(safeBaseName).toLowerCase();
+
+      if (!ALLOWED_EXTS.includes(ext)) {
+        res.status(400).json({
+          success: false,
+          error: `Invalid file format (${ext || 'unknown'}). Only JPEG, PNG, WebP, and PDF documents are allowed.`,
+        });
+        return;
+      }
+
+      const contentType =
+        ext === '.pdf'
+          ? 'application/pdf'
+          : ext === '.png'
+          ? 'image/png'
+          : ext === '.webp'
+          ? 'image/webp'
+          : 'image/jpeg';
+
+      const uniqueKey = `leaves/${req.user?.schoolId || 'global'}/${Date.now()}_${safeBaseName}`;
+      const uploadResult = await CloudinaryService.uploadBuffer(buffer, uniqueKey, contentType);
+
+      res.status(200).json({
+        success: true,
+        message: 'Leave attachment uploaded successfully',
+        data: {
+          fileKey: uploadResult.url || uploadResult.publicId,
+          attachmentUrl: uploadResult.url,
+          attachmentName: safeBaseName,
+          sizeBytes: buffer.length,
+          format: ext.replace('.', ''),
+        },
+      });
+    } catch (error: any) {
+      console.error('[Leave Attachment Upload Error]:', error);
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: error.message || 'Failed to upload leave attachment',
+      });
+    }
+  }
+
   static async getPendingStudentLeaves(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const { classId, sectionId } = req.query as { classId?: string; sectionId?: string };
-      const leaves = await LeavesService.getPendingStudentLeaves(req.user!, classId, sectionId);
+      const { classId, sectionId, timeframe, startDate, endDate, search } = req.query as {
+        classId?: string;
+        sectionId?: string;
+        timeframe?: string;
+        startDate?: string;
+        endDate?: string;
+        search?: string;
+      };
+      const leaves = await LeavesService.getPendingStudentLeaves(req.user!, classId, sectionId, {
+        timeframe,
+        startDate,
+        endDate,
+        search,
+      });
       res.status(200).json({ success: true, data: leaves });
     } catch (err: any) {
       if (err.message === 'NOT_CLASS_TEACHER') {
@@ -291,8 +403,22 @@ export class LeavesController {
 
   static async getClassStudentLeaves(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const { classId, sectionId } = req.query as { classId?: string; sectionId?: string };
-      const leaves = await LeavesService.getClassStudentLeaves(req.user!, classId, sectionId);
+      const { classId, sectionId, status, timeframe, startDate, endDate, search } = req.query as {
+        classId?: string;
+        sectionId?: string;
+        status?: string;
+        timeframe?: string;
+        startDate?: string;
+        endDate?: string;
+        search?: string;
+      };
+      const leaves = await LeavesService.getClassStudentLeaves(req.user!, classId, sectionId, {
+        status,
+        timeframe,
+        startDate,
+        endDate,
+        search,
+      });
       res.status(200).json({ success: true, data: leaves });
     } catch (err: any) {
       if (err.message === 'NOT_CLASS_TEACHER') {

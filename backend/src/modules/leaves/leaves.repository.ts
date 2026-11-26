@@ -49,6 +49,14 @@ export interface StudentLeaveRecord {
   created_at: string;
 }
 
+export interface StudentLeaveFilters {
+  status?: string;
+  timeframe?: string; // 'this_week' | 'this_month' | 'all'
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+}
+
 export class LeavesRepository {
   /**
    * Submit a new staff leave application.
@@ -317,13 +325,45 @@ export class LeavesRepository {
   /**
    * Get student leaves for a specific class & section (for Class Teacher).
    */
-  static async getClassStudentLeaves(classId: string, sectionId: string, status?: string): Promise<StudentLeaveRecord[]> {
+  static async getClassStudentLeaves(
+    classId: string,
+    sectionId: string,
+    filterParam?: StudentLeaveFilters | string
+  ): Promise<StudentLeaveRecord[]> {
+    const filters: StudentLeaveFilters =
+      typeof filterParam === 'string' ? { status: filterParam } : filterParam || {};
+
     const params: any[] = [classId, sectionId];
-    let filter = '';
-    if (status) {
-      params.push(status);
-      filter = 'AND sl.status = $3';
+    let idx = 3;
+    let extraClauses = '';
+
+    if (filters.status && filters.status.toUpperCase() !== 'ALL') {
+      extraClauses += ` AND sl.status = $${idx++}`;
+      params.push(filters.status.toUpperCase());
     }
+
+    if (filters.timeframe === 'this_week') {
+      extraClauses += ` AND sl.start_date >= DATE_TRUNC('week', CURRENT_DATE) AND sl.start_date < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '7 days'`;
+    } else if (filters.timeframe === 'this_month') {
+      extraClauses += ` AND sl.start_date >= DATE_TRUNC('month', CURRENT_DATE) AND sl.start_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'`;
+    }
+
+    if (filters.startDate) {
+      extraClauses += ` AND sl.start_date >= $${idx++}`;
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      extraClauses += ` AND sl.end_date <= $${idx++}`;
+      params.push(filters.endDate);
+    }
+
+    if (filters.search && filters.search.trim()) {
+      const term = `%${filters.search.trim()}%`;
+      extraClauses += ` AND (CONCAT(stp.first_name, ' ', stp.last_name) ILIKE $${idx} OR stp.admission_number ILIKE $${idx} OR stp.roll_number ILIKE $${idx})`;
+      params.push(term);
+      idx++;
+    }
+
     const query = `
       SELECT 
         sl.*,
@@ -343,7 +383,7 @@ export class LeavesRepository {
       JOIN sections s ON sl.section_id = s.id
       LEFT JOIN staff_profiles stf ON sl.reviewed_by_staff_id = stf.id
       LEFT JOIN users u ON sl.reviewed_by_user_id = u.id
-      WHERE sl.class_id = $1 AND sl.section_id = $2 ${filter}
+      WHERE sl.class_id = $1 AND sl.section_id = $2 ${extraClauses}
       ORDER BY sl.created_at DESC;
     `;
     const { rows } = await pool.query(query, params);
@@ -353,13 +393,44 @@ export class LeavesRepository {
   /**
    * Get all student leaves across school (for Admin / Management queue).
    */
-  static async getAllSchoolStudentLeaves(schoolId: string, status?: string): Promise<StudentLeaveRecord[]> {
+  static async getAllSchoolStudentLeaves(
+    schoolId: string,
+    filterParam?: StudentLeaveFilters | string
+  ): Promise<StudentLeaveRecord[]> {
+    const filters: StudentLeaveFilters =
+      typeof filterParam === 'string' ? { status: filterParam } : filterParam || {};
+
     const params: any[] = [schoolId];
-    let filter = '';
-    if (status) {
-      params.push(status);
-      filter = 'AND sl.status = $2';
+    let idx = 2;
+    let extraClauses = '';
+
+    if (filters.status && filters.status.toUpperCase() !== 'ALL') {
+      extraClauses += ` AND sl.status = $${idx++}`;
+      params.push(filters.status.toUpperCase());
     }
+
+    if (filters.timeframe === 'this_week') {
+      extraClauses += ` AND sl.start_date >= DATE_TRUNC('week', CURRENT_DATE) AND sl.start_date < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '7 days'`;
+    } else if (filters.timeframe === 'this_month') {
+      extraClauses += ` AND sl.start_date >= DATE_TRUNC('month', CURRENT_DATE) AND sl.start_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'`;
+    }
+
+    if (filters.startDate) {
+      extraClauses += ` AND sl.start_date >= $${idx++}`;
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      extraClauses += ` AND sl.end_date <= $${idx++}`;
+      params.push(filters.endDate);
+    }
+
+    if (filters.search && filters.search.trim()) {
+      const term = `%${filters.search.trim()}%`;
+      extraClauses += ` AND (CONCAT(stp.first_name, ' ', stp.last_name) ILIKE $${idx} OR stp.admission_number ILIKE $${idx} OR stp.roll_number ILIKE $${idx})`;
+      params.push(term);
+      idx++;
+    }
+
     const query = `
       SELECT 
         sl.*,
@@ -379,7 +450,7 @@ export class LeavesRepository {
       JOIN sections s ON sl.section_id = s.id
       LEFT JOIN staff_profiles stf ON sl.reviewed_by_staff_id = stf.id
       LEFT JOIN users u ON sl.reviewed_by_user_id = u.id
-      WHERE sl.school_id = $1 ${filter}
+      WHERE sl.school_id = $1 ${extraClauses}
       ORDER BY sl.created_at DESC;
     `;
     const { rows } = await pool.query(query, params);

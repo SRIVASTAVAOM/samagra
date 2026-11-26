@@ -73,7 +73,13 @@ class StubLeavesRepo implements LeavesRepository {
   DioClient get dioClient => DioClient(storageService: SecureStorageService());
 
   @override
-  Future<List<StudentLeaveModel>> getClassStudentLeaves() async => [
+  Future<List<StudentLeaveModel>> getClassStudentLeaves({
+    String? status,
+    String? timeframe,
+    String? startDate,
+    String? endDate,
+    String? search,
+  }) async => [
         const StudentLeaveModel(
           id: 'sl-1',
           studentId: 'std-1',

@@ -105,10 +105,23 @@ class MockLeavesRepository implements LeavesRepository {
   }
 
   @override
-  Future<List<StudentLeaveModel>> getClassStudentLeaves() async {
+  Future<List<StudentLeaveModel>> getClassStudentLeaves({
+    String? status,
+    String? timeframe,
+    String? startDate,
+    String? endDate,
+    String? search,
+  }) async {
     if (shouldThrow) throw Exception('Class leaves fetch failed');
     return mockStudentLeaves;
   }
+
+  @override
+  Future<Map<String, dynamic>> uploadAttachment(List<int> bytes, String fileName) async => {
+        'attachmentUrl': 'https://mock.example.com/leave.pdf',
+        'fileKey': 'mock_key',
+        'attachmentName': fileName,
+      };
 
   @override
   Future<void> updateStudentLeaveStatus(

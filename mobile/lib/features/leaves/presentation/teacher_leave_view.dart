@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/document_picker_bottom_sheet.dart';
 import '../bloc/leaves_bloc.dart';
@@ -20,6 +21,9 @@ class TeacherLeaveView extends StatefulWidget {
 
 class _TeacherLeaveViewState extends State<TeacherLeaveView> {
   late int _currentTab; // 0: My Leaves, 1: Student Leave Requests
+  String _studentLeaveStatus = 'PENDING'; // 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL'
+  String _studentLeaveTimeframe = 'all'; // 'all' | 'this_week' | 'this_month'
+  final TextEditingController _studentSearchController = TextEditingController();
 
   @override
   void initState() {
@@ -27,8 +31,55 @@ class _TeacherLeaveViewState extends State<TeacherLeaveView> {
     _currentTab = widget.initialTab;
     context.read<LeavesBloc>().add(const LoadStaffMyLeavesEvent());
     if (_currentTab == 1) {
-      context.read<LeavesBloc>().add(const LoadClassStudentLeavesEvent());
+      _applyStudentLeaveFilters();
     }
+  }
+
+  void _applyStudentLeaveFilters() {
+    context.read<LeavesBloc>().add(
+          LoadClassStudentLeavesEvent(
+            status: _studentLeaveStatus == 'ALL' ? null : _studentLeaveStatus,
+            timeframe: _studentLeaveTimeframe == 'all' ? null : _studentLeaveTimeframe,
+            search: _studentSearchController.text.trim().isEmpty
+                ? null
+                : _studentSearchController.text.trim(),
+          ),
+        );
+  }
+
+  @override
+  void dispose() {
+    _studentSearchController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryText : AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? AppColors.primaryText : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            color: isSelected ? AppColors.surface : AppColors.secondaryText,
+          ),
+        ),
+      ),
+    );
   }
 
   void _showAttachmentViewer(BuildContext context, String url, String? name) {
@@ -147,22 +198,56 @@ class _TeacherLeaveViewState extends State<TeacherLeaveView> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  Clipboard.setData(ClipboardData(text: url));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Document URL copied to clipboard'),
-                                      duration: Duration(seconds: 2),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  ElevatedButton.icon(
+                                    onPressed: () async {
+                                      try {
+                                        final uri = Uri.parse(url);
+                                        final launched = await launchUrl(uri,
+                                            mode: LaunchMode.externalApplication);
+                                        if (!launched && context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Could not open document externally.'),
+                                              backgroundColor: AppColors.error,
+                                            ),
+                                          );
+                                        }
+                                      } catch (_) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Invalid document URL.'),
+                                              backgroundColor: AppColors.error,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    icon: const Icon(Icons.open_in_new, size: 16),
+                                    label: const Text('Open Document'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primaryAccent,
+                                      foregroundColor: Colors.white,
                                     ),
-                                  );
-                                },
-                                icon: const Icon(Icons.copy, size: 16),
-                                label: const Text('Copy Document Link'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primaryAccent,
-                                  foregroundColor: Colors.white,
-                                ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton.icon(
+                                    onPressed: () {
+                                      Clipboard.setData(ClipboardData(text: url));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Document URL copied to clipboard'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.copy, size: 16),
+                                    label: const Text('Copy Link'),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -646,39 +731,146 @@ class _TeacherLeaveViewState extends State<TeacherLeaveView> {
                 color: AppColors.surface,
                 border: Border(bottom: BorderSide(color: AppColors.border)),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Student Leave Requests',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryText,
-                          ),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Student Leave Requests',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryText,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Homeroom Class Teacher review queue',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.secondaryText,
+                              ),
+                            ),
+                          ],
                         ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Homeroom Class Teacher review queue',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.secondaryText,
-                          ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh, size: 18),
+                        onPressed: _applyStudentLeaveFilters,
+                        tooltip: 'Refresh queue',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Search bar
+                  SizedBox(
+                    height: 38,
+                    child: TextField(
+                      controller: _studentSearchController,
+                      style: const TextStyle(fontSize: 12),
+                      decoration: InputDecoration(
+                        hintText: 'Search by student name or admission...',
+                        hintStyle: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                        prefixIcon: const Icon(Icons.search, size: 18),
+                        suffixIcon: _studentSearchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: () {
+                                  _studentSearchController.clear();
+                                  _applyStudentLeaveFilters();
+                                },
+                              )
+                            : null,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                      ),
+                      onSubmitted: (_) => _applyStudentLeaveFilters(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Filter Chips
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildFilterChip(
+                          label: 'Pending',
+                          isSelected: _studentLeaveStatus == 'PENDING',
+                          onTap: () {
+                            setState(() => _studentLeaveStatus = 'PENDING');
+                            _applyStudentLeaveFilters();
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        _buildFilterChip(
+                          label: 'Approved',
+                          isSelected: _studentLeaveStatus == 'APPROVED',
+                          onTap: () {
+                            setState(() => _studentLeaveStatus = 'APPROVED');
+                            _applyStudentLeaveFilters();
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        _buildFilterChip(
+                          label: 'Rejected',
+                          isSelected: _studentLeaveStatus == 'REJECTED',
+                          onTap: () {
+                            setState(() => _studentLeaveStatus = 'REJECTED');
+                            _applyStudentLeaveFilters();
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        _buildFilterChip(
+                          label: 'All Status',
+                          isSelected: _studentLeaveStatus == 'ALL',
+                          onTap: () {
+                            setState(() => _studentLeaveStatus = 'ALL');
+                            _applyStudentLeaveFilters();
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        Container(height: 16, width: 1, color: AppColors.border),
+                        const SizedBox(width: 12),
+                        _buildFilterChip(
+                          label: 'All Time',
+                          isSelected: _studentLeaveTimeframe == 'all',
+                          onTap: () {
+                            setState(() => _studentLeaveTimeframe = 'all');
+                            _applyStudentLeaveFilters();
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        _buildFilterChip(
+                          label: 'This Week',
+                          isSelected: _studentLeaveTimeframe == 'this_week',
+                          onTap: () {
+                            setState(() => _studentLeaveTimeframe = 'this_week');
+                            _applyStudentLeaveFilters();
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        _buildFilterChip(
+                          label: 'This Month',
+                          isSelected: _studentLeaveTimeframe == 'this_month',
+                          onTap: () {
+                            setState(() => _studentLeaveTimeframe = 'this_month');
+                            _applyStudentLeaveFilters();
+                          },
                         ),
                       ],
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh, size: 18),
-                    onPressed: () {
-                      context
-                          .read<LeavesBloc>()
-                          .add(const LoadClassStudentLeavesEvent());
-                    },
-                    tooltip: 'Refresh queue',
                   ),
                 ],
               ),

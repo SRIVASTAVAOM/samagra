@@ -5,6 +5,7 @@ import 'leaves_state.dart';
 
 class LeavesBloc extends Bloc<LeavesEvent, LeavesState> {
   final LeavesRepository repository;
+  LoadClassStudentLeavesEvent? _lastClassLeaveFilter;
 
   LeavesBloc({required this.repository}) : super(LeavesInitial()) {
     on<LoadStaffMyLeavesEvent>(_onLoadStaffMyLeaves);
@@ -160,9 +161,16 @@ class LeavesBloc extends Bloc<LeavesEvent, LeavesState> {
     LoadClassStudentLeavesEvent event,
     Emitter<LeavesState> emit,
   ) async {
+    _lastClassLeaveFilter = event;
     emit(LeavesLoading());
     try {
-      final leaves = await repository.getClassStudentLeaves();
+      final leaves = await repository.getClassStudentLeaves(
+        status: event.status,
+        timeframe: event.timeframe,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        search: event.search,
+      );
       emit(ClassStudentLeavesLoaded(leaves));
     } catch (e) {
       emit(LeavesError(e.toString().replaceAll('Exception: ', '')));
@@ -182,7 +190,13 @@ class LeavesBloc extends Bloc<LeavesEvent, LeavesState> {
       );
       emit(LeaveActionSuccess(
           'Student leave ${event.status == 'APPROVED' ? 'approved' : 'rejected'} successfully.'));
-      final leaves = await repository.getClassStudentLeaves();
+      final leaves = await repository.getClassStudentLeaves(
+        status: _lastClassLeaveFilter?.status,
+        timeframe: _lastClassLeaveFilter?.timeframe,
+        startDate: _lastClassLeaveFilter?.startDate,
+        endDate: _lastClassLeaveFilter?.endDate,
+        search: _lastClassLeaveFilter?.search,
+      );
       emit(ClassStudentLeavesLoaded(leaves));
     } catch (e) {
       emit(LeavesError(e.toString().replaceAll('Exception: ', '')));

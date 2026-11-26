@@ -1,6 +1,7 @@
 import request from 'supertest';
 import app from '../src/app';
 import { pool } from '../src/config/db.config';
+import { CloudinaryService } from '../src/services/cloudinary.service';
 
 describe('Leave Management API Tests', () => {
   let studentToken: string;
@@ -289,6 +290,37 @@ describe('Leave Management API Tests', () => {
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
       expect(res.body.error).toContain('already finalized');
+    });
+
+    it('should allow student or staff to upload leave attachment document', async () => {
+      const uploadSpy = jest.spyOn(CloudinaryService, 'uploadBuffer').mockResolvedValueOnce({
+        url: 'https://res.cloudinary.com/test-school/raw/upload/v12345/leaves/mock.pdf',
+        publicId: 'leaves/mock',
+      });
+
+      const samplePdf = Buffer.from('%PDF-1.4\n%test leave document\n%%EOF');
+      const res = await request(app)
+        .post('/api/v1/leaves/attachment-upload?fileName=medical_slip.pdf')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .set('Content-Type', 'application/pdf')
+        .send(samplePdf);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.attachmentUrl).toBe('https://res.cloudinary.com/test-school/raw/upload/v12345/leaves/mock.pdf');
+      expect(res.body.data.attachmentName).toBe('medical_slip.pdf');
+      uploadSpy.mockRestore();
+    });
+
+    it('should allow teacher/admin to filter class leaves by status and search term', async () => {
+      const res = await request(app)
+        .get('/api/v1/leaves/student/class-requests?status=APPROVED&search=Aarav')
+        .set('Authorization', `Bearer ${managementToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.every((l: any) => l.status === 'APPROVED')).toBe(true);
     });
   });
 });

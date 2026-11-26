@@ -1,9 +1,22 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { authenticateToken } from '../../middlewares/auth.middleware';
 import { requireRole } from '../../middlewares/rbac.middleware';
 import { LeavesController } from './leaves.controller';
 
 const router = Router();
+
+const uploadParser = express.raw({
+  type: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/octet-stream'],
+  limit: '10mb',
+});
+
+// Leave Attachment Upload (Supports Students, Teachers, and Admins)
+router.post(
+  '/attachment-upload',
+  authenticateToken,
+  uploadParser,
+  LeavesController.uploadLeaveAttachment
+);
 
 // Staff Leave Endpoints
 router.post(
@@ -23,7 +36,7 @@ router.get(
 router.get(
   '/staff/wing-leaves',
   authenticateToken,
-  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']),
   LeavesController.getStaffWingLeaves
 );
 
@@ -37,7 +50,7 @@ router.get(
 router.patch(
   '/staff/:id/recommend',
   authenticateToken,
-  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']),
   LeavesController.recommendStaffLeave
 );
 

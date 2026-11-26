@@ -1,5 +1,7 @@
 import { TokenPayload } from '../../types/auth.types';
-import { LeavesRepository } from './leaves.repository';
+import { LeavesRepository, StudentLeaveFilters } from './leaves.repository';
+import { NoticeService } from '../notices/notice.service';
+import { pool } from '../../config/db.config';
 
 export class LeavesService {
   private static isValidDateString(dateStr: string): boolean {
@@ -81,6 +83,11 @@ export class LeavesService {
       throw new Error('FORBIDDEN_SCOPE');
     }
 
+    // Self-recommendation guard: Staff cannot recommend their own leave application
+    if (leave.staff_id === user.profileId) {
+      throw new Error('FORBIDDEN_SCOPE');
+    }
+
     if (leave.status === 'APPROVED' || leave.status === 'REJECTED') {
       throw new Error('INVALID_STATE_TRANSITION');
     }
@@ -155,7 +162,7 @@ export class LeavesService {
       throw new Error('INVALID_DATE_RANGE');
     }
 
-    return await LeavesRepository.createStudentLeave(
+    const createdLeave = await LeavesRepository.createStudentLeave(
       user.schoolId,
       user.profileId,
       classId,
@@ -166,6 +173,33 @@ export class LeavesService {
       documentUrl || null,
       attachmentName || null
     );
+
+    // Trigger in-app notice to Class Teacher / School Staff
+    try {
+      const { rows: stpRows } = await pool.query(
+        `SELECT first_name, last_name, admission_number FROM student_profiles WHERE id = $1`,
+        [user.profileId]
+      );
+      const studentName =
+        stpRows.length > 0
+          ? `${stpRows[0].first_name} ${stpRows[0].last_name || ''}`.trim()
+          : 'Student';
+      const admission = stpRows.length > 0 ? stpRows[0].admission_number : '';
+
+      await NoticeService.createNotice(user, {
+        title: `Leave Request: ${studentName}`,
+        content: `${studentName}${admission ? ` (Adm: ${admission})` : ''} has applied for leave from ${startDate} to ${endDate}. Reason: ${reason.trim()}`,
+        target_role: 'TEACHER',
+        target_class_id: classId,
+        target_section_id: sectionId,
+        priority: 'NORMAL',
+        channel: 'IN_APP',
+      });
+    } catch (noticeErr) {
+      console.warn('[LeavesService]: Non-blocking leave notice generation failed:', noticeErr);
+    }
+
+    return createdLeave;
   }
 
   static async getStudentMyLeaves(user: TokenPayload) {
@@ -175,16 +209,25 @@ export class LeavesService {
     return await LeavesRepository.getStudentLeavesByStudentId(user.profileId);
   }
 
-  static async getPendingStudentLeaves(user: TokenPayload, classId?: string, sectionId?: string) {
+  static async getPendingStudentLeaves(
+    user: TokenPayload,
+    classId?: string,
+    sectionId?: string,
+    filters?: StudentLeaveFilters
+  ) {
+    const combinedFilters: StudentLeaveFilters = {
+      ...(filters || {}),
+      status: 'PENDING',
+    };
     const isManagementOrAdmin = user.roles.some((r) =>
       ['ADMIN', 'SUPER_ADMIN'].includes(r)
     );
 
     if (isManagementOrAdmin) {
       if (classId && sectionId) {
-        return await LeavesRepository.getClassStudentLeaves(classId, sectionId, 'PENDING');
+        return await LeavesRepository.getClassStudentLeaves(classId, sectionId, combinedFilters);
       }
-      return await LeavesRepository.getAllSchoolStudentLeaves(user.schoolId, 'PENDING');
+      return await LeavesRepository.getAllSchoolStudentLeaves(user.schoolId, combinedFilters);
     }
 
     if (!user.profileId) {
@@ -194,19 +237,24 @@ export class LeavesService {
     if (!homeroom) {
       throw new Error('NOT_CLASS_TEACHER');
     }
-    return await LeavesRepository.getClassStudentLeaves(homeroom.class_id, homeroom.section_id, 'PENDING');
+    return await LeavesRepository.getClassStudentLeaves(homeroom.class_id, homeroom.section_id, combinedFilters);
   }
 
-  static async getClassStudentLeaves(user: TokenPayload, classId?: string, sectionId?: string) {
+  static async getClassStudentLeaves(
+    user: TokenPayload,
+    classId?: string,
+    sectionId?: string,
+    filters?: StudentLeaveFilters
+  ) {
     const isManagementOrAdmin = user.roles.some((r) =>
       ['ADMIN', 'SUPER_ADMIN'].includes(r)
     );
 
     if (isManagementOrAdmin) {
       if (classId && sectionId) {
-        return await LeavesRepository.getClassStudentLeaves(classId, sectionId);
+        return await LeavesRepository.getClassStudentLeaves(classId, sectionId, filters);
       }
-      return await LeavesRepository.getAllSchoolStudentLeaves(user.schoolId);
+      return await LeavesRepository.getAllSchoolStudentLeaves(user.schoolId, filters);
     }
 
     if (!user.profileId) {
@@ -216,7 +264,7 @@ export class LeavesService {
     if (!homeroom) {
       throw new Error('NOT_CLASS_TEACHER');
     }
-    return await LeavesRepository.getClassStudentLeaves(homeroom.class_id, homeroom.section_id);
+    return await LeavesRepository.getClassStudentLeaves(homeroom.class_id, homeroom.section_id, filters);
   }
 
   static async updateStudentLeaveStatus(
@@ -243,35 +291,59 @@ export class LeavesService {
       ['ADMIN', 'SUPER_ADMIN'].includes(r)
     );
 
+    let updatedLeave;
     if (isManagementOrAdmin) {
-      return await LeavesRepository.updateStudentLeaveStatus(
+      updatedLeave = await LeavesRepository.updateStudentLeaveStatus(
         leaveId,
         status,
         { userId: user.userId, staffId: user.profileId || null },
         remarks
       );
+    } else {
+      if (!user.profileId) {
+        throw new Error('PROFILE_NOT_FOUND');
+      }
+
+      const homeroom = await LeavesRepository.getTeacherHomeroom(user.profileId);
+      if (!homeroom) {
+        throw new Error('NOT_CLASS_TEACHER');
+      }
+
+      // Class Teacher must be in the same school and assigned to the same class & section
+      if (leave.class_id !== homeroom.class_id || leave.section_id !== homeroom.section_id) {
+        throw new Error('FORBIDDEN_SCOPE');
+      }
+
+      updatedLeave = await LeavesRepository.updateStudentLeaveStatus(
+        leaveId,
+        status,
+        { staffId: user.profileId, userId: user.userId },
+        remarks
+      );
     }
 
-    if (!user.profileId) {
-      throw new Error('PROFILE_NOT_FOUND');
+    // Trigger in-app notice for the student
+    try {
+      const statusUpper = status.toUpperCase();
+      const title = `Leave Application ${statusUpper === 'APPROVED' ? 'Approved' : 'Rejected'}`;
+      const remarksText = remarks && remarks.trim() ? ` Remarks: ${remarks.trim()}` : '';
+      const content = `Your leave application from ${leave.start_date} to ${leave.end_date} has been ${statusUpper.toLowerCase()}.${remarksText}`;
+
+      await NoticeService.createNotice(user, {
+        title,
+        content,
+        target_role: 'STUDENT',
+        target_student_id: leave.student_id,
+        target_class_id: leave.class_id,
+        target_section_id: leave.section_id,
+        priority: statusUpper === 'APPROVED' ? 'NORMAL' : 'URGENT',
+        channel: 'IN_APP',
+      });
+    } catch (noticeErr) {
+      console.warn('[LeavesService]: Non-blocking student notice generation failed:', noticeErr);
     }
 
-    const homeroom = await LeavesRepository.getTeacherHomeroom(user.profileId);
-    if (!homeroom) {
-      throw new Error('NOT_CLASS_TEACHER');
-    }
-
-    // Class Teacher must be in the same school and assigned to the same class & section
-    if (leave.class_id !== homeroom.class_id || leave.section_id !== homeroom.section_id) {
-      throw new Error('FORBIDDEN_SCOPE');
-    }
-
-    return await LeavesRepository.updateStudentLeaveStatus(
-      leaveId,
-      status,
-      { staffId: user.profileId, userId: user.userId },
-      remarks
-    );
+    return updatedLeave;
   }
 }
 

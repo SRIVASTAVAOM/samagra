@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/dio_client.dart';
@@ -184,26 +185,85 @@ class LeavesRepository {
     }
   }
 
-  /// Get student leave applications for class teacher's homeroom or pending approvals
-  Future<List<StudentLeaveModel>> getClassStudentLeaves() async {
+  /// Direct upload of leave attachment (image or PDF up to 5MB)
+  Future<Map<String, dynamic>> uploadAttachment(List<int> bytes, String fileName) async {
     try {
-      final response = await dioClient.dio.get(ApiEndpoints.studentPendingApprovals);
-      final data = response.data['data'] as List<dynamic>;
-      return data
-          .map((item) => StudentLeaveModel.fromJson(item as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (_) {
+      final lower = fileName.toLowerCase();
+      final mimeType = lower.endsWith('.pdf')
+          ? 'application/pdf'
+          : (lower.endsWith('.png')
+              ? 'image/png'
+              : (lower.endsWith('.webp') ? 'image/webp' : 'image/jpeg'));
+      final response = await dioClient.dio.post(
+        '${ApiEndpoints.leaveAttachmentUpload}?fileName=${Uri.encodeComponent(fileName)}',
+        data: Uint8List.fromList(bytes),
+        options: Options(
+          headers: {
+            'Content-Type': mimeType,
+          },
+        ),
+      );
+      return response.data['data'] as Map<String, dynamic>;
+    } on DioException catch (e) {
+      final message =
+          e.response?.data?['error']?.toString() ?? 'Failed to upload leave attachment';
+      throw Exception(message);
+    }
+  }
+
+  /// Get student leave applications for class teacher's homeroom or pending approvals
+  Future<List<StudentLeaveModel>> getClassStudentLeaves({
+    String? status,
+    String? timeframe,
+    String? startDate,
+    String? endDate,
+    String? search,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (status != null && status.isNotEmpty && status.toUpperCase() != 'ALL') {
+        queryParams['status'] = status.toUpperCase();
+      }
+      if (timeframe != null && timeframe.isNotEmpty && timeframe != 'all') {
+        queryParams['timeframe'] = timeframe;
+      }
+      if (startDate != null && startDate.isNotEmpty) {
+        queryParams['startDate'] = startDate;
+      }
+      if (endDate != null && endDate.isNotEmpty) {
+        queryParams['endDate'] = endDate;
+      }
+      if (search != null && search.trim().isNotEmpty) {
+        queryParams['search'] = search.trim();
+      }
+
+      final endpoint = (status != null && status.toUpperCase() != 'PENDING' && status.toUpperCase() != 'ALL')
+          ? ApiEndpoints.studentClassLeaves
+          : ApiEndpoints.studentPendingApprovals;
+
       try {
-        final fallbackResponse = await dioClient.dio.get(ApiEndpoints.studentClassLeaves);
+        final response = await dioClient.dio.get(
+          endpoint,
+          queryParameters: queryParams,
+        );
+        final data = response.data['data'] as List<dynamic>;
+        return data
+            .map((item) => StudentLeaveModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } on DioException catch (_) {
+        final fallbackResponse = await dioClient.dio.get(
+          ApiEndpoints.studentClassLeaves,
+          queryParameters: queryParams,
+        );
         final fallbackData = fallbackResponse.data['data'] as List<dynamic>;
         return fallbackData
             .map((item) => StudentLeaveModel.fromJson(item as Map<String, dynamic>))
             .toList();
-      } on DioException catch (e2) {
-        final message = e2.response?.data?['error']?.toString() ??
-            'Failed to load class student leave requests';
-        throw Exception(message);
       }
+    } on DioException catch (e) {
+      final message = e.response?.data?['error']?.toString() ??
+          'Failed to load class student leave requests';
+      throw Exception(message);
     }
   }
 

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/document_picker_bottom_sheet.dart';
 import '../bloc/leaves_bloc.dart';
 import '../bloc/leaves_event.dart';
 import '../bloc/leaves_state.dart';
 import '../models/student_leave_model.dart';
+import '../repository/leaves_repository.dart';
 
 class StudentLeaveView extends StatefulWidget {
   const StudentLeaveView({super.key});
@@ -19,6 +21,114 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
   void initState() {
     super.initState();
     context.read<LeavesBloc>().add(const LoadStudentMyLeavesEvent());
+  }
+
+  void _openAttachment(BuildContext context, String? rawUrl, String? fileName) async {
+    final url = (rawUrl ?? '').trim();
+    if (url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No document URL available for this leave application.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final lower = (fileName ?? url).toLowerCase();
+    final isImage = lower.endsWith('.png') ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.webp');
+
+    if (isImage) {
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 500),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          fileName ?? 'Attached Photo',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Flexible(
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                    child: InteractiveViewer(
+                      panEnabled: true,
+                      minScale: 0.5,
+                      maxScale: 3.0,
+                      child: Image.network(
+                        url,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (c, child, progress) {
+                          if (progress == null) return child;
+                          return const Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          );
+                        },
+                        errorBuilder: (c, error, stackTrace) => const Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Center(
+                            child: Text('Failed to load image preview',
+                                style: TextStyle(color: AppColors.secondaryText)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // For PDFs and other documents: Launch externally
+    try {
+      final uri = Uri.parse(url);
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open document externally.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid document URL or application not found.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   void _openApplyDialog() {
@@ -196,6 +306,7 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                             if (selectedDocumentName == null) ...[
                               OutlinedButton.icon(
                                 onPressed: () async {
+                                  final leavesRepo = dialogCtx.read<LeavesRepository>();
                                   final doc =
                                       await DocumentPickerBottomSheet.show(
                                     dialogCtx,
@@ -203,6 +314,12 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                                     subtitle:
                                         'Choose from device storage or take a photo with camera',
                                     categoryPrefix: 'leave_doc',
+                                    onUpload: (bytes, fileName) async {
+                                      final uploadRes = await leavesRepo.uploadAttachment(bytes, fileName);
+                                      return (uploadRes['attachmentUrl'] as String?) ??
+                                          (uploadRes['fileKey'] as String?) ??
+                                          '';
+                                    },
                                   );
                                   if (doc != null) {
                                     setDialogState(() {
@@ -560,24 +677,40 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
           if ((leave.documentUrl != null && leave.documentUrl!.isNotEmpty) ||
               (leave.attachmentName != null && leave.attachmentName!.isNotEmpty)) ...[
             const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(Icons.attach_file, size: 13, color: AppColors.secondaryText),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    leave.attachmentName != null && leave.attachmentName!.isNotEmpty
-                        ? 'Doc: ${leave.attachmentName}'
-                        : 'Supporting Document Attached',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.secondaryText,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+            InkWell(
+              onTap: () => _openAttachment(context, leave.documentUrl, leave.attachmentName),
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
                 ),
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.attach_file, size: 14, color: Color(0xFF1D4ED8)),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        leave.attachmentName != null && leave.attachmentName!.isNotEmpty
+                            ? 'Doc: ${leave.attachmentName}'
+                            : 'View Attached Document',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1D4ED8),
+                          decoration: TextDecoration.underline,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.open_in_new, size: 12, color: Color(0xFF1D4ED8)),
+                  ],
+                ),
+              ),
             ),
           ],
           if (leave.reviewedByName != null &&

@@ -77,7 +77,19 @@ class ApplyStudentLeaveEvent extends LeavesEvent {
 }
 
 class LoadClassStudentLeavesEvent extends LeavesEvent {
-  const LoadClassStudentLeavesEvent();
+  final String? status;
+  final String? timeframe;
+  final String? startDate;
+  final String? endDate;
+  final String? search;
+
+  const LoadClassStudentLeavesEvent({
+    this.status,
+    this.timeframe,
+    this.startDate,
+    this.endDate,
+    this.search,
+  });
 }
 
 class UpdateStudentLeaveStatusEvent extends LeavesEvent {

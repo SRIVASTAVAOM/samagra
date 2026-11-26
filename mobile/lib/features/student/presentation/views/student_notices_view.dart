@@ -16,6 +16,7 @@ class StudentNoticesView extends StatefulWidget {
 class _StudentNoticesViewState extends State<StudentNoticesView> {
   String? _selectedMonth; // 'YYYY-MM' e.g. '2026-11' or null for All
   DateTime? _selectedDate; // Specific date filter or null
+  final Set<String> _dismissedNoticeIds = {};
 
   @override
   void initState() {
@@ -65,6 +66,7 @@ class _StudentNoticesViewState extends State<StudentNoticesView> {
 
   List<NoticeModel> _filterNotices(List<NoticeModel> notices) {
     return notices.where((n) {
+      if (_dismissedNoticeIds.contains(n.id)) return false;
       final dateStr = n.publishedAt.split('T')[0].split(' ')[0].trim();
       if (_selectedDate != null) {
         final dStr =
@@ -187,6 +189,27 @@ class _StudentNoticesViewState extends State<StudentNoticesView> {
           ),
         ),
         actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() {
+                _dismissedNoticeIds.add(notice.id);
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Notice "${notice.title}" dismissed.'),
+                  action: SnackBarAction(
+                    label: 'Undo',
+                    onPressed: () {
+                      setState(() => _dismissedNoticeIds.remove(notice.id));
+                    },
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.clear, size: 16),
+            label: const Text('Dismiss', style: TextStyle(color: AppColors.secondaryText)),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Close'),
@@ -217,15 +240,88 @@ class _StudentNoticesViewState extends State<StudentNoticesView> {
                   color: AppColors.primaryText,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.refresh,
-                    size: 20, color: AppColors.secondaryText),
-                tooltip: 'Refresh',
-                onPressed: () {
-                  context
-                      .read<StudentFeaturesBloc>()
-                      .add(const LoadStudentNoticesEvent());
-                },
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_dismissedNoticeIds.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _dismissedNoticeIds.clear();
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('All cleared notices restored.'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.restore, size: 16),
+                      label: const Text('Restore', style: TextStyle(fontSize: 11)),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      ),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.clear_all, size: 20, color: AppColors.secondaryText),
+                    tooltip: 'Clear all notifications',
+                    onPressed: () {
+                      final state = context.read<StudentFeaturesBloc>().state;
+                      if (state is StudentNoticesLoaded && state.notices.isNotEmpty) {
+                        showDialog(
+                          context: context,
+                          builder: (dialogCtx) => AlertDialog(
+                            backgroundColor: AppColors.surface,
+                            title: const Text('Clear Notifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            content: const Text(
+                              'Clear all current notifications? This will dismiss them from your screen without deleting permanent school or leave records.',
+                              style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogCtx),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(dialogCtx);
+                                  setState(() {
+                                    _dismissedNoticeIds.addAll(state.notices.map((n) => n.id));
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text('Notifications cleared from view.'),
+                                      action: SnackBarAction(
+                                        label: 'Undo',
+                                        onPressed: () {
+                                          setState(() => _dismissedNoticeIds.clear());
+                                        },
+                                      ),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryText,
+                                  foregroundColor: AppColors.surface,
+                                ),
+                                child: const Text('Clear All'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 20, color: AppColors.secondaryText),
+                    tooltip: 'Refresh',
+                    onPressed: () {
+                      context
+                          .read<StudentFeaturesBloc>()
+                          .add(const LoadStudentNoticesEvent());
+                    },
+                  ),
+                ],
               ),
             ],
           ),
