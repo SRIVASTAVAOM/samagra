@@ -13,6 +13,15 @@ const uploadParser = express.raw({
 // Cloudinary direct upload handler (for pre-signed uploads)
 router.all('/storage-upload', uploadParser, MaterialsController.storageUploadHandler);
 
+// Simulated test storage endpoints
+router.put('/mock-s3-upload', uploadParser, (_req, res) => {
+  res.status(200).json({ success: true, message: 'Mock storage upload received' });
+});
+router.get('/mock-s3-download', (_req, res) => {
+  res.setHeader('Content-Type', 'application/pdf');
+  res.status(200).send(Buffer.from('%PDF-1.4 Mock PDF Content'));
+});
+
 // Authenticated API Endpoints
 router.use(authenticateToken);
 

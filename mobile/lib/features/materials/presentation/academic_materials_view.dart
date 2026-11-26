@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
@@ -27,24 +28,38 @@ class AcademicMaterialsView extends StatefulWidget {
 }
 
 class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
+  String _getEffectiveClassId(BuildContext context) {
+    if (widget.classId.isNotEmpty) return widget.classId;
+    final authState = context.read<AuthBloc>().state;
+    if (authState is Authenticated) {
+      return authState.user.classId ?? '';
+    }
+    return '';
+  }
+
   @override
   void initState() {
     super.initState();
-    if (widget.classId.isNotEmpty && widget.subjectId.isNotEmpty) {
-      context.read<MaterialsBloc>().add(
-            LoadClassMaterialsEvent(widget.classId, widget.subjectId),
-          );
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final effectiveClassId = _getEffectiveClassId(context);
+      if (effectiveClassId.isNotEmpty && widget.subjectId.isNotEmpty) {
+        context.read<MaterialsBloc>().add(
+              LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
+            );
+      }
+    });
   }
 
   @override
   void didUpdateWidget(AcademicMaterialsView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final effectiveClassId = _getEffectiveClassId(context);
     if ((oldWidget.classId != widget.classId || oldWidget.subjectId != widget.subjectId) &&
-        widget.classId.isNotEmpty &&
+        effectiveClassId.isNotEmpty &&
         widget.subjectId.isNotEmpty) {
       context.read<MaterialsBloc>().add(
-            LoadClassMaterialsEvent(widget.classId, widget.subjectId),
+            LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
           );
     }
   }
@@ -53,6 +68,7 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
   Widget build(BuildContext context) {
     final authState = context.watch<AuthBloc>().state;
     final isTeacher = authState is Authenticated && authState.activeRole == 'TEACHER';
+    final effectiveClassId = _getEffectiveClassId(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -64,9 +80,9 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primaryAccent),
             onPressed: () {
-              if (widget.classId.isNotEmpty && widget.subjectId.isNotEmpty) {
+              if (effectiveClassId.isNotEmpty && widget.subjectId.isNotEmpty) {
                 context.read<MaterialsBloc>().add(
-                      LoadClassMaterialsEvent(widget.classId, widget.subjectId),
+                      LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
                     );
               }
             },
@@ -87,14 +103,53 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
               label: const Text('Upload Material', style: TextStyle(color: AppColors.surface)),
             )
           : null,
-      body: (widget.classId.isEmpty || widget.subjectId.isEmpty)
+      body: effectiveClassId.isEmpty
           ? const Center(
-              child: Text(
-                'Please select a class and subject to view study materials.',
-                style: TextStyle(color: AppColors.secondaryText),
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.school_outlined, size: 52, color: AppColors.secondaryText),
+                    SizedBox(height: 16),
+                    Text(
+                      'No Enrolled Class Found',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Your student account does not have an active class enrollment. Please contact your school administrator.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                    ),
+                  ],
+                ),
               ),
             )
-          : BlocConsumer<MaterialsBloc, MaterialsState>(
+          : widget.subjectId.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.menu_book_outlined, size: 52, color: AppColors.secondaryText),
+                        SizedBox(height: 16),
+                        Text(
+                          'Select a Subject',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Please select a subject from the options above to view study materials and guides.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : BlocConsumer<MaterialsBloc, MaterialsState>(
         listener: (context, state) {
           if (state is MaterialOperationSuccess) {
             if (state.downloadUrl != null && state.downloadUrl!.isNotEmpty) {
@@ -144,37 +199,111 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
           if (state is MaterialsLoaded) {
             final materials = state.materials;
             if (materials.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              return RefreshIndicator(
+                onRefresh: () async {
+                  final effectiveClassId = _getEffectiveClassId(context);
+                  if (effectiveClassId.isNotEmpty && widget.subjectId.isNotEmpty) {
+                    context.read<MaterialsBloc>().add(
+                          LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
+                        );
+                  }
+                },
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   children: [
-                    Icon(Icons.folder_open_outlined, size: 48, color: AppColors.tertiaryText),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'No study materials uploaded yet',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
+                    SizedBox(height: MediaQuery.of(context).size.height * 0.22),
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.folder_open_outlined, size: 56, color: AppColors.tertiaryText),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'No study materials available yet',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryText),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Materials uploaded by your teachers will appear here.',
+                            style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               );
             }
 
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: materials.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                return _buildMaterialCard(materials[index]);
+            return RefreshIndicator(
+              onRefresh: () async {
+                final effectiveClassId = _getEffectiveClassId(context);
+                if (effectiveClassId.isNotEmpty && widget.subjectId.isNotEmpty) {
+                  context.read<MaterialsBloc>().add(
+                        LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
+                      );
+                }
               },
+              child: ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                itemCount: materials.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  return _buildMaterialCard(materials[index]);
+                },
+              ),
+            );
+          }
+
+          if (state is MaterialsError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                    const SizedBox(height: 12),
+                    Text(
+                      state.message.contains('own class')
+                          ? 'Study materials are only accessible for your enrolled class.'
+                          : state.message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 14, color: AppColors.secondaryText),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        final effectiveClassId = _getEffectiveClassId(context);
+                        if (effectiveClassId.isNotEmpty && widget.subjectId.isNotEmpty) {
+                          context.read<MaterialsBloc>().add(
+                                LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
+                              );
+                        }
+                      },
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Try Again'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryAccent,
+                        foregroundColor: AppColors.surface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             );
           }
 
           return Center(
             child: ElevatedButton(
               onPressed: () {
-                context.read<MaterialsBloc>().add(
-                      LoadClassMaterialsEvent(widget.classId, widget.subjectId),
-                    );
+                final effectiveClassId = _getEffectiveClassId(context);
+                if (effectiveClassId.isNotEmpty && widget.subjectId.isNotEmpty) {
+                  context.read<MaterialsBloc>().add(
+                        LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
+                      );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryAccent,
@@ -282,8 +411,8 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
                       onPressed: () {
                         context.read<MaterialsBloc>().add(DownloadMaterialEvent(item.id));
                       },
-                      icon: const Icon(Icons.download_outlined, size: 16),
-                      label: const Text('Download Document'),
+                      icon: const Icon(Icons.open_in_new, size: 16),
+                      label: const Text('Open Document'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primaryAccent,
                         side: const BorderSide(color: AppColors.indigo200),
@@ -300,6 +429,47 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
         ),
       ),
     );
+  }
+
+  Future<void> _launchDocumentUrl(BuildContext context, String rawUrl) async {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Document URL is invalid or empty'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final uri = Uri.parse(trimmed);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        final fallback = await launchUrl(uri);
+        if (!fallback) {
+          throw Exception('Platform browser could not launch document URL');
+        }
+      }
+    } catch (e) {
+      await Clipboard.setData(ClipboardData(text: trimmed));
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Could not open document viewer ($e). Link copied to clipboard.'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   void _showAttachmentViewer(BuildContext context, String url, String? name) {
@@ -345,39 +515,76 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
               ),
               Flexible(
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   child: isImage
-                      ? InteractiveViewer(
-                          panEnabled: true,
-                          minScale: 0.5,
-                          maxScale: 4.0,
-                          child: Image.network(
-                            url,
-                            fit: BoxFit.contain,
-                            loadingBuilder: (context, child, progress) {
-                              if (progress == null) return child;
-                              return const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(24.0),
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: InteractiveViewer(
+                                panEnabled: true,
+                                minScale: 0.5,
+                                maxScale: 4.0,
+                                child: Image.network(
+                                  url,
+                                  fit: BoxFit.contain,
+                                  loadingBuilder: (context, child, progress) {
+                                    if (progress == null) return child;
+                                    return const Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.all(24.0),
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+                                          const SizedBox(height: 8),
+                                          const Text('Unable to load image preview'),
+                                          const SizedBox(height: 4),
+                                          Text(url, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 ),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              return Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
-                                    const SizedBox(height: 8),
-                                    const Text('Unable to load image preview'),
-                                    const SizedBox(height: 4),
-                                    Text(url, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                                  ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: () => _launchDocumentUrl(context, url),
+                                  icon: const Icon(Icons.open_in_new, size: 16),
+                                  label: const Text('Open Full Image'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primaryAccent,
+                                    foregroundColor: AppColors.surface,
+                                  ),
                                 ),
-                              );
-                            },
-                          ),
+                                const SizedBox(width: 8),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: url));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Image link copied to clipboard'),
+                                        backgroundColor: AppColors.success,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.copy, size: 16),
+                                  label: const Text('Copy Link'),
+                                ),
+                              ],
+                            ),
+                          ],
                         )
                       : Center(
                           child: Column(
@@ -385,47 +592,57 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
                             children: [
                               Icon(
                                 isPdf ? Icons.picture_as_pdf : Icons.description_outlined,
-                                size: 48,
+                                size: 56,
                                 color: isPdf ? const Color(0xFFB91C1C) : AppColors.primaryAccent,
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 14),
                               Text(
-                                name ?? 'Study Material Document',
+                                name ?? (isPdf ? 'Study Material (PDF)' : 'Study Material Document'),
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                               ),
-                              const SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  try {
-                                    Clipboard.setData(ClipboardData(text: url));
-                                    if (context.mounted) {
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Tap Open Document to view in your browser or external PDF reader.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                              ),
+                              const SizedBox(height: 20),
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                spacing: 10,
+                                runSpacing: 8,
+                                children: [
+                                  ElevatedButton.icon(
+                                    key: const Key('open_document_external_button'),
+                                    onPressed: () => _launchDocumentUrl(context, url),
+                                    icon: const Icon(Icons.open_in_new, size: 16),
+                                    label: Text(isPdf ? 'Open PDF' : 'Open Document'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primaryAccent,
+                                      foregroundColor: AppColors.surface,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                    ),
+                                  ),
+                                  OutlinedButton.icon(
+                                    key: const Key('copy_document_link_button'),
+                                    onPressed: () {
+                                      Clipboard.setData(ClipboardData(text: url));
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Document link copied to clipboard: $url'),
+                                        const SnackBar(
+                                          content: Text('Document link copied to clipboard'),
                                           backgroundColor: AppColors.success,
                                           behavior: SnackBarBehavior.floating,
-                                          duration: const Duration(seconds: 4),
                                         ),
                                       );
-                                    }
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Unable to copy link: $e'),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                                icon: const Icon(Icons.open_in_browser, size: 16),
-                                label: Text(isPdf ? 'Open / Copy PDF Link' : 'Open / Copy Document Link'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primaryAccent,
-                                  foregroundColor: AppColors.surface,
-                                ),
+                                    },
+                                    icon: const Icon(Icons.copy, size: 16),
+                                    label: const Text('Copy Link'),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

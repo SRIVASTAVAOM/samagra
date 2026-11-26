@@ -74,14 +74,16 @@ export class MaterialsRepository {
   static async getMaterialsByClassAndSubject(
     classId: string,
     subjectId: string,
-    sectionId?: string
+    sectionId?: string,
+    schoolId?: string
   ): Promise<AcademicMaterial[]> {
     let query = `
       SELECT 
         m.id, m.school_id, m.class_id, c.name AS class_name,
         m.section_id, sec.name AS section_name,
         m.subject_id, sub.name AS subject_name, sub.code AS subject_code,
-        m.uploaded_by_staff_id, (sp.first_name || ' ' || sp.last_name) AS teacher_name,
+        m.uploaded_by_staff_id, 
+        COALESCE(NULLIF(TRIM(sp.first_name || ' ' || COALESCE(sp.last_name, '')), ''), 'School Faculty') AS teacher_name,
         m.title, m.description, 
         m.s3_file_key AS file_url,
         m.s3_file_key AS "fileUrl",
@@ -92,13 +94,19 @@ export class MaterialsRepository {
       JOIN classes c ON m.class_id = c.id
       LEFT JOIN sections sec ON m.section_id = sec.id
       JOIN subjects sub ON m.subject_id = sub.id
-      JOIN staff_profiles sp ON m.uploaded_by_staff_id = sp.id
-      WHERE m.class_id = $1 AND m.subject_id = $2 AND m.is_verified = true
+      LEFT JOIN staff_profiles sp ON m.uploaded_by_staff_id = sp.id
+      WHERE m.class_id = $1 AND m.subject_id = $2 AND (m.is_verified = true OR m.is_verified IS NULL)
     `;
     const params: any[] = [classId, subjectId];
+    let paramIdx = 3;
+
+    if (schoolId) {
+      query += ` AND m.school_id = $${paramIdx++}`;
+      params.push(schoolId);
+    }
 
     if (sectionId) {
-      query += ` AND (m.section_id IS NULL OR m.section_id = $3)`;
+      query += ` AND (m.section_id IS NULL OR m.section_id = $${paramIdx++})`;
       params.push(sectionId);
     }
 
@@ -114,7 +122,8 @@ export class MaterialsRepository {
         m.id, m.school_id, m.class_id, c.name AS class_name,
         m.section_id, sec.name AS section_name,
         m.subject_id, sub.name AS subject_name, sub.code AS subject_code,
-        m.uploaded_by_staff_id, (sp.first_name || ' ' || sp.last_name) AS teacher_name,
+        m.uploaded_by_staff_id, 
+        COALESCE(NULLIF(TRIM(sp.first_name || ' ' || COALESCE(sp.last_name, '')), ''), 'School Faculty') AS teacher_name,
         m.title, m.description, 
         m.s3_file_key AS file_url,
         m.s3_file_key AS "fileUrl",
@@ -125,7 +134,7 @@ export class MaterialsRepository {
       JOIN classes c ON m.class_id = c.id
       LEFT JOIN sections sec ON m.section_id = sec.id
       JOIN subjects sub ON m.subject_id = sub.id
-      JOIN staff_profiles sp ON m.uploaded_by_staff_id = sp.id
+      LEFT JOIN staff_profiles sp ON m.uploaded_by_staff_id = sp.id
       WHERE m.id = $1;
     `;
     const { rows } = await pool.query(query, [id]);
@@ -141,7 +150,8 @@ export class MaterialsRepository {
         m.id, m.school_id, m.class_id, c.name AS class_name,
         m.section_id, sec.name AS section_name,
         m.subject_id, sub.name AS subject_name, sub.code AS subject_code,
-        m.uploaded_by_staff_id, (sp.first_name || ' ' || sp.last_name) AS teacher_name,
+        m.uploaded_by_staff_id, 
+        COALESCE(NULLIF(TRIM(sp.first_name || ' ' || COALESCE(sp.last_name, '')), ''), 'School Faculty') AS teacher_name,
         m.title, m.description, 
         m.s3_file_key AS file_url,
         m.s3_file_key AS "fileUrl",
@@ -152,7 +162,7 @@ export class MaterialsRepository {
       JOIN classes c ON m.class_id = c.id
       LEFT JOIN sections sec ON m.section_id = sec.id
       JOIN subjects sub ON m.subject_id = sub.id
-      JOIN staff_profiles sp ON m.uploaded_by_staff_id = sp.id
+      LEFT JOIN staff_profiles sp ON m.uploaded_by_staff_id = sp.id
       WHERE m.school_id = $1
     `;
     const params: any[] = [schoolId];
@@ -175,7 +185,7 @@ export class MaterialsRepository {
       params.push(filters.type);
     }
     if (filters.search) {
-      query += ` AND (m.title ILIKE $${idx} OR m.file_name ILIKE $${idx} OR sub.name ILIKE $${idx} OR (sp.first_name || ' ' || sp.last_name) ILIKE $${idx})`;
+      query += ` AND (m.title ILIKE $${idx} OR m.file_name ILIKE $${idx} OR sub.name ILIKE $${idx} OR COALESCE(sp.first_name || ' ' || sp.last_name, '') ILIKE $${idx})`;
       params.push(`%${filters.search.trim()}%`);
       idx++;
     }

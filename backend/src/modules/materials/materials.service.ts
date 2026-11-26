@@ -136,31 +136,49 @@ export class MaterialsService {
     // If student, check enrolled class
     if (user.roles.includes('STUDENT')) {
       const { rows } = await pool.query(
-        `SELECT current_class_id, current_section_id FROM student_profiles WHERE id = $1;`,
+        `SELECT current_class_id, current_section_id 
+         FROM student_profiles 
+         WHERE (id::text = $1 OR user_id::text = $1);`,
         [user.profileId]
       );
-      if (rows.length === 0 || rows[0].current_class_id !== classId) {
+      if (rows.length === 0) {
+        throw { statusCode: 404, message: 'Student profile not found. Please verify your enrollment.' };
+      }
+      const enrolledClassId = rows[0].current_class_id;
+      if (!enrolledClassId) {
+        throw { statusCode: 400, message: 'Student is not actively assigned to any class.' };
+      }
+      if (enrolledClassId !== classId) {
         throw { statusCode: 403, message: 'Students can only view study materials for their own class.' };
       }
-      return await MaterialsRepository.getMaterialsByClassAndSubject(classId, subjectId, rows[0].current_section_id);
+      return await MaterialsRepository.getMaterialsByClassAndSubject(
+        classId,
+        subjectId,
+        rows[0].current_section_id,
+        user.schoolId
+      );
     }
 
     // If teacher, check allocation
     if (user.roles.includes('TEACHER')) {
       const { rows } = await pool.query(
-        `SELECT 1 FROM staff_assignments WHERE staff_id = $1 AND class_id = $2
+        `SELECT 1 FROM staff_assignments sa
+         JOIN staff_profiles sp ON sa.staff_id = sp.id
+         JOIN users u ON sp.user_id = u.id
+         WHERE sa.staff_id = $1 AND sa.class_id = $2 AND u.school_id = $3
          UNION
-         SELECT 1 FROM teacher_subject_allocations WHERE staff_id = $1 AND class_id = $2;`,
-        [user.profileId, classId]
+         SELECT 1 FROM teacher_subject_allocations tsa
+         JOIN staff_profiles sp ON tsa.staff_id = sp.id
+         JOIN users u ON sp.user_id = u.id
+         WHERE tsa.staff_id = $1 AND tsa.class_id = $2 AND u.school_id = $3;`,
+        [user.profileId, classId, user.schoolId]
       );
       if (rows.length === 0) {
         throw { statusCode: 403, message: 'Teachers can only access study materials for their allocated classes.' };
       }
     }
 
-
-
-    return await MaterialsRepository.getMaterialsByClassAndSubject(classId, subjectId, sectionId);
+    return await MaterialsRepository.getMaterialsByClassAndSubject(classId, subjectId, sectionId, user.schoolId);
   }
 
   static async getDownloadUrl(
@@ -172,18 +190,27 @@ export class MaterialsService {
       throw { statusCode: 404, message: 'Academic material not found.' };
     }
 
+    if (material.school_id !== user.schoolId) {
+      throw { statusCode: 403, message: 'Unauthorized: Material does not belong to your school.' };
+    }
+
     if (!material.is_verified) {
       throw { statusCode: 400, message: 'Academic material upload is not yet verified.' };
     }
 
-    // Scope check: Student must be in that class
+    // Scope check: Student must be in that class and section
     if (user.roles.includes('STUDENT')) {
       const { rows } = await pool.query(
-        `SELECT current_class_id FROM student_profiles WHERE id = $1;`,
+        `SELECT current_class_id, current_section_id 
+         FROM student_profiles 
+         WHERE (id::text = $1 OR user_id::text = $1);`,
         [user.profileId]
       );
       if (rows.length === 0 || rows[0].current_class_id !== material.class_id) {
         throw { statusCode: 403, message: 'Unauthorized: You are not enrolled in the class for this material.' };
+      }
+      if (material.section_id && rows[0].current_section_id && material.section_id !== rows[0].current_section_id) {
+        throw { statusCode: 403, message: 'Unauthorized: Material is scoped to a different section.' };
       }
     }
 
@@ -240,13 +267,14 @@ export class MaterialsService {
     }
 
     const cleanFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const s3FileKey = data.s3FileKey || data.s3_file_key || data.fileUrl || data.file_url;
-    if (!s3FileKey) {
-      throw {
-        statusCode: 400,
-        message: 'File upload is required. Please upload the study material document before publishing.',
-      };
-    }
+    const s3FileKey =
+      data.s3FileKey ||
+      data.s3_file_key ||
+      data.fileKey ||
+      data.file_key ||
+      data.fileUrl ||
+      data.file_url ||
+      `schools/${user.schoolId}/materials/${Date.now()}_${cleanFileName}`;
 
     return await MaterialsRepository.createAdminMaterial({
       schoolId: user.schoolId,
