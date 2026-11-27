@@ -60,7 +60,13 @@ class MockLeavesRepository implements LeavesRepository {
   }
 
   @override
-  Future<List<StaffLeaveModel>> getManagementLeaveQueue() async {
+  Future<List<StaffLeaveModel>> getManagementLeaveQueue({
+    String? status,
+    String? timeframe,
+    String? startDate,
+    String? endDate,
+    String? search,
+  }) async {
     if (shouldThrow) throw Exception('Queue failed');
     return mockStaffLeaves;
   }

@@ -11,6 +11,7 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
 
   ScheduleBloc({required this.repository}) : super(ScheduleInitialState()) {
     on<LoadTeacherTimetableEvent>(_onLoadTeacherTimetable);
+    on<LoadStudentTimetableEvent>(_onLoadStudentTimetable);
     on<LoadTeacherSubstitutionsEvent>(_onLoadTeacherSubstitutions);
     on<LoadOnlineClassesEvent>(_onLoadOnlineClasses);
     on<CreateOnlineClassEvent>(_onCreateOnlineClass);
@@ -27,6 +28,22 @@ class ScheduleBloc extends Bloc<ScheduleEvent, ScheduleState> {
     emit(ScheduleLoadingState());
     try {
       final timetable = await repository.getTeacherTimetable();
+      emit(current.copyWith(timetable: timetable));
+    } catch (e) {
+      emit(ScheduleErrorState(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onLoadStudentTimetable(
+    LoadStudentTimetableEvent event,
+    Emitter<ScheduleState> emit,
+  ) async {
+    final current = state is ScheduleLoadedState
+        ? (state as ScheduleLoadedState)
+        : const ScheduleLoadedState();
+    emit(ScheduleLoadingState());
+    try {
+      final timetable = await repository.getStudentTimetable();
       emit(current.copyWith(timetable: timetable));
     } catch (e) {
       emit(ScheduleErrorState(e.toString().replaceAll('Exception: ', '')));

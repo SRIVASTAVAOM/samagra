@@ -530,7 +530,7 @@ export class AdminRepository {
          sl.created_at::text
        FROM staff_leaves sl
        JOIN staff_profiles sp ON sl.staff_id = sp.id
-       WHERE sl.school_id = $1 AND sl.status = 'PENDING'
+       WHERE sl.school_id = $1 AND sl.status IN ('PENDING', 'RECOMMENDED')
        ORDER BY sl.created_at DESC;`,
       [schoolId]
     );

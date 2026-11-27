@@ -642,6 +642,19 @@ export const api = {
 
   // Leave Management (Dual-visibility Approvals)
   leaves: {
+    getStaffManagementQueue: async (filters?: {
+      status?: string;
+      timeframe?: string;
+      search?: string;
+    }): Promise<any[]> => {
+      const params = new URLSearchParams();
+      if (filters?.status && filters.status !== 'ALL') params.set('status', filters.status);
+      if (filters?.timeframe && filters.timeframe !== 'all') params.set('timeframe', filters.timeframe);
+      if (filters?.search?.trim()) params.set('search', filters.search.trim());
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      return request<any[]>(`/leaves/staff/management-queue${qs}`);
+    },
+
     updateStudentLeaveStatus: async (
       id: string,
       status: 'APPROVED' | 'REJECTED',

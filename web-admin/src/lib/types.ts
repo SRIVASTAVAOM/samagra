@@ -51,6 +51,30 @@ export interface PendingLeaveSummary {
   created_at: string;
 }
 
+export interface StaffLeaveRecordItem {
+  id: string;
+  school_id: string;
+  staff_id: string;
+  employee_code: string;
+  staff_name: string;
+  wing_id?: string | null;
+  wing_name?: string | null;
+  leave_type: 'SICK' | 'CASUAL' | 'EARNED';
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: 'PENDING' | 'RECOMMENDED' | 'APPROVED' | 'REJECTED';
+  coordinator_recommendation?: string | null;
+  recommended_by_name?: string | null;
+  recommended_at?: string | null;
+  management_comment?: string | null;
+  sanctioned_by_identifier?: string | null;
+  sanctioned_at?: string | null;
+  document_url?: string | null;
+  attachment_name?: string | null;
+  created_at: string;
+}
+
 export interface BirthdaySummary {
   id: string;
   name: string;

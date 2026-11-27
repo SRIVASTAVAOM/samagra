@@ -15,6 +15,7 @@ import {
   Library,
   UserCog,
   ClipboardCheck,
+  CalendarCheck2,
   Receipt,
   Megaphone,
   Bell,
@@ -70,8 +71,9 @@ const navSections: NavSection[] = [
   {
     title: 'Staff Management',
     items: [
-      { name: 'Staff Directory',   href: '/staff',            icon: UserCog       },
+      { name: 'Staff Directory',   href: '/staff',            icon: UserCog        },
       { name: 'Staff Attendance',  href: '/attendance/staff', icon: ClipboardCheck },
+      { name: 'Teacher Leaves',    href: '/leaves/staff',     icon: CalendarCheck2 },
     ],
   },
   {

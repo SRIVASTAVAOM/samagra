@@ -69,6 +69,30 @@ describe('Schedule Module Integration Tests (/api/v1/schedule)', () => {
     });
   });
 
+  describe('GET /api/v1/schedule/timetable/my-student', () => {
+    it('returns the authenticated student class/section day-wise periods', async () => {
+      const res = await request(app)
+        .get('/api/v1/schedule/timetable/my-student')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      if (res.body.data.length > 0) {
+        const slot = res.body.data[0];
+        expect(slot).toHaveProperty('period_number');
+        expect(slot).toHaveProperty('day_of_week');
+        expect(slot).toHaveProperty('subject_name');
+        expect(slot.class_id).toBe(classId);
+      }
+    });
+
+    it('denies unauthenticated access with 401', async () => {
+      const res = await request(app).get('/api/v1/schedule/timetable/my-student');
+      expect(res.status).toBe(401);
+    });
+  });
+
   describe('GET /api/v1/schedule/substitutions/my-teacher', () => {
     it('returns substitutions split into assigned_to_me and covering_for_me', async () => {
       const res = await request(app)

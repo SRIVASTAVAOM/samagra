@@ -52,15 +52,21 @@ class StaffLeaveModel {
       leaveType: json['leave_type'] as String,
       reason: json['reason'] as String,
       status: (json['status'] as String).toUpperCase(),
-      recommendationNote: json['recommendation_note'] as String?,
+      recommendationNote: json['recommendation_note'] as String? ??
+          json['coordinator_recommendation'] as String?,
       recommendedByName: json['recommended_by_name'] as String?,
       recommendedAt: json['recommended_at'] as String?,
       rejectionReason: json['rejection_reason'] as String?,
-      decisionNote: json['decision_note'] as String?,
-      decidedByName: json['decided_by_name'] as String?,
-      decidedAt: json['decided_at'] as String?,
-      documentUrl: json['document_url'] as String?,
-      attachmentName: json['attachment_name'] as String? ?? json['attachmentName'] as String?,
+      decisionNote: json['decision_note'] as String? ??
+          json['management_comment'] as String?,
+      decidedByName: json['decided_by_name'] as String? ??
+          json['sanctioned_by_identifier'] as String?,
+      decidedAt: json['decided_at'] as String? ??
+          json['sanctioned_at'] as String?,
+      documentUrl: json['document_url'] as String? ??
+          json['documentUrl'] as String?,
+      attachmentName: json['attachment_name'] as String? ??
+          json['attachmentName'] as String?,
       createdAt: json['created_at'] as String?,
     );
   }

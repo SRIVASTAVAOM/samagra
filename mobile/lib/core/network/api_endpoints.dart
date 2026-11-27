@@ -160,6 +160,7 @@ class ApiEndpoints {
 
   // Schedule Endpoints
   static String get teacherTimetable => '$baseUrl/schedule/timetable/my-teacher';
+  static String get studentTimetable => '$baseUrl/schedule/timetable/my-student';
   static String get teacherSubstitutions => '$baseUrl/schedule/substitutions/my-teacher';
   static String get onlineClasses => '$baseUrl/schedule/online-classes';
   static String deleteOnlineClass(String id) => '$baseUrl/schedule/online-classes/$id';

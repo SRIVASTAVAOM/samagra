@@ -11,6 +11,22 @@ export class ScheduleService {
   }
 
   /**
+   * Get authenticated student's day-wise class/section timetable.
+   */
+  static async getStudentTimetable(user: TokenPayload): Promise<TimetableSlot[]> {
+    const profile = await ScheduleRepository.getStudentProfileContext(user.userId);
+    const schoolId = profile?.school_id || user.schoolId;
+    const classId = profile?.current_class_id || user.classId;
+    const sectionId = profile?.current_section_id || user.sectionId || null;
+
+    if (!schoolId || !classId) {
+      return [];
+    }
+
+    return ScheduleRepository.getStudentTimetable(schoolId, classId, sectionId);
+  }
+
+  /**
    * Get teacher's substitution arrangements (both assigned and covering).
    */
   static async getTeacherSubstitutions(user: TokenPayload): Promise<{

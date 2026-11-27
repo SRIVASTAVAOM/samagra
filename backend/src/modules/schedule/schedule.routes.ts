@@ -11,6 +11,10 @@ router.use(authenticateToken);
 // Teacher Timetable
 router.get('/timetable/my-teacher', requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']), ScheduleController.getTeacherTimetable);
 
+// Student Timetable
+router.get('/timetable/my-student', requireRole(['STUDENT', 'ADMIN', 'SUPER_ADMIN']), ScheduleController.getStudentTimetable);
+router.get('/timetable/student', requireRole(['STUDENT', 'ADMIN', 'SUPER_ADMIN']), ScheduleController.getStudentTimetable);
+
 // Teacher Substitutions
 router.get('/substitutions/my-teacher', requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']), ScheduleController.getTeacherSubstitutions);
 

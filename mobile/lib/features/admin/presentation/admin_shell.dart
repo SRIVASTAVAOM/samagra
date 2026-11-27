@@ -4,6 +4,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_event.dart';
 import '../../auth/models/user_model.dart';
+import '../../leaves/bloc/leaves_bloc.dart';
+import '../../leaves/presentation/management_leave_approval_view.dart';
+import '../../leaves/repository/leaves_repository.dart';
 import '../models/admin_dashboard_model.dart';
 import '../repository/admin_repository.dart';
 import 'views/admin_dashboard_view.dart';
@@ -26,7 +29,29 @@ class _AdminShellState extends State<AdminShell> {
   void initState() {
     super.initState();
     _pages = [
-      AdminDashboardView(user: widget.user),
+      AdminDashboardView(
+        user: widget.user,
+        onOpenLeavesTab: () => setState(() => _currentIndex = 1),
+      ),
+      BlocProvider(
+        create: (ctx) => LeavesBloc(
+          repository: ctx.read<LeavesRepository>(),
+        ),
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text(
+              'Teacher Leaves',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.surface,
+              ),
+            ),
+            backgroundColor: AppColors.primaryAccent,
+          ),
+          body: const ManagementLeaveApprovalView(),
+        ),
+      ),
       const AdminNoticesView(),
       _buildAdminProfileView(),
     ];
@@ -103,6 +128,11 @@ class _AdminShellState extends State<AdminShell> {
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard_rounded, color: AppColors.primaryAccent),
             label: 'Pulse',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.event_note_outlined),
+            selectedIcon: Icon(Icons.event_note_rounded, color: AppColors.primaryAccent),
+            label: 'Leaves',
           ),
           NavigationDestination(
             icon: Icon(Icons.campaign_outlined),
@@ -218,7 +248,7 @@ class _AdminNoticesViewState extends State<AdminNoticesView> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               itemCount: notices.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final notice = notices[index];
                 Color badgeBg;

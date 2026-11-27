@@ -31,6 +31,7 @@ import '../../leaves/repository/leaves_repository.dart';
 import '../../materials/bloc/materials_bloc.dart';
 import '../../materials/presentation/academic_materials_view.dart';
 import '../../materials/repository/materials_repository.dart';
+import '../../schedule/presentation/student_timetable_view.dart';
 import '../../profiles/bloc/profile_bloc.dart';
 import '../../profiles/bloc/profile_event.dart';
 import '../../profiles/bloc/profile_state.dart';
@@ -484,6 +485,15 @@ class _StudentShellState extends State<StudentShell> {
                     context.read<ScheduleBloc>().add(const LoadOnlineClassesEvent());
                   },
                 ),
+                const SizedBox(width: 8),
+                _buildSubTabButton(
+                  title: 'Timetable',
+                  isSelected: _academicSubTab == 8,
+                  onTap: () {
+                    setState(() => _academicSubTab = 8);
+                    context.read<ScheduleBloc>().add(const LoadStudentTimetableEvent());
+                  },
+                ),
               ],
             ),
           ),
@@ -492,6 +502,9 @@ class _StudentShellState extends State<StudentShell> {
         Expanded(
           child: Builder(
             builder: (context) {
+              if (_academicSubTab == 8) {
+                return const StudentTimetableView();
+              }
               if (_academicSubTab == 7) {
                 return const StudentOnlineClassesView();
               }

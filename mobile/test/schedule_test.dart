@@ -8,6 +8,7 @@ import 'package:mobile/features/schedule/models/online_class_model.dart';
 import 'package:mobile/features/schedule/models/teacher_substitution_model.dart';
 import 'package:mobile/features/schedule/models/timetable_slot_model.dart';
 import 'package:mobile/features/schedule/presentation/student_online_classes_view.dart';
+import 'package:mobile/features/schedule/presentation/student_timetable_view.dart';
 import 'package:mobile/features/schedule/presentation/teacher_online_classes_view.dart';
 import 'package:mobile/features/schedule/presentation/teacher_substitutions_view.dart';
 import 'package:mobile/features/schedule/presentation/teacher_timetable_view.dart';
@@ -130,6 +131,12 @@ class FakeScheduleRepository implements ScheduleRepository {
   @override
   Future<List<TimetableSlotModel>> getTeacherTimetable() async {
     if (shouldThrow) throw Exception('Timetable network failure');
+    return sampleSlots;
+  }
+
+  @override
+  Future<List<TimetableSlotModel>> getStudentTimetable() async {
+    if (shouldThrow) throw Exception('Student timetable network failure');
     return sampleSlots;
   }
 
@@ -413,6 +420,31 @@ void main() {
       expect(find.text('Quadratic Equations Revision'), findsOneWidget);
       expect(find.text('Join Live Class'), findsOneWidget);
       expect(find.text('John Doe'), findsOneWidget);
+    });
+
+    testWidgets('StudentTimetableView renders day selector and class periods', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider<ScheduleBloc>(
+            create: (_) => ScheduleBloc(repository: repository),
+            child: const StudentTimetableView(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Mon'), findsOneWidget);
+      expect(find.text('Tue'), findsOneWidget);
+
+      await tester.tap(find.text('Mon'));
+      await tester.pump();
+
+      expect(find.text('Period 1'), findsOneWidget);
+      expect(find.text('Mathematics'), findsOneWidget);
+      expect(find.text('John Doe'), findsWidgets);
+      expect(find.text('Room 101'), findsWidgets);
     });
   });
 }

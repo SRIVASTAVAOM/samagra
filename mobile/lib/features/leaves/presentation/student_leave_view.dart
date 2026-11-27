@@ -184,19 +184,40 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                                     startDate = picked
                                         .toIso8601String()
                                         .split('T')[0];
+                                    final parsedEnd = DateTime.tryParse(endDate);
+                                    if (parsedEnd != null && parsedEnd.isBefore(picked)) {
+                                      endDate = startDate;
+                                    }
                                   });
                                 }
                               },
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: AppColors.border),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 8),
+                                    horizontal: 10, vertical: 10),
+                                alignment: Alignment.centerLeft,
                               ),
-                              child: Text(
-                                'From: $startDate',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.primaryText),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    'From Date',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.secondaryText,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    formatShortLeaveDate(startDate),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primaryText,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -224,153 +245,179 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: AppColors.border),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 8),
+                                    horizontal: 10, vertical: 10),
+                                alignment: Alignment.centerLeft,
                               ),
-                              child: Text(
-                                'To: $endDate',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.primaryText),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    'To Date',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.secondaryText,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    formatShortLeaveDate(endDate),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primaryText,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      Builder(
+                        builder: (_) {
+                          final days = calculateLeaveDayCount(startDate, endDate);
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 6, bottom: 12),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                days == null
+                                    ? 'To Date must be on or after From Date'
+                                    : '$days ${days == 1 ? 'day' : 'days'} selected',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: days == null
+                                      ? AppColors.error
+                                      : AppColors.secondaryText,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       TextFormField(
                         controller: reasonController,
                         maxLines: 3,
                         decoration: const InputDecoration(
                           labelText: 'Reason for leave',
+                          hintText: 'Briefly explain why leave is needed...',
+                          helperText: 'Minimum 5 characters',
+                          alignLabelWithHint: true,
                           border: OutlineInputBorder(),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
+                          final trimmed = val?.trim() ?? '';
+                          if (trimmed.isEmpty) {
                             return 'Please enter a reason';
+                          }
+                          if (trimmed.length < 5) {
+                            return 'Please enter at least 5 characters';
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 12),
-                      // Optional Document Attachment
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        padding: const EdgeInsets.all(10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: const [
-                                    Icon(Icons.attach_file,
-                                        size: 15,
-                                        color: AppColors.secondaryText),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'Supporting Document (Optional)',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.primaryText,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (selectedDocumentName != null)
-                                  InkWell(
-                                    onTap: () {
-                                      setDialogState(() {
-                                        selectedDocumentName = null;
-                                        selectedDocumentUrl = null;
-                                      });
-                                    },
-                                    child: const Text(
-                                      'Remove',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: AppColors.error,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            if (selectedDocumentName == null) ...[
-                              OutlinedButton.icon(
-                                onPressed: () async {
-                                  final leavesRepo = dialogCtx.read<LeavesRepository>();
-                                  final doc =
-                                      await DocumentPickerBottomSheet.show(
-                                    dialogCtx,
-                                    title: 'Attach Leave Document',
-                                    subtitle:
-                                        'Choose from device storage or take a photo with camera',
-                                    categoryPrefix: 'leave_doc',
-                                    onUpload: (bytes, fileName) async {
-                                      final uploadRes = await leavesRepo.uploadAttachment(bytes, fileName);
-                                      return (uploadRes['attachmentUrl'] as String?) ??
-                                          (uploadRes['fileKey'] as String?) ??
-                                          '';
-                                    },
-                                  );
-                                  if (doc != null) {
-                                    setDialogState(() {
-                                      selectedDocumentName = doc.name;
-                                      selectedDocumentUrl = doc.url;
-                                    });
-                                  }
+                      // Compact Optional Document Attachment
+                      if (selectedDocumentName == null)
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final leavesRepo = dialogCtx.read<LeavesRepository>();
+                              final doc =
+                                  await DocumentPickerBottomSheet.show(
+                                dialogCtx,
+                                title: 'Attach Leave Document',
+                                subtitle:
+                                    'Choose from device storage or take a photo with camera',
+                                categoryPrefix: 'leave_doc',
+                                onUpload: (bytes, fileName) async {
+                                  final uploadRes = await leavesRepo.uploadAttachment(bytes, fileName);
+                                  return (uploadRes['attachmentUrl'] as String?) ??
+                                      (uploadRes['fileKey'] as String?) ??
+                                      '';
                                 },
-                                icon: const Icon(Icons.upload_file, size: 15),
-                                label: const Text('Attach Document (Optional)',
-                                    style: TextStyle(fontSize: 11)),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                      color: AppColors.border),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
+                              );
+                              if (doc != null) {
+                                setDialogState(() {
+                                  selectedDocumentName = doc.name;
+                                  selectedDocumentUrl = doc.url;
+                                });
+                              }
+                            },
+                            icon: const Icon(Icons.add_a_photo_outlined, size: 15),
+                            label: const Text(
+                              '+ Attach Photo / PDF (Optional)',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primaryText,
+                              side: const BorderSide(color: AppColors.border),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          child: Row(
+                            children: [
+                              Icon(
+                                selectedDocumentName!
+                                        .toLowerCase()
+                                        .endsWith('.pdf')
+                                    ? Icons.picture_as_pdf
+                                    : Icons.image_outlined,
+                                size: 16,
+                                color: selectedDocumentName!
+                                        .toLowerCase()
+                                        .endsWith('.pdf')
+                                    ? const Color(0xFFB91C1C)
+                                    : const Color(0xFF1D4ED8),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  selectedDocumentName!,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.primaryText,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ] else ...[
-                              Row(
-                                children: [
-                                  Icon(
-                                    selectedDocumentName!
-                                            .toLowerCase()
-                                            .endsWith('.pdf')
-                                        ? Icons.picture_as_pdf
-                                        : Icons.camera_alt_outlined,
+                              const SizedBox(width: 6),
+                              InkWell(
+                                onTap: () {
+                                  setDialogState(() {
+                                    selectedDocumentName = null;
+                                    selectedDocumentUrl = null;
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(4),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(2),
+                                  child: Icon(
+                                    Icons.close,
                                     size: 16,
-                                    color: selectedDocumentName!
-                                            .toLowerCase()
-                                            .endsWith('.pdf')
-                                        ? const Color(0xFFB91C1C)
-                                        : const Color(0xFF2563EB),
+                                    color: AppColors.error,
                                   ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      selectedDocumentName!,
-                                      style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                          color: AppColors.primaryText),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ],
-                          ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -623,15 +670,28 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${leave.startDate} to ${leave.endDate}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryText,
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.date_range_outlined,
+                        size: 14, color: AppColors.secondaryText),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        formatLeaveDateRange(leave.startDate, leave.endDate),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryText,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -655,16 +715,18 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
           Text(
             leave.reason,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w500,
+              height: 1.35,
               color: AppColors.primaryText,
             ),
           ),
-          if ((leave.remarks != null && leave.remarks!.isNotEmpty) ||
+          if ((leave.remarks != null && leave.remarks!.trim().isNotEmpty) ||
               (leave.rejectionReason != null &&
-                  leave.rejectionReason!.isNotEmpty)) ...[
+                  leave.rejectionReason!.trim().isNotEmpty)) ...[
             const SizedBox(height: 6),
             Text(
-              'Remarks: ${leave.remarks ?? leave.rejectionReason}',
+              'Remarks: ${(leave.remarks?.trim().isNotEmpty == true ? leave.remarks : leave.rejectionReason)!.trim()}',
               style: TextStyle(
                 fontSize: 11,
                 fontStyle: FontStyle.italic,
@@ -714,12 +776,12 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
             ),
           ],
           if (leave.reviewedByName != null &&
-              leave.reviewedByName!.isNotEmpty) ...[
-            const SizedBox(height: 4),
+              leave.reviewedByName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
             Text(
-              'Reviewed by: ${leave.reviewedByName}',
+              'Reviewed by ${leave.reviewedByName!.trim()}',
               style: const TextStyle(
-                fontSize: 10,
+                fontSize: 11,
                 color: AppColors.secondaryText,
               ),
             ),

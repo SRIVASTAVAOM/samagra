@@ -68,6 +68,25 @@ export class ScheduleController {
   }
 
   /**
+   * GET /api/v1/schedule/timetable/my-student
+   */
+  static async getStudentTimetable(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const timetable = await ScheduleService.getStudentTimetable(user);
+      res.status(200).json({
+        success: true,
+        data: timetable,
+      });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: error.message || 'Failed to fetch student timetable',
+      });
+    }
+  }
+
+  /**
    * GET /api/v1/schedule/substitutions/my-teacher
    */
   static async getTeacherSubstitutions(req: Request, res: Response): Promise<void> {

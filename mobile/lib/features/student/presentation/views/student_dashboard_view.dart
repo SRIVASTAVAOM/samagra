@@ -21,6 +21,7 @@ import '../../../profiles/bloc/profile_state.dart';
 import '../../../profiles/models/student_profile_model.dart';
 import '../../../schedule/bloc/schedule_bloc.dart';
 import '../../../schedule/presentation/student_online_classes_view.dart';
+import '../../../schedule/presentation/student_timetable_view.dart';
 import '../../bloc/student_features_bloc.dart';
 import '../../bloc/student_features_state.dart';
 import '../../models/student_features_model.dart';
@@ -277,7 +278,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
 
   void _navigateToTimetable(BuildContext context) {
     if (widget.onNavigateToTab != null) {
-      widget.onNavigateToTab!(2, academicSubTab: 7);
+      widget.onNavigateToTab!(2, academicSubTab: 8);
     } else {
       ScheduleBloc? bloc;
       try {
@@ -285,8 +286,8 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       } catch (_) {}
 
       Widget content = Scaffold(
-        appBar: AppBar(title: const Text('Timetable & Online Classes')),
-        body: const StudentOnlineClassesView(),
+        appBar: AppBar(title: const Text('Timetable')),
+        body: const StudentTimetableView(),
       );
       if (bloc != null) {
         content = BlocProvider<ScheduleBloc>.value(value: bloc, child: content);

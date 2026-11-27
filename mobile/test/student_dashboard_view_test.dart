@@ -346,7 +346,7 @@ void main() {
       await tester.tap(find.text('Timetable'));
       await tester.pump();
       expect(tappedTab, equals(2));
-      expect(tappedAcademicSub, equals(7));
+      expect(tappedAcademicSub, equals(8));
 
       // Tap 'Study Materials'
       await tester.ensureVisible(find.text('Study Materials'));

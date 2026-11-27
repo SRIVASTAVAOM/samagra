@@ -2,6 +2,8 @@ import { pool } from '../../config/db.config';
 
 export interface TimetableSlot {
   id: string;
+  school_id?: string;
+  academic_year_id?: string;
   day_of_week: number;
   period_number: number;
   start_time: string;
@@ -13,6 +15,8 @@ export interface TimetableSlot {
   subject_id: string;
   subject_name: string;
   subject_code: string;
+  teacher_id?: string;
+  teacher_name?: string | null;
   room_number: string | null;
 }
 
@@ -92,6 +96,66 @@ export class ScheduleRepository {
       ORDER BY ts.day_of_week ASC, ts.period_number ASC;
     `;
     const { rows } = await pool.query(query, [schoolId, teacherStaffId, userId]);
+    return rows;
+  }
+
+  /**
+   * Resolve student's authoritative school, class, and section from student_profiles.
+   */
+  static async getStudentProfileContext(userId: string): Promise<{
+    school_id: string;
+    current_class_id: string | null;
+    current_section_id: string | null;
+  } | null> {
+    const { rows } = await pool.query(
+      `SELECT u.school_id, sp.current_class_id, sp.current_section_id
+       FROM student_profiles sp
+       JOIN users u ON sp.user_id = u.id
+       WHERE sp.user_id = $1
+       LIMIT 1;`,
+      [userId]
+    );
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  /**
+   * Fetch all timetable slots for a student's class and section ordered by day and period.
+   */
+  static async getStudentTimetable(
+    schoolId: string,
+    classId: string,
+    sectionId?: string | null
+  ): Promise<TimetableSlot[]> {
+    const query = `
+      SELECT 
+        ts.id,
+        ts.school_id,
+        ts.academic_year_id,
+        ts.day_of_week,
+        ts.period_number,
+        ts.start_time::text AS start_time,
+        ts.end_time::text AS end_time,
+        ts.class_id,
+        c.name AS class_name,
+        ts.section_id,
+        s.name AS section_name,
+        ts.subject_id,
+        sub.name AS subject_name,
+        sub.code AS subject_code,
+        ts.teacher_id,
+        NULLIF(TRIM(CONCAT(sp.first_name, ' ', sp.last_name)), '') AS teacher_name,
+        ts.room_number
+      FROM timetable_slots ts
+      JOIN classes c ON ts.class_id = c.id
+      JOIN sections s ON ts.section_id = s.id
+      JOIN subjects sub ON ts.subject_id = sub.id
+      LEFT JOIN staff_profiles sp ON ts.teacher_id = sp.id
+      WHERE ts.school_id = $1
+        AND ts.class_id = $2
+        AND ($3::uuid IS NULL OR ts.section_id = $3)
+      ORDER BY ts.day_of_week ASC, ts.period_number ASC;
+    `;
+    const { rows } = await pool.query(query, [schoolId, classId, sectionId || null]);
     return rows;
   }
 

@@ -57,7 +57,48 @@ export interface StudentLeaveFilters {
   search?: string;
 }
 
+export interface StaffLeaveFilters {
+  status?: string;
+  timeframe?: string; // 'this_week' | 'this_month' | 'all'
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+}
+
 export class LeavesRepository {
+  /**
+   * Look up a target staff profile with its school_id.
+   */
+  static async getStaffMemberById(staffId: string): Promise<{
+    id: string;
+    user_id: string;
+    school_id: string;
+    first_name: string;
+    last_name: string;
+    employee_code: string;
+  } | null> {
+    const { rows } = await pool.query(
+      `SELECT sp.id, sp.user_id, u.school_id, sp.first_name, sp.last_name, sp.employee_code
+       FROM staff_profiles sp
+       JOIN users u ON sp.user_id = u.id
+       WHERE sp.id = $1
+       LIMIT 1;`,
+      [staffId]
+    );
+    return rows[0] || null;
+  }
+
+  /**
+   * Look up a staff profile ID by authenticated userId.
+   */
+  static async getStaffProfileIdByUserId(userId: string): Promise<string | null> {
+    const { rows } = await pool.query(
+      `SELECT id FROM staff_profiles WHERE user_id = $1 LIMIT 1;`,
+      [userId]
+    );
+    return rows[0]?.id || null;
+  }
+
   /**
    * Submit a new staff leave application.
    */
@@ -75,7 +116,7 @@ export class LeavesRepository {
       INSERT INTO staff_leaves (
         school_id, staff_id, leave_type, start_date, end_date, reason, status, document_url, attachment_name
       ) VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', $7, $8)
-      RETURNING *;
+      RETURNING *, start_date::text AS start_date, end_date::text AS end_date;
     `;
     const { rows } = await pool.query(query, [
       schoolId,
@@ -91,21 +132,29 @@ export class LeavesRepository {
   }
 
   /**
-   * Get a single staff leave record by ID with full joins.
+   * Get a single staff leave record by ID with full joins (deduplicated assignment).
    */
   static async getStaffLeaveById(id: string): Promise<StaffLeaveRecord | null> {
     const query = `
       SELECT 
         sl.*,
+        sl.start_date::text AS start_date,
+        sl.end_date::text AS end_date,
         sp.employee_code,
         CONCAT(sp.first_name, ' ', sp.last_name) AS staff_name,
         COALESCE(sa.wing_id, c.wing_id) AS wing_id,
         w.name AS wing_name,
-        CONCAT(rec_sp.first_name, ' ', rec_sp.last_name) AS recommended_by_name,
+        NULLIF(TRIM(CONCAT(rec_sp.first_name, ' ', rec_sp.last_name)), '') AS recommended_by_name,
         u.identifier AS sanctioned_by_identifier
       FROM staff_leaves sl
       JOIN staff_profiles sp ON sl.staff_id = sp.id
-      LEFT JOIN staff_assignments sa ON sp.id = sa.staff_id
+      LEFT JOIN LATERAL (
+        SELECT wing_id, class_id
+        FROM staff_assignments
+        WHERE staff_id = sp.id
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) sa ON true
       LEFT JOIN classes c ON sa.class_id = c.id
       LEFT JOIN wings w ON COALESCE(sa.wing_id, c.wing_id) = w.id
       LEFT JOIN staff_profiles rec_sp ON sl.recommended_by_staff_id = rec_sp.id
@@ -117,21 +166,29 @@ export class LeavesRepository {
   }
 
   /**
-   * Get teacher's own leave applications.
+   * Get teacher's own leave applications (deduplicated assignment).
    */
   static async getStaffLeavesByStaffId(staffId: string): Promise<StaffLeaveRecord[]> {
     const query = `
       SELECT 
         sl.*,
+        sl.start_date::text AS start_date,
+        sl.end_date::text AS end_date,
         sp.employee_code,
         CONCAT(sp.first_name, ' ', sp.last_name) AS staff_name,
         COALESCE(sa.wing_id, c.wing_id) AS wing_id,
         w.name AS wing_name,
-        CONCAT(rec_sp.first_name, ' ', rec_sp.last_name) AS recommended_by_name,
+        NULLIF(TRIM(CONCAT(rec_sp.first_name, ' ', rec_sp.last_name)), '') AS recommended_by_name,
         u.identifier AS sanctioned_by_identifier
       FROM staff_leaves sl
       JOIN staff_profiles sp ON sl.staff_id = sp.id
-      LEFT JOIN staff_assignments sa ON sp.id = sa.staff_id
+      LEFT JOIN LATERAL (
+        SELECT wing_id, class_id
+        FROM staff_assignments
+        WHERE staff_id = sp.id
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) sa ON true
       LEFT JOIN classes c ON sa.class_id = c.id
       LEFT JOIN wings w ON COALESCE(sa.wing_id, c.wing_id) = w.id
       LEFT JOIN staff_profiles rec_sp ON sl.recommended_by_staff_id = rec_sp.id
@@ -150,20 +207,29 @@ export class LeavesRepository {
     const query = `
       SELECT 
         sl.*,
+        sl.start_date::text AS start_date,
+        sl.end_date::text AS end_date,
         sp.employee_code,
         CONCAT(sp.first_name, ' ', sp.last_name) AS staff_name,
         COALESCE(sa.wing_id, c.wing_id) AS wing_id,
         w.name AS wing_name,
-        CONCAT(rec_sp.first_name, ' ', rec_sp.last_name) AS recommended_by_name,
+        NULLIF(TRIM(CONCAT(rec_sp.first_name, ' ', rec_sp.last_name)), '') AS recommended_by_name,
         u.identifier AS sanctioned_by_identifier
       FROM staff_leaves sl
       JOIN staff_profiles sp ON sl.staff_id = sp.id
-      JOIN staff_assignments sa ON sp.id = sa.staff_id
+      JOIN LATERAL (
+        SELECT sa_inner.wing_id, sa_inner.class_id
+        FROM staff_assignments sa_inner
+        LEFT JOIN classes c_inner ON sa_inner.class_id = c_inner.id
+        WHERE sa_inner.staff_id = sp.id
+          AND COALESCE(sa_inner.wing_id, c_inner.wing_id) = $1
+        ORDER BY sa_inner.created_at DESC
+        LIMIT 1
+      ) sa ON true
       LEFT JOIN classes c ON sa.class_id = c.id
       JOIN wings w ON COALESCE(sa.wing_id, c.wing_id) = w.id
       LEFT JOIN staff_profiles rec_sp ON sl.recommended_by_staff_id = rec_sp.id
       LEFT JOIN users u ON sl.sanctioned_by_user_id = u.id
-      WHERE COALESCE(sa.wing_id, c.wing_id) = $1
       ORDER BY sl.created_at DESC;
     `;
     const { rows } = await pool.query(query, [wingId]);
@@ -171,29 +237,71 @@ export class LeavesRepository {
   }
 
   /**
-   * Get all teacher leaves pending final approval (for Management).
+   * Get all teacher leaves for Management / Admin with optional filters.
    */
-  static async getAllStaffLeavesForManagement(schoolId: string): Promise<StaffLeaveRecord[]> {
+  static async getAllStaffLeavesForManagement(
+    schoolId: string,
+    filters?: StaffLeaveFilters
+  ): Promise<StaffLeaveRecord[]> {
+    const params: any[] = [schoolId];
+    let idx = 2;
+    let extraClauses = '';
+
+    if (filters?.status && filters.status.toUpperCase() !== 'ALL') {
+      extraClauses += ` AND sl.status = $${idx++}`;
+      params.push(filters.status.toUpperCase());
+    }
+
+    if (filters?.timeframe === 'this_week') {
+      extraClauses += ` AND sl.start_date >= DATE_TRUNC('week', CURRENT_DATE) AND sl.start_date < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '7 days'`;
+    } else if (filters?.timeframe === 'this_month') {
+      extraClauses += ` AND sl.start_date >= DATE_TRUNC('month', CURRENT_DATE) AND sl.start_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'`;
+    }
+
+    if (filters?.startDate) {
+      extraClauses += ` AND sl.start_date >= $${idx++}`;
+      params.push(filters.startDate);
+    }
+    if (filters?.endDate) {
+      extraClauses += ` AND sl.end_date <= $${idx++}`;
+      params.push(filters.endDate);
+    }
+
+    if (filters?.search && filters.search.trim()) {
+      const term = `%${filters.search.trim()}%`;
+      extraClauses += ` AND (CONCAT(sp.first_name, ' ', sp.last_name) ILIKE $${idx} OR sp.employee_code ILIKE $${idx} OR sl.reason ILIKE $${idx})`;
+      params.push(term);
+      idx++;
+    }
+
     const query = `
       SELECT 
         sl.*,
+        sl.start_date::text AS start_date,
+        sl.end_date::text AS end_date,
         sp.employee_code,
         CONCAT(sp.first_name, ' ', sp.last_name) AS staff_name,
         COALESCE(sa.wing_id, c.wing_id) AS wing_id,
         w.name AS wing_name,
-        CONCAT(rec_sp.first_name, ' ', rec_sp.last_name) AS recommended_by_name,
+        NULLIF(TRIM(CONCAT(rec_sp.first_name, ' ', rec_sp.last_name)), '') AS recommended_by_name,
         u.identifier AS sanctioned_by_identifier
       FROM staff_leaves sl
       JOIN staff_profiles sp ON sl.staff_id = sp.id
-      LEFT JOIN staff_assignments sa ON sp.id = sa.staff_id
+      LEFT JOIN LATERAL (
+        SELECT wing_id, class_id
+        FROM staff_assignments
+        WHERE staff_id = sp.id
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) sa ON true
       LEFT JOIN classes c ON sa.class_id = c.id
       LEFT JOIN wings w ON COALESCE(sa.wing_id, c.wing_id) = w.id
       LEFT JOIN staff_profiles rec_sp ON sl.recommended_by_staff_id = rec_sp.id
       LEFT JOIN users u ON sl.sanctioned_by_user_id = u.id
-      WHERE sl.school_id = $1
+      WHERE sl.school_id = $1 ${extraClauses}
       ORDER BY sl.created_at DESC;
     `;
-    const { rows } = await pool.query(query, [schoolId]);
+    const { rows } = await pool.query(query, params);
     return rows;
   }
 

@@ -209,9 +209,7 @@ class _TeacherShellState extends State<TeacherShell> {
         BlocProvider(
           create: (ctx) => LeavesBloc(
             repository: ctx.read<LeavesRepository>(),
-          )
-            ..add(const LoadStaffMyLeavesEvent())
-            ..add(const LoadClassStudentLeavesEvent()),
+          )..add(const LoadStaffMyLeavesEvent()),
         ),
         BlocProvider(
           create: (ctx) => HomeworkBloc(

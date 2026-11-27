@@ -25,6 +25,21 @@ class ScheduleRepository {
     }
   }
 
+  // 1b. Student Timetable Day-Wise
+  Future<List<TimetableSlotModel>> getStudentTimetable() async {
+    try {
+      final response = await dioClient.dio.get(ApiEndpoints.studentTimetable);
+      final list = (response.data['data'] as List<dynamic>?) ?? [];
+      return list
+          .map((e) => TimetableSlotModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      final message = e.response?.data?['error']?.toString() ??
+          'Failed to load student timetable';
+      throw Exception(message);
+    }
+  }
+
   // 2. Teacher Substitutions
   Future<({List<TeacherSubstitutionModel> assignedToMe, List<TeacherSubstitutionModel> coveringForMe})>
       getTeacherSubstitutions() async {

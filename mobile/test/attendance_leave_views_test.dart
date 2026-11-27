@@ -77,7 +77,13 @@ class StubLeavesRepository implements LeavesRepository {
   @override
   Future<void> recommendStaffLeave(String l, {String? note}) async {}
   @override
-  Future<List<StaffLeaveModel>> getManagementLeaveQueue() async => [];
+  Future<List<StaffLeaveModel>> getManagementLeaveQueue({
+    String? status,
+    String? timeframe,
+    String? startDate,
+    String? endDate,
+    String? search,
+  }) async => [];
   @override
   Future<void> decideStaffLeave(String l, {required String decision, String? note, String? rejectionReason}) async {}
   @override

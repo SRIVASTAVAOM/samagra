@@ -40,6 +40,10 @@ const titleMap: Record<string, { title: string; subtitle: string }> = {
     title: 'Subject Master',
     subtitle: 'Manage curriculum subjects, class affiliations, and faculty allocations',
   },
+  '/leaves/staff': {
+    title: 'Teacher Leaves & Approvals',
+    subtitle: 'Review teacher leave applications and approve or reject with remarks',
+  },
 };
 
 type TopbarProps = {

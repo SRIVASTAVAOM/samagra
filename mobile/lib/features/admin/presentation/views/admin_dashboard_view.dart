@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/models/user_model.dart';
+import '../../../leaves/models/student_leave_model.dart';
 import '../../models/admin_dashboard_model.dart';
 import '../../repository/admin_repository.dart';
 
 class AdminDashboardView extends StatefulWidget {
   final UserModel user;
+  final VoidCallback? onOpenLeavesTab;
 
-  const AdminDashboardView({super.key, required this.user});
+  const AdminDashboardView({
+    super.key,
+    required this.user,
+    this.onOpenLeavesTab,
+  });
 
   @override
   State<AdminDashboardView> createState() => _AdminDashboardViewState();
@@ -654,6 +661,20 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                           ),
                         ],
                       ),
+                      if (widget.onOpenLeavesTab != null) ...[
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(bottomSheetCtx);
+                              widget.onOpenLeavesTab!();
+                            },
+                            icon: const Icon(Icons.event_note_outlined, size: 16),
+                            label: const Text('Review All Teacher Leaves'),
+                          ),
+                        ),
+                      ],
                       const Divider(),
                       if (isLoading)
                         const Padding(
@@ -691,7 +712,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                           child: ListView.separated(
                             shrinkWrap: true,
                             itemCount: leaves.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 10),
+                            separatorBuilder: (context, index) => const SizedBox(height: 10),
                             itemBuilder: (context, i) {
                               final leave = leaves[i];
                               final isStaff = leave.applicantType == 'STAFF';
@@ -759,35 +780,46 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      '${leave.leaveType} • ${leave.startDate} to ${leave.endDate}',
+                                      '${leave.leaveType} • ${formatLeaveDateRange(leave.startDate, leave.endDate)}',
                                       style: const TextStyle(
-                                          fontSize: 12, fontWeight: FontWeight.w600),
+                                          fontSize: 12, fontWeight: FontWeight.w700),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       leave.reason,
-                                      style: const TextStyle(fontSize: 12),
+                                      style: const TextStyle(fontSize: 13, height: 1.35),
                                     ),
                                     if (leave.documentUrl != null &&
-                                        leave.documentUrl!.isNotEmpty) ...[
+                                        leave.documentUrl!.trim().isNotEmpty) ...[
                                       const SizedBox(height: 6),
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.attach_file,
-                                              size: 13, color: Color(0xFF1D4ED8)),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              'Doc: ${leave.documentUrl}',
-                                              style: const TextStyle(
+                                      InkWell(
+                                        onTap: () async {
+                                          final uri = Uri.tryParse(leave.documentUrl!.trim());
+                                          if (uri != null) {
+                                            await launchUrl(uri,
+                                                mode: LaunchMode.externalApplication);
+                                          }
+                                        },
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.attach_file,
+                                                size: 13, color: Color(0xFF1D4ED8)),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'View Attached Document',
+                                              style: TextStyle(
                                                 fontSize: 11,
+                                                fontWeight: FontWeight.w600,
                                                 color: Color(0xFF1D4ED8),
                                                 decoration: TextDecoration.underline,
                                               ),
-                                              overflow: TextOverflow.ellipsis,
                                             ),
-                                          ),
-                                        ],
+                                            SizedBox(width: 4),
+                                            Icon(Icons.open_in_new,
+                                                size: 11, color: Color(0xFF1D4ED8)),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                     const SizedBox(height: 10),

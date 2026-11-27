@@ -39,7 +39,19 @@ class RecommendStaffLeaveEvent extends LeavesEvent {
 }
 
 class LoadManagementLeaveQueueEvent extends LeavesEvent {
-  const LoadManagementLeaveQueueEvent();
+  final String? status;
+  final String? timeframe;
+  final String? startDate;
+  final String? endDate;
+  final String? search;
+
+  const LoadManagementLeaveQueueEvent({
+    this.status,
+    this.timeframe,
+    this.startDate,
+    this.endDate,
+    this.search,
+  });
 }
 
 class DecideStaffLeaveEvent extends LeavesEvent {

@@ -11,6 +11,10 @@ class LoadTeacherTimetableEvent extends ScheduleEvent {
   const LoadTeacherTimetableEvent();
 }
 
+class LoadStudentTimetableEvent extends ScheduleEvent {
+  const LoadStudentTimetableEvent();
+}
+
 class LoadTeacherSubstitutionsEvent extends ScheduleEvent {
   const LoadTeacherSubstitutionsEvent();
 }

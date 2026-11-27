@@ -18,46 +18,46 @@ router.post(
   LeavesController.uploadLeaveAttachment
 );
 
-// Staff Leave Endpoints
+// Staff Leave Endpoints (Teachers self-apply & view own leaves; ADMIN approves/rejects)
 router.post(
   '/staff',
   authenticateToken,
-  requireRole(['TEACHER', 'ADMIN']),
+  requireRole(['TEACHER']),
   LeavesController.createStaffLeave
 );
 
 router.get(
   '/staff/my-leaves',
   authenticateToken,
-  requireRole(['TEACHER', 'ADMIN']),
+  requireRole(['TEACHER']),
   LeavesController.getStaffMyLeaves
 );
 
 router.get(
   '/staff/wing-leaves',
   authenticateToken,
-  requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']),
+  requireRole(['TEACHER', 'ADMIN']),
   LeavesController.getStaffWingLeaves
 );
 
 router.get(
   '/staff/management-queue',
   authenticateToken,
-  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  requireRole(['ADMIN']),
   LeavesController.getAllStaffLeavesForManagement
 );
 
 router.patch(
   '/staff/:id/recommend',
   authenticateToken,
-  requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']),
+  requireRole(['TEACHER', 'ADMIN']),
   LeavesController.recommendStaffLeave
 );
 
 router.patch(
   '/staff/:id/decide',
   authenticateToken,
-  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  requireRole(['ADMIN']),
   LeavesController.sanctionStaffLeave
 );
 

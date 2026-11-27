@@ -97,6 +97,13 @@ export class LeavesController {
         res.status(400).json({ success: false, error: err.errors[0].message });
         return;
       }
+      if (err.message === 'FORBIDDEN_ROLE' || err.message === 'FORBIDDEN_SCOPE') {
+        res.status(403).json({
+          success: false,
+          error: 'Forbidden: Only teachers can apply for their own staff leave.',
+        });
+        return;
+      }
       if (err.message === 'INVALID_DATE_RANGE') {
         res.status(400).json({ success: false, error: 'End date cannot be earlier than start date.' });
         return;
@@ -105,12 +112,8 @@ export class LeavesController {
         res.status(400).json({ success: false, error: 'Invalid start date or end date format.' });
         return;
       }
-      if (err.message === 'STUDENT_ENROLLMENT_NOT_FOUND') {
-        res.status(400).json({ success: false, error: 'Student is not actively enrolled in a class and section.' });
-        return;
-      }
       if (err.message === 'PROFILE_NOT_FOUND') {
-        res.status(404).json({ success: false, error: 'Student profile not found.' });
+        res.status(404).json({ success: false, error: 'Staff profile not found.' });
         return;
       }
       res.status(500).json({ success: false, error: err.message || 'Internal server error' });
@@ -122,6 +125,10 @@ export class LeavesController {
       const leaves = await LeavesService.getStaffMyLeaves(req.user!);
       res.status(200).json({ success: true, data: leaves });
     } catch (err: any) {
+      if (err.message === 'PROFILE_NOT_FOUND') {
+        res.status(404).json({ success: false, error: 'Staff profile not found.' });
+        return;
+      }
       res.status(500).json({ success: false, error: err.message || 'Internal server error' });
     }
   }
@@ -141,7 +148,18 @@ export class LeavesController {
 
   static async getAllStaffLeavesForManagement(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const leaves = await LeavesService.getAllStaffLeavesForManagement(req.user!);
+      const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+      const timeframe = typeof req.query.timeframe === 'string' ? req.query.timeframe : undefined;
+      const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
+      const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
+      const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+      const leaves = await LeavesService.getAllStaffLeavesForManagement(req.user!, {
+        status,
+        timeframe,
+        startDate,
+        endDate,
+        search,
+      });
       res.status(200).json({ success: true, data: leaves });
     } catch (err: any) {
       if (err.message === 'FORBIDDEN_ROLE') {

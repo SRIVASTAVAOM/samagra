@@ -63,3 +63,60 @@ class StudentLeaveModel {
   }
 }
 
+DateTime? _parseLeaveCalendarDate(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+  if (trimmed.contains('T') || trimmed.contains(' ')) {
+    final parsedFull = DateTime.tryParse(trimmed);
+    if (parsedFull != null) {
+      return (parsedFull.isUtc &&
+              (parsedFull.hour != 0 || parsedFull.minute != 0))
+          ? parsedFull.toLocal()
+          : parsedFull;
+    }
+  }
+  return DateTime.tryParse(trimmed.split(RegExp(r'[T ]')).first);
+}
+
+String _formatParsedLeaveDate(DateTime parsed) {
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  final day = parsed.day.toString().padLeft(2, '0');
+  return '$day ${months[parsed.month - 1]} ${parsed.year}';
+}
+
+/// Formats an ISO timestamp or YYYY-MM-DD date string into `dd MMM yyyy`.
+/// Safely falls back to the trimmed date portion or empty string if unparseable.
+String formatShortLeaveDate(String raw) {
+  final parsed = _parseLeaveCalendarDate(raw);
+  if (parsed == null) {
+    final trimmed = raw.trim();
+    return trimmed.isEmpty ? '' : trimmed.split(RegExp(r'[T ]')).first;
+  }
+  return _formatParsedLeaveDate(parsed);
+}
+
+/// Formats a start and end date range into a compact readable string.
+String formatLeaveDateRange(String startRaw, String endRaw) {
+  final start = formatShortLeaveDate(startRaw);
+  final end = formatShortLeaveDate(endRaw);
+  if (start.isEmpty && end.isEmpty) return 'Date unavailable';
+  if (start.isEmpty) return end;
+  if (end.isEmpty || start == end) return start;
+  return '$start – $end';
+}
+
+/// Returns inclusive day count between [startRaw] and [endRaw], or null if invalid/reversed.
+int? calculateLeaveDayCount(String startRaw, String endRaw) {
+  final s = _parseLeaveCalendarDate(startRaw);
+  final e = _parseLeaveCalendarDate(endRaw);
+  if (s == null || e == null) return null;
+  final sDate = DateTime(s.year, s.month, s.day);
+  final eDate = DateTime(e.year, e.month, e.day);
+  final diff = eDate.difference(sDate).inDays;
+  if (diff < 0) return null;
+  return diff + 1;
+}
+

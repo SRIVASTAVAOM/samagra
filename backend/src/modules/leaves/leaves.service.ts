@@ -1,5 +1,5 @@
 import { TokenPayload } from '../../types/auth.types';
-import { LeavesRepository, StudentLeaveFilters } from './leaves.repository';
+import { LeavesRepository, StaffLeaveFilters, StudentLeaveFilters } from './leaves.repository';
 import { NoticeService } from '../notices/notice.service';
 import { pool } from '../../config/db.config';
 
@@ -19,7 +19,13 @@ export class LeavesService {
     documentUrl?: string | null,
     attachmentName?: string | null
   ) {
-    if (!user.profileId) {
+    if (!user.roles.includes('TEACHER')) {
+      throw new Error('FORBIDDEN_ROLE');
+    }
+
+    const staffId =
+      user.profileId || (await LeavesRepository.getStaffProfileIdByUserId(user.userId));
+    if (!staffId) {
       throw new Error('PROFILE_NOT_FOUND');
     }
 
@@ -31,9 +37,12 @@ export class LeavesService {
       throw new Error('INVALID_DATE_RANGE');
     }
 
-    return await LeavesRepository.createStaffLeave(
-      user.schoolId,
-      user.profileId,
+    const staff = await LeavesRepository.getStaffMemberById(staffId);
+    const schoolId = staff?.school_id || user.schoolId;
+
+    const created = await LeavesRepository.createStaffLeave(
+      schoolId,
+      staffId,
       leaveType,
       startDate,
       endDate,
@@ -41,13 +50,34 @@ export class LeavesService {
       documentUrl,
       attachmentName
     );
+
+    try {
+      const staffName = staff
+        ? `${staff.first_name} ${staff.last_name || ''}`.trim()
+        : 'Teacher';
+      const empCode = staff?.employee_code ? ` (${staff.employee_code})` : '';
+      const noticeUser: TokenPayload = { ...user, schoolId };
+      await NoticeService.createNotice(noticeUser, {
+        title: `Staff Leave Request: ${staffName}`,
+        content: `${staffName}${empCode} has applied for ${leaveType} leave from ${startDate} to ${endDate}. Reason: ${reason.trim()}`,
+        target_role: 'ADMIN',
+        priority: 'NORMAL',
+        channel: 'IN_APP',
+      });
+    } catch (noticeErr) {
+      console.warn('[LeavesService]: Non-blocking admin leave notice failed:', noticeErr);
+    }
+
+    return (await LeavesRepository.getStaffLeaveById(created.id)) || created;
   }
 
   static async getStaffMyLeaves(user: TokenPayload) {
-    if (!user.profileId) {
+    const profileId =
+      user.profileId || (await LeavesRepository.getStaffProfileIdByUserId(user.userId));
+    if (!profileId) {
       throw new Error('PROFILE_NOT_FOUND');
     }
-    return await LeavesRepository.getStaffLeavesByStaffId(user.profileId);
+    return await LeavesRepository.getStaffLeavesByStaffId(profileId);
   }
 
   static async getStaffWingLeaves(user: TokenPayload) {
@@ -57,11 +87,14 @@ export class LeavesService {
     return await LeavesRepository.getStaffLeavesByWingId(user.wingId);
   }
 
-  static async getAllStaffLeavesForManagement(user: TokenPayload) {
-    if (!user.roles.includes('ADMIN') && !user.roles.includes('SUPER_ADMIN')) {
+  static async getAllStaffLeavesForManagement(
+    user: TokenPayload,
+    filters?: StaffLeaveFilters
+  ) {
+    if (!user.roles.includes('ADMIN')) {
       throw new Error('FORBIDDEN_ROLE');
     }
-    return await LeavesRepository.getAllStaffLeavesForManagement(user.schoolId);
+    return await LeavesRepository.getAllStaffLeavesForManagement(user.schoolId, filters);
   }
 
   static async recommendStaffLeave(
@@ -107,13 +140,17 @@ export class LeavesService {
     decision: 'APPROVED' | 'REJECTED',
     comment: string | null
   ) {
-    if (!user.roles.includes('ADMIN') && !user.roles.includes('SUPER_ADMIN')) {
+    if (!user.roles.includes('ADMIN')) {
       throw new Error('FORBIDDEN_ROLE');
     }
 
     const leave = await LeavesRepository.getStaffLeaveById(leaveId);
     if (!leave) {
       throw new Error('LEAVE_NOT_FOUND');
+    }
+
+    if (user.schoolId && leave.school_id !== user.schoolId) {
+      throw new Error('FORBIDDEN_SCOPE');
     }
 
     if (leave.status === 'APPROVED' || leave.status === 'REJECTED') {
@@ -127,7 +164,22 @@ export class LeavesService {
       comment ? comment.trim() : null
     );
 
-    return await LeavesRepository.getStaffLeaveById(leaveId);
+    const updated = await LeavesRepository.getStaffLeaveById(leaveId);
+
+    try {
+      const commentText = comment && comment.trim() ? ` Remarks: ${comment.trim()}` : '';
+      await NoticeService.createNotice(user, {
+        title: `Staff Leave ${decision === 'APPROVED' ? 'Approved' : 'Rejected'}: ${leave.staff_name}`,
+        content: `${leave.staff_name} (${leave.employee_code}) ${leave.leave_type} leave from ${leave.start_date} to ${leave.end_date} was ${decision.toLowerCase()}.${commentText}`,
+        target_role: 'TEACHER',
+        priority: decision === 'APPROVED' ? 'NORMAL' : 'URGENT',
+        channel: 'IN_APP',
+      });
+    } catch (noticeErr) {
+      console.warn('[LeavesService]: Non-blocking staff decision notice failed:', noticeErr);
+    }
+
+    return updated;
   }
 
   static async createStudentLeave(

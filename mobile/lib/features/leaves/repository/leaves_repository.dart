@@ -10,7 +10,7 @@ class LeavesRepository {
 
   LeavesRepository({required this.dioClient});
 
-  /// Submit a staff leave application (for Teacher)
+  /// Submit a staff leave application (for Teacher self-apply)
   Future<StaffLeaveModel> applyStaffLeave({
     required String startDate,
     required String endDate,
@@ -95,10 +95,35 @@ class LeavesRepository {
     }
   }
 
-  /// Get management queue of staff leaves
-  Future<List<StaffLeaveModel>> getManagementLeaveQueue() async {
+  /// Get management queue of staff leaves with optional filters
+  Future<List<StaffLeaveModel>> getManagementLeaveQueue({
+    String? status,
+    String? timeframe,
+    String? startDate,
+    String? endDate,
+    String? search,
+  }) async {
     try {
-      final response = await dioClient.dio.get(ApiEndpoints.staffManagementQueue);
+      final queryParams = <String, dynamic>{};
+      if (status != null && status.isNotEmpty && status.toUpperCase() != 'ALL') {
+        queryParams['status'] = status.toUpperCase();
+      }
+      if (timeframe != null && timeframe.isNotEmpty && timeframe != 'all') {
+        queryParams['timeframe'] = timeframe;
+      }
+      if (startDate != null && startDate.isNotEmpty) {
+        queryParams['startDate'] = startDate;
+      }
+      if (endDate != null && endDate.isNotEmpty) {
+        queryParams['endDate'] = endDate;
+      }
+      if (search != null && search.trim().isNotEmpty) {
+        queryParams['search'] = search.trim();
+      }
+      final response = await dioClient.dio.get(
+        ApiEndpoints.staffManagementQueue,
+        queryParameters: queryParams,
+      );
       final data = response.data['data'] as List<dynamic>;
       return data
           .map((item) => StaffLeaveModel.fromJson(item as Map<String, dynamic>))

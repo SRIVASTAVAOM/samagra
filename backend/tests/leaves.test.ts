@@ -41,7 +41,7 @@ describe('Leave Management API Tests', () => {
   });
 
   describe('Staff Leave Submission & Tracking', () => {
-    it('should allow teacher to submit leave application with valid dates', async () => {
+    it('should allow teacher to self-apply for staff leave with valid dates', async () => {
       const res = await request(app)
         .post('/api/v1/leaves/staff')
         .set('Authorization', `Bearer ${teacherToken}`)
@@ -59,7 +59,7 @@ describe('Leave Management API Tests', () => {
       createdStaffLeaveId = res.body.data.id;
     });
 
-    it('should allow teacher to apply staff leave using snake_case payload from mobile client', async () => {
+    it('should allow teacher to self-apply staff leave using snake_case payload from mobile client', async () => {
       const res = await request(app)
         .post('/api/v1/leaves/staff')
         .set('Authorization', `Bearer ${teacherToken}`)
@@ -74,6 +74,20 @@ describe('Leave Management API Tests', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.status).toBe('PENDING');
       expect(res.body.data.leave_type).toBe('CASUAL');
+    });
+
+    it('should REJECT non-teacher (Admin) calling teacher self-apply route with 403', async () => {
+      const res = await request(app)
+        .post('/api/v1/leaves/staff')
+        .set('Authorization', `Bearer ${managementToken}`)
+        .send({
+          leaveType: 'CASUAL',
+          startDate: '2026-11-20',
+          endDate: '2026-11-21',
+          reason: 'Admin cannot apply as teacher',
+        });
+
+      expect(res.status).toBe(403);
     });
 
     it('should reject staff leave when end date is earlier than start date', async () => {
@@ -92,7 +106,7 @@ describe('Leave Management API Tests', () => {
       expect(res.body.error).toContain('earlier than start date');
     });
 
-    it('should allow teacher to fetch their own leaves list', async () => {
+    it('should allow teacher to fetch their own leaves list (deduplicated)', async () => {
       const res = await request(app)
         .get('/api/v1/leaves/staff/my-leaves')
         .set('Authorization', `Bearer ${teacherToken}`);
@@ -100,7 +114,8 @@ describe('Leave Management API Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(Array.isArray(res.body.data)).toBe(true);
-      expect(res.body.data.some((l: any) => l.id === createdStaffLeaveId)).toBe(true);
+      const matching = res.body.data.filter((l: any) => l.id === createdStaffLeaveId);
+      expect(matching.length).toBe(1);
     });
   });
 
@@ -141,6 +156,17 @@ describe('Leave Management API Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('should allow Management to view and filter the staff leave queue by status and search term', async () => {
+      const res = await request(app)
+        .get('/api/v1/leaves/staff/management-queue?status=PENDING&search=Sunita')
+        .set('Authorization', `Bearer ${managementToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.every((l: any) => l.status === 'PENDING')).toBe(true);
     });
 
     it('should REJECT coordinator trying to execute final sanction with 403 Forbidden', async () => {
@@ -216,6 +242,8 @@ describe('Leave Management API Tests', () => {
           endDate: '2026-11-26',
           reason: 'Personal work',
         });
+
+      expect(createRes.status).toBe(201);
 
       const noteRes = await request(app)
         .patch(`/api/v1/leaves/staff/${createRes.body.data.id}/recommend`)
