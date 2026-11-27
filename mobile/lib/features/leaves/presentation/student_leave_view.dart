@@ -299,6 +299,13 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
               backgroundColor: const Color(0xFF16A765),
             ),
           );
+        } else if (state is LeavesError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.error,
+            ),
+          );
         }
       },
       child: Column(
@@ -406,30 +413,58 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                   final leaves = state.leaves;
 
                   if (leaves.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.calendar_today_outlined, size: 48, color: Color(0xFF64748B)),
-                            SizedBox(height: 12),
-                            Text(
-                              'No leave applications submitted yet',
-                              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        context
+                            .read<LeavesBloc>()
+                            .add(const LoadStudentMyLeavesEvent());
+                      },
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(48.0),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(
+                                    Icons.calendar_today_outlined,
+                                    size: 48,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'No leave applications submitted yet',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     );
                   }
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: leaves.length,
-                    itemBuilder: (context, index) {
-                      return _buildLeaveCard(leaves[index]);
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      context
+                          .read<LeavesBloc>()
+                          .add(const LoadStudentMyLeavesEvent());
                     },
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: leaves.length,
+                      itemBuilder: (context, index) {
+                        return _buildLeaveCard(leaves[index]);
+                      },
+                    ),
                   );
                 }
 

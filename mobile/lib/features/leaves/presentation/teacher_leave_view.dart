@@ -493,7 +493,14 @@ class _TeacherLeaveViewState extends State<TeacherLeaveView> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
-              backgroundColor: AppColors.primaryText,
+              backgroundColor: const Color(0xFF15803D),
+            ),
+          );
+        } else if (state is LeavesError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.error,
             ),
           );
         }

@@ -60,7 +60,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: const Color(0xFFE3ECF8))),
+        border: Border(bottom: BorderSide(color: Color(0xFFE3ECF8))),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -610,20 +610,22 @@ class _StudentFeesViewState extends State<StudentFeesView> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(
-                      Icons.calendar_today_outlined,
-                      size: 12,
-                      color: AppColors.secondaryText,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      installment.dueDate,
-                      style: TextStyle(
-                        fontSize: 11,
+                    if (installment.dueDate.isNotEmpty) ...[
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 12,
                         color: AppColors.secondaryText,
                       ),
-                    ),
-                    const SizedBox(width: 10),
+                      const SizedBox(width: 4),
+                      Text(
+                        installment.dueDate,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.secondaryText,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
                     Icon(
                       Icons.check_circle_outline,
                       size: 12,

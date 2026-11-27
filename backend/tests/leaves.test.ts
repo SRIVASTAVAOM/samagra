@@ -254,13 +254,41 @@ describe('Leave Management API Tests', () => {
       expect(res.body.data.some((l: any) => l.id === studentLeaveId)).toBe(true);
     });
 
-    it('should verify that unconfirmed student leave approval endpoint is NOT exposed (returns 404)', async () => {
-      // Per client directives, student leave approval path is withheld pending workflow confirmation
+    it('should verify that legacy unconfirmed approval route returns 404', async () => {
       const res = await request(app)
         .patch(`/api/v1/leaves/student/${studentLeaveId}/approve`)
         .set('Authorization', `Bearer ${teacherToken}`);
 
       expect(res.status).toBe(404);
+    });
+
+    it('should allow authorized reviewer to update student leave status to APPROVED with remarks', async () => {
+      const res = await request(app)
+        .patch(`/api/v1/leaves/student/${studentLeaveId}/status`)
+        .set('Authorization', `Bearer ${managementToken}`)
+        .send({
+          status: 'APPROVED',
+          remarks: 'Approved. Take care of studies.',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.status).toBe('APPROVED');
+      expect(res.body.data.remarks).toBe('Approved. Take care of studies.');
+    });
+
+    it('should lock already decided student leave from further edits (Invalid state transition)', async () => {
+      const res = await request(app)
+        .patch(`/api/v1/leaves/student/${studentLeaveId}/status`)
+        .set('Authorization', `Bearer ${managementToken}`)
+        .send({
+          status: 'REJECTED',
+          remarks: 'Trying to reject after approval',
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain('already finalized');
     });
   });
 });

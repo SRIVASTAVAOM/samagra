@@ -1,3 +1,4 @@
+import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
@@ -730,7 +731,6 @@ class _StudentAttendanceHistoryViewState
     final isPresent = record.status == 'PRESENT';
     final isAbsent = record.status == 'ABSENT';
     final isLeave = record.status == 'LEAVE';
-    final isHoliday = record.status == 'HOLIDAY';
 
     // Determine colors based on status
     Color badgeBg;
@@ -889,5 +889,3 @@ class DonutChartPainter extends CustomPainter {
         oldDelegate.secondaryColor != secondaryColor;
   }
 }
-
-import 'dart:math' show pi;

@@ -131,8 +131,20 @@ export class LeavesService {
     documentUrl?: string | null,
     attachmentName?: string | null
   ) {
-    if (!user.profileId || !user.classId || !user.sectionId) {
-      throw new Error('STUDENT_ENROLLMENT_NOT_FOUND');
+    if (!user.profileId) {
+      throw new Error('PROFILE_NOT_FOUND');
+    }
+
+    let classId = user.classId;
+    let sectionId = user.sectionId;
+
+    if (!classId || !sectionId) {
+      const enrollment = await LeavesRepository.getStudentEnrollment(user.profileId, user.schoolId);
+      if (!enrollment || !enrollment.class_id || !enrollment.section_id) {
+        throw new Error('STUDENT_ENROLLMENT_NOT_FOUND');
+      }
+      classId = enrollment.class_id;
+      sectionId = enrollment.section_id;
     }
 
     if (!this.isValidDateString(startDate) || !this.isValidDateString(endDate)) {
@@ -146,8 +158,8 @@ export class LeavesService {
     return await LeavesRepository.createStudentLeave(
       user.schoolId,
       user.profileId,
-      user.classId,
-      user.sectionId,
+      classId,
+      sectionId,
       startDate,
       endDate,
       reason.trim(),
