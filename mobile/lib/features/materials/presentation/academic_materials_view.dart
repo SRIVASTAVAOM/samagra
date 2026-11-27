@@ -56,10 +56,17 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.subjectName ?? "Subject"} Study Materials'),
+        title: Text(
+          '${widget.subjectName ?? "Subject"} Study Materials',
+          style: const TextStyle(
+            color: Color(0xFF14233F),
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         elevation: 0,
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.primaryText,
+        backgroundColor: const Color(0xFFFFFFFF),
+        foregroundColor: const Color(0xFF14233F),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primaryAccent),
@@ -270,8 +277,11 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
                   ),
                 ],
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.spaceBetween,
                   children: [
                     Text(
                       'By ${item.teacherName ?? "Teacher"}',

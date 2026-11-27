@@ -35,17 +35,17 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppColors.surface,
+              backgroundColor: const Color(0xFFFFFFFF),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: const BorderSide(color: AppColors.border),
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xFFE3ECF8), width: 1),
               ),
               title: const Text(
-                'Apply Student Leave',
+                'Apply for Leave',
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryText,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
                 ),
               ),
               content: Form(
@@ -54,85 +54,90 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Date selectors
+                      // Date Range Pickers
+                      const Text('Select Leave Dates', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+                      const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
-                            child: OutlinedButton(
+                            child: OutlinedButton.icon(
                               onPressed: () async {
                                 final picked = await showDatePicker(
                                   context: context,
-                                  initialDate: DateTime.tryParse(startDate) ??
-                                      DateTime.now(),
-                                  firstDate: DateTime.now().subtract(
-                                      const Duration(days: 30)),
-                                  lastDate: DateTime.now()
-                                      .add(const Duration(days: 90)),
+                                  initialDate: DateTime.tryParse(startDate) ?? DateTime.now(),
+                                  firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                                  lastDate: DateTime.now().add(const Duration(days: 90)),
                                 );
                                 if (picked != null) {
                                   setDialogState(() {
-                                    startDate = picked
-                                        .toIso8601String()
-                                        .split('T')[0];
+                                    startDate = picked.toIso8601String().split('T')[0];
                                   });
                                 }
                               },
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: AppColors.border),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 8),
-                              ),
-                              child: Text(
+                              icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                              label: Text(
                                 'From: $startDate',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.primaryText),
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFFE3ECF8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: OutlinedButton(
+                            child: OutlinedButton.icon(
                               onPressed: () async {
                                 final picked = await showDatePicker(
                                   context: context,
-                                  initialDate: DateTime.tryParse(endDate) ??
-                                      DateTime.now(),
-                                  firstDate: DateTime.now().subtract(
-                                      const Duration(days: 30)),
-                                  lastDate: DateTime.now()
-                                      .add(const Duration(days: 90)),
+                                  initialDate: DateTime.tryParse(endDate) ?? DateTime.now(),
+                                  firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                                  lastDate: DateTime.now().add(const Duration(days: 90)),
                                 );
                                 if (picked != null) {
                                   setDialogState(() {
-                                    endDate = picked
-                                        .toIso8601String()
-                                        .split('T')[0];
+                                    endDate = picked.toIso8601String().split('T')[0];
                                   });
                                 }
                               },
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: AppColors.border),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 8),
-                              ),
-                              child: Text(
+                              icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                              label: Text(
                                 'To: $endDate',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.primaryText),
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFFE3ECF8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
+
+                      // Reason TextField
+                      const Text('Reason for Leave', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+                      const SizedBox(height: 8),
                       TextFormField(
                         controller: reasonController,
                         maxLines: 3,
-                        decoration: const InputDecoration(
-                          labelText: 'Reason for leave',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          hintText: 'Explain your reason for taking leave...',
+                          hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Color(0xFFE3ECF8)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Color(0xFFE3ECF8)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Color(0xFF0284C7), width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.all(12),
                         ),
                         validator: (val) {
                           if (val == null || val.trim().isEmpty) {
@@ -141,34 +146,33 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 12),
-                      // Optional Document Attachment
+                      const SizedBox(height: 16),
+
+                      // Document Attachment
                       Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.border),
+                          color: const Color(0xFFF4F8FF),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Color(0xFFE3ECF8)),
                         ),
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: const [
-                                    Icon(Icons.attach_file,
-                                        size: 15,
-                                        color: AppColors.secondaryText),
-                                    SizedBox(width: 4),
+                                const Row(
+                                  children: [
+                                    Icon(Icons.attach_file, size: 15, color: Color(0xFF64748B)),
+                                    SizedBox(width: 6),
                                     Text(
                                       'Supporting Document (Optional)',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.primaryText,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0F172A),
                                       ),
                                     ),
                                   ],
@@ -185,7 +189,7 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                                       'Remove',
                                       style: TextStyle(
                                         fontSize: 10,
-                                        color: AppColors.error,
+                                        color: Color(0xFFE53935),
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -196,12 +200,10 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                             if (selectedDocumentName == null) ...[
                               OutlinedButton.icon(
                                 onPressed: () async {
-                                  final doc =
-                                      await DocumentPickerBottomSheet.show(
+                                  final doc = await DocumentPickerBottomSheet.show(
                                     dialogCtx,
                                     title: 'Attach Leave Document',
-                                    subtitle:
-                                        'Choose from device storage or take a photo with camera',
+                                    subtitle: 'Choose from device storage or take a photo with camera',
                                     categoryPrefix: 'leave_doc',
                                   );
                                   if (doc != null) {
@@ -211,29 +213,22 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                                     });
                                   }
                                 },
-                                icon: const Icon(Icons.upload_file, size: 15),
-                                label: const Text('Attach Document (Optional)',
-                                    style: TextStyle(fontSize: 11)),
+                                icon: const Icon(Icons.upload_file, size: 14),
+                                label: const Text('Attach Document', style: TextStyle(fontSize: 11)),
                                 style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                      color: AppColors.border),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
+                                  side: const BorderSide(color: Color(0xFFE3ECF8)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 ),
                               ),
                             ] else ...[
                               Row(
                                 children: [
                                   Icon(
-                                    selectedDocumentName!
-                                            .toLowerCase()
-                                            .endsWith('.pdf')
+                                    selectedDocumentName!.toLowerCase().endsWith('.pdf')
                                         ? Icons.picture_as_pdf
                                         : Icons.camera_alt_outlined,
                                     size: 16,
-                                    color: selectedDocumentName!
-                                            .toLowerCase()
-                                            .endsWith('.pdf')
+                                    color: selectedDocumentName!.toLowerCase().endsWith('.pdf')
                                         ? const Color(0xFFB91C1C)
                                         : const Color(0xFF2563EB),
                                   ),
@@ -242,9 +237,10 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                                     child: Text(
                                       selectedDocumentName!,
                                       style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                          color: AppColors.primaryText),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF0F172A),
+                                      ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -261,8 +257,7 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogCtx),
-                  child: const Text('Cancel',
-                      style: TextStyle(color: AppColors.secondaryText)),
+                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -280,11 +275,10 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryText,
-                    foregroundColor: AppColors.surface,
+                    backgroundColor: const Color(0xFF0284C7),
                     elevation: 0,
                   ),
-                  child: const Text('Submit Application'),
+                  child: const Text('Submit Application', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                 ),
               ],
             );
@@ -302,40 +296,49 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
-              backgroundColor: AppColors.primaryText,
+              backgroundColor: const Color(0xFF16A765),
             ),
           );
         }
       },
       child: Column(
         children: [
-          // Banner with disclaimer
+          // Header Banner
           Container(
             padding: const EdgeInsets.all(14),
             decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border(bottom: BorderSide(color: AppColors.border)),
+              color: Color(0xFFFFFFFF),
+              border: Border(bottom: BorderSide(color: Color(0xFFE3ECF8), width: 1)),
             ),
             child: Row(
               children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F8FF),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.calendar_today_outlined, size: 20, color: Color(0xFF0284C7)),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Student Leave Applications',
+                    children: const [
+                      Text(
+                        'Leave Applications',
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primaryText,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F172A),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Reviewed & approved by your Class Teacher or School Admin.',
+                      SizedBox(height: 2),
+                      Text(
+                        'Reviewed & approved by your Class Teacher',
                         style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.secondaryText,
+                          color: Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -344,13 +347,12 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                 ElevatedButton.icon(
                   onPressed: _openApplyDialog,
                   icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Apply'),
+                  label: const Text('Apply', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryText,
-                    foregroundColor: AppColors.surface,
+                    backgroundColor: const Color(0xFF0284C7),
+                    foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
               ],
@@ -377,25 +379,20 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.error_outline,
-                              size: 36, color: AppColors.error),
+                          const Icon(Icons.error_outline, size: 36, color: Color(0xFFE53935)),
                           const SizedBox(height: 12),
                           Text(
                             state.message,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.secondaryText),
+                            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
                           ),
                           const SizedBox(height: 16),
                           OutlinedButton(
                             onPressed: () {
-                              context
-                                  .read<LeavesBloc>()
-                                  .add(const LoadStudentMyLeavesEvent());
+                              context.read<LeavesBloc>().add(const LoadStudentMyLeavesEvent());
                             },
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.border),
+                              side: const BorderSide(color: Color(0xFFE3ECF8)),
                             ),
                             child: const Text('Retry'),
                           ),
@@ -409,13 +406,19 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
                   final leaves = state.leaves;
 
                   if (leaves.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: Text(
-                          'No leave applications submitted yet.',
-                          style: TextStyle(
-                              fontSize: 13, color: AppColors.secondaryText),
+                        padding: const EdgeInsets.all(32.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.calendar_today_outlined, size: 48, color: Color(0xFF64748B)),
+                            SizedBox(height: 12),
+                            Text(
+                              'No leave applications submitted yet',
+                              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -442,36 +445,43 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
   }
 
   Widget _buildLeaveCard(StudentLeaveModel leave) {
-    Color badgeColor;
-    Color badgeBg;
-    Color badgeBorder;
+    Color statusColor;
+    Color statusBg;
+    IconData statusIcon;
 
     switch (leave.status) {
       case 'APPROVED':
-        badgeColor = const Color(0xFF15803D);
-        badgeBg = const Color(0xFFF0FDF4);
-        badgeBorder = const Color(0xFF86EFAC);
+        statusColor = const Color(0xFF16A765);
+        statusBg = const Color(0xFFEAF9F0);
+        statusIcon = Icons.check_circle;
         break;
       case 'REJECTED':
-        badgeColor = const Color(0xFFB91C1C);
-        badgeBg = const Color(0xFFFEF2F2);
-        badgeBorder = const Color(0xFFFCA5A5);
+        statusColor = const Color(0xFFE53935);
+        statusBg = const Color(0xFFFEF2F2);
+        statusIcon = Icons.cancel;
         break;
       case 'PENDING':
       default:
-        badgeColor = const Color(0xFFB45309);
-        badgeBg = const Color(0xFFFFFBEB);
-        badgeBorder = const Color(0xFFFDE68A);
+        statusColor = const Color(0xFFF59E0B);
+        statusBg = const Color(0xFFFEF3C7);
+        statusIcon = Icons.hourglass_bottom;
         break;
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.border),
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE3ECF8), width: 1),
+        boxShadow: [
+          BoxShadow(
+            offset: const Offset(0, 2),
+            blurRadius: 8,
+            color: Colors.black.withValues(alpha: 0.04),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -479,93 +489,129 @@ class _StudentLeaveViewState extends State<StudentLeaveView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${leave.startDate} to ${leave.endDate}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryText,
-                ),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today_outlined, size: 16, color: Color(0xFF0284C7)),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${leave.startDate} to ${leave.endDate}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: badgeBg,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: badgeBorder),
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                 ),
-                child: Text(
-                  leave.status,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: badgeColor,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(statusIcon, size: 12, color: statusColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      leave.status,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             leave.reason,
             style: const TextStyle(
               fontSize: 12,
-              color: AppColors.primaryText,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF0F172A),
+              height: 1.4,
             ),
           ),
           if ((leave.remarks != null && leave.remarks!.isNotEmpty) ||
-              (leave.rejectionReason != null &&
-                  leave.rejectionReason!.isNotEmpty)) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Remarks: ${leave.remarks ?? leave.rejectionReason}',
-              style: TextStyle(
-                fontSize: 11,
-                fontStyle: FontStyle.italic,
-                color: leave.status == 'REJECTED'
-                    ? const Color(0xFFB91C1C)
-                    : const Color(0xFF15803D),
+              (leave.rejectionReason != null && leave.rejectionReason!.isNotEmpty)) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: statusBg,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 14, color: statusColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Remarks: ${leave.remarks ?? leave.rejectionReason}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: statusColor,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
           if ((leave.documentUrl != null && leave.documentUrl!.isNotEmpty) ||
               (leave.attachmentName != null && leave.attachmentName!.isNotEmpty)) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(Icons.attach_file, size: 13, color: AppColors.secondaryText),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    leave.attachmentName != null && leave.attachmentName!.isNotEmpty
-                        ? 'Doc: ${leave.attachmentName}'
-                        : 'Supporting Document Attached',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.secondaryText,
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F8FF),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFE3ECF8)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.attach_file, size: 13, color: Color(0xFF64748B)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      leave.attachmentName != null && leave.attachmentName!.isNotEmpty
+                          ? 'Doc: ${leave.attachmentName}'
+                          : 'Supporting Document Attached',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF64748B),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
-          if (leave.reviewedByName != null &&
-              leave.reviewedByName!.isNotEmpty) ...[
-            const SizedBox(height: 4),
+          if (leave.reviewedByName != null && leave.reviewedByName!.isNotEmpty) ...[
+            const SizedBox(height: 8),
             Text(
               'Reviewed by: ${leave.reviewedByName}',
               style: const TextStyle(
                 fontSize: 10,
-                color: AppColors.secondaryText,
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
         ],
       ),
     );
-
   }
 }

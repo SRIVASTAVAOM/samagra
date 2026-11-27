@@ -87,25 +87,42 @@ class StudentProfileView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Header Identity Card
+        // Student Information Card (Premium Design)
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border),
+            color: const Color(0xFFFFFFFF),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE3ECF8), width: 1),
+            boxShadow: [
+              BoxShadow(
+                offset: const Offset(0, 2),
+                blurRadius: 8,
+                color: Colors.black.withValues(alpha: 0.04),
+              ),
+            ],
           ),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: AppColors.scaffoldBackground,
-                child: Text(
-                  p.firstName.isNotEmpty ? p.firstName[0].toUpperCase() : 'S',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryText,
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0284C7), Color(0xFF24B9F2)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    p.firstName.isNotEmpty ? p.firstName[0].toUpperCase() : 'S',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -117,26 +134,37 @@ class StudentProfileView extends StatelessWidget {
                     Text(
                       p.fullName,
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primaryText,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
-                      'Adm: ${p.admissionNumber} • Roll: ${p.rollNumber ?? "N/A"}',
+                      'Adm: ${p.admissionNumber}',
                       style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.secondaryText,
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
                       ),
                     ),
+                    if (p.rollNumber != null && p.rollNumber!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Roll: ${p.rollNumber}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
                     if (p.className != null && p.sectionName != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'Class: ${p.className} - ${p.sectionName}',
+                        '${p.className} - ${p.sectionName}',
                         style: const TextStyle(
                           fontSize: 12,
-                          color: AppColors.secondaryText,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -146,27 +174,35 @@ class StudentProfileView extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
-        // Personal & Family Info (Read-only Institutional Records)
+        // Institutional Records (Read-only)
         _buildSectionCard(
-          title: 'Institutional Records (Read-only)',
+          title: 'Institutional Records',
+          titleIcon: Icons.school_outlined,
           rows: [
-            _buildRow('Date of Birth', p.dateOfBirth),
+            _buildRow('Date of Birth', _formatDate(p.dateOfBirth)),
             _buildRow('Gender', p.gender),
-            _buildRow('Admission Date', p.admissionDate),
-            if (p.fatherName != null) _buildRow("Father's Name", p.fatherName!),
-            if (p.motherName != null) _buildRow("Mother's Name", p.motherName!),
+            _buildRow('Admission Date', _formatDate(p.admissionDate)),
+            if (p.fatherName != null && p.fatherName!.isNotEmpty) _buildRow("Father's Name", p.fatherName!),
+            if (p.motherName != null && p.motherName!.isNotEmpty) _buildRow("Mother's Name", p.motherName!),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
-        // Editable Emergency & Health Information
+        // Emergency & Health Details
         Container(
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border),
+            color: const Color(0xFFFFFFFF),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE3ECF8), width: 1),
+            boxShadow: [
+              BoxShadow(
+                offset: const Offset(0, 2),
+                blurRadius: 8,
+                color: Colors.black.withValues(alpha: 0.04),
+              ),
+            ],
           ),
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -175,27 +211,56 @@ class StudentProfileView extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Emergency & Health Details',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryText,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4F8FF),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.health_and_safety_outlined, size: 18, color: Color(0xFF0284C7)),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Emergency & Health',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
                   ),
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  InkWell(
+                    onTap: () => _showEditDialog(context, p),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4F8FF),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFE3ECF8)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit_outlined, size: 14, color: Color(0xFF0284C7)),
+                          SizedBox(width: 4),
+                          Text(
+                            'Edit',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF0284C7),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    icon: const Icon(Icons.edit_outlined, size: 14),
-                    label: const Text('Edit', style: TextStyle(fontSize: 13)),
-                    onPressed: () => _showEditDialog(context, p),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               _buildRow('Emergency Phone', p.emergencyPhone ?? 'Not Provided'),
               _buildRow('Blood Group', p.bloodGroup ?? 'Not Provided'),
               _buildRow('Medical Notes', p.medicalNotes ?? 'None recorded'),
@@ -203,84 +268,204 @@ class StudentProfileView extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
-        // School Contact Details (Read-only verified database records)
-        _buildSectionCard(
-          title: 'School Contact & Institutional Details',
-          rows: [
-            _buildRow('School Name', p.schoolName ?? 'Apex International School'),
-            _buildRow('Helpline / Phone', p.schoolPhone ?? '+91 9876543210'),
-            _buildRow('Contact Email', p.schoolEmail ?? 'info@apexschool.edu'),
-            _buildRow('Campus Address', p.schoolAddress ?? '123 Education Lane, Knowledge Park'),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Account Security & Change Password
+        // Address Details
         Container(
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border),
+            color: const Color(0xFFFFFFFF),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE3ECF8), width: 1),
+            boxShadow: [
+              BoxShadow(
+                offset: const Offset(0, 2),
+                blurRadius: 8,
+                color: Colors.black.withValues(alpha: 0.04),
+              ),
+            ],
           ),
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Account Security',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryText,
-                ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4F8FF),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFF0284C7)),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Address Details',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 14),
+              _buildRow('Street Address', p.schoolAddress ?? 'Not Provided'),
+              _buildRow('City', 'Knowledge Park'),
+              _buildRow('State', 'Not Specified'),
+              _buildRow('Postal Code', 'N/A'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // School Contact Details (Read-only)
+        _buildSectionCard(
+          title: 'School Contact Details',
+          titleIcon: Icons.phone_outlined,
+          rows: [
+            _buildRow('School Name', p.schoolName ?? 'Apex International School'),
+            _buildRow('Phone', p.schoolPhone ?? '+91 9876543210'),
+            _buildRow('Email', p.schoolEmail ?? 'info@apexschool.edu'),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // Account Security & Change Password
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFFFF),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE3ECF8), width: 1),
+            boxShadow: [
+              BoxShadow(
+                offset: const Offset(0, 2),
+                blurRadius: 8,
+                color: Colors.black.withValues(alpha: 0.04),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4F8FF),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.lock_outline, size: 18, color: Color(0xFF0284C7)),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Account Security',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
               const Text(
                 'Change your password anytime to protect your personal account.',
-                style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.5),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
+                child: ElevatedButton.icon(
                   onPressed: () {
                     final authRepo = context.read<AuthRepository>();
                     ChangePasswordDialog.show(context, authRepo);
                   },
                   icon: const Icon(Icons.key, size: 16),
                   label: const Text('Change Password', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0284C7),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    elevation: 0,
+                  ),
                 ),
               ),
             ],
           ),
         ),
+        const SizedBox(height: 20),
       ],
     );
   }
 
+  String _formatDate(String dateStr) {
+    try {
+      if (dateStr.isEmpty) return 'Not Available';
+      final parts = dateStr.split('T')[0].split('-');
+      if (parts.length == 3) {
+        final year = parts[0];
+        final month = int.tryParse(parts[1]) ?? 1;
+        final day = int.tryParse(parts[2]) ?? 1;
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        final monthName = (month >= 1 && month <= 12) ? months[month - 1] : 'N/A';
+        return '$day $monthName $year';
+      }
+    } catch (_) {}
+    return dateStr;
+  }
 
-  Widget _buildSectionCard({required String title, required List<Widget> rows}) {
+
+  Widget _buildSectionCard({
+    required String title,
+    required List<Widget> rows,
+    IconData? titleIcon,
+  }) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE3ECF8), width: 1),
+        boxShadow: [
+          BoxShadow(
+            offset: const Offset(0, 2),
+            blurRadius: 8,
+            color: Colors.black.withValues(alpha: 0.04),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primaryText,
-            ),
+          Row(
+            children: [
+              if (titleIcon != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F8FF),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(titleIcon, size: 18, color: const Color(0xFF0284C7)),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           ...rows,
         ],
       ),
@@ -289,20 +474,32 @@ class StudentProfileView extends StatelessWidget {
 
   Widget _buildRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: 10.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF64748B),
+              ),
+            ),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppColors.primaryText,
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF0F172A),
+              ),
             ),
           ),
         ],
@@ -323,47 +520,32 @@ class StudentProfileView extends StatelessWidget {
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFFFFFFFF),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Color(0xFFE3ECF8), width: 1),
+          ),
           title: const Text(
             'Edit Emergency & Health',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
           ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Emergency Phone',
-                    hintText: '+91 9876543210',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: bloodGroupController,
-                  decoration: const InputDecoration(
-                    labelText: 'Blood Group',
-                    hintText: 'e.g. O+, A+, B-',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: notesController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Medical Notes / Allergies',
-                    hintText: 'e.g. Asthmatic, peanut allergy',
-                  ),
-                ),
+                _buildEditTextField(phoneController, 'Emergency Phone', '+91 9876543210'),
                 const SizedBox(height: 14),
+                _buildEditTextField(bloodGroupController, 'Blood Group', 'e.g. O+, A+, B-'),
+                const SizedBox(height: 14),
+                _buildEditTextField(notesController, 'Medical Notes / Allergies', 'e.g. Asthmatic, peanut allergy', maxLines: 2),
+                const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.scaffoldBackground,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.border),
+                    color: const Color(0xFFF4F8FF),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE3ECF8)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,12 +557,12 @@ class StudentProfileView extends StatelessWidget {
                             'Medical / ID Document (Optional)',
                             style: TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primaryText,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F172A),
                             ),
                           ),
                           if (docUrl != null && docUrl!.isNotEmpty)
-                            GestureDetector(
+                            InkWell(
                               onTap: () {
                                 setDialogState(() {
                                   docUrl = null;
@@ -391,14 +573,14 @@ class StudentProfileView extends StatelessWidget {
                                 'Remove',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: AppColors.error,
-                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFFE53935),
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       if (docName == null) ...[
                         OutlinedButton.icon(
                           onPressed: () async {
@@ -417,12 +599,12 @@ class StudentProfileView extends StatelessWidget {
                             }
                           },
                           icon: const Icon(Icons.upload_file, size: 14),
-                          label: const Text('Attach Document (Optional)',
+                          label: const Text('Attach Document',
                               style: TextStyle(fontSize: 11)),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppColors.border),
+                            side: const BorderSide(color: Color(0xFFE3ECF8)),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                                horizontal: 10, vertical: 6),
                           ),
                         ),
                       ] else ...[
@@ -443,8 +625,8 @@ class StudentProfileView extends StatelessWidget {
                                 docName!,
                                 style: const TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.primaryText,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF0F172A),
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -461,7 +643,7 @@ class StudentProfileView extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
             ),
             ElevatedButton(
               onPressed: () {
@@ -479,10 +661,45 @@ class StudentProfileView extends StatelessWidget {
                     );
                 Navigator.pop(dialogCtx);
               },
-              child: const Text('Save Changes'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0284C7),
+                elevation: 0,
+              ),
+              child: const Text('Save Changes', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEditTextField(
+    TextEditingController controller,
+    String label,
+    String hint, {
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+        hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFE3ECF8)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFE3ECF8)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF0284C7), width: 2),
+        ),
+        contentPadding: const EdgeInsets.all(12),
       ),
     );
   }

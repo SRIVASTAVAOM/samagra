@@ -49,10 +49,17 @@ class _CurriculumViewState extends State<CurriculumView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.subjectName ?? "Subject"} Syllabus & Curriculum'),
+        title: Text(
+          '${widget.subjectName ?? "Subject"} Syllabus & Curriculum',
+          style: const TextStyle(
+            color: Color(0xFF14233F),
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         elevation: 0,
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.primaryText,
+        backgroundColor: const Color(0xFFFFFFFF),
+        foregroundColor: const Color(0xFF14233F),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primaryAccent),

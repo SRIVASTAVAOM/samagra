@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../bloc/homework_bloc.dart';
@@ -93,17 +92,30 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
               children: [
                 // Section Heading
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'My Homework & Assignments',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryText,
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'My Homework & Assignments',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF14233F),
+                          ),
+                        ),
                       ),
-                    ),
+                      IconButton(
+                        tooltip: 'Refresh homework',
+                        onPressed: () => context
+                            .read<HomeworkBloc>()
+                            .add(const LoadStudentHomeworkEvent()),
+                        icon: const Icon(
+                          Icons.refresh_rounded,
+                          color: Color(0xFF1677F2),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -344,15 +356,24 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
           ),
           const SizedBox(height: 12),
 
-          // Due Date & Teacher Info Row
-          Row(
+          // Due Date & Teacher Info
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
+                  color: _formatDueDate(homework.dueDate).contains('OVERDUE')
+                      ? const Color(0xFFFEE2E2)
+                      : const Color(0xFFFFF7E6),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFCFBF00)),
+                  border: Border.all(
+                    color: _formatDueDate(homework.dueDate).contains('OVERDUE')
+                        ? const Color(0xFFE53935)
+                        : const Color(0xFFF59E0B),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -360,21 +381,24 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
                     Icon(
                       Icons.schedule,
                       size: 14,
-                      color: const Color(0xFFD97706),
+                      color: _formatDueDate(homework.dueDate).contains('OVERDUE')
+                          ? const Color(0xFFE53935)
+                          : const Color(0xFFD97706),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       _formatDueDate(homework.dueDate),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFFD97706),
+                        color: _formatDueDate(homework.dueDate).contains('OVERDUE')
+                            ? const Color(0xFFE53935)
+                            : const Color(0xFFD97706),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
               if (homework.teacherName != null)
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -407,7 +431,10 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
               child: OutlinedButton(
                 onPressed: () {
                   context.read<HomeworkBloc>().add(
-                        ToggleCompletionEvent(homework.id),
+                        ToggleHomeworkCompletionEvent(
+                          homework.id,
+                          homework.studentStatus,
+                        ),
                       );
                 },
                 style: OutlinedButton.styleFrom(
@@ -437,35 +464,55 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
               ),
             )
           else
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(
-                    color: Color(0xFF16A765),
-                    width: 1.5,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.visibility_outlined, size: 18),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'View Submission',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: homework.hasAttachment
+                        ? () => context.read<HomeworkBloc>().add(
+                              DownloadHomeworkAttachmentEvent(homework.id),
+                            )
+                        : () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('No submission attachment available'),
+                              ),
+                            );
+                          },
+                    icon: const Icon(Icons.visibility_outlined, size: 18),
+                    label: const Text('View Submission'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF16A765),
+                      side: const BorderSide(color: Color(0xFF16A765)),
+                      minimumSize: const Size(0, 44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.read<HomeworkBloc>().add(
+                          ToggleHomeworkCompletionEvent(
+                            homework.id,
+                            homework.studentStatus,
+                          ),
+                        ),
+                    icon: const Icon(Icons.replay_rounded, size: 18),
+                    label: const Text('Reopen'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF1677F2),
+                      side: const BorderSide(color: Color(0xFFE3ECF8)),
+                      minimumSize: const Size(0, 44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
 
           // Attachment Section
@@ -501,7 +548,7 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
                   InkWell(
                     onTap: () {
                       context.read<HomeworkBloc>().add(
-                            DownloadAttachmentEvent(homework.id),
+                            DownloadHomeworkAttachmentEvent(homework.id),
                           );
                     },
                     child: Icon(
@@ -616,8 +663,3 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
   }
 }
 
-// Extension on HomeworkBloc events
-extension HomeworkBlocExt on HomeworkBloc {
-  // These events should already exist in HomeworkBloc, but are referenced in this view
-  // ToggleCompletionEvent, DownloadAttachmentEvent
-}

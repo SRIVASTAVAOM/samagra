@@ -377,21 +377,22 @@ class _StudentShellState extends State<StudentShell> {
   Widget _buildAcademicsTab(BuildContext context) {
     return Column(
       children: [
-        // Sub-navigation bar
         Container(
           decoration: const BoxDecoration(
-            color: AppColors.surface,
+            color: Color(0xFFFFFFFF),
             border: Border(
-              bottom: BorderSide(color: AppColors.border),
+              bottom: BorderSide(color: Color(0xFFE3ECF8)),
             ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
             child: Row(
               children: [
                 _buildSubTabButton(
                   title: 'Homework',
+                  icon: Icons.assignment_outlined,
                   isSelected: _academicSubTab == 0,
                   onTap: () {
                     setState(() => _academicSubTab = 0);
@@ -403,6 +404,7 @@ class _StudentShellState extends State<StudentShell> {
                 const SizedBox(width: 8),
                 _buildSubTabButton(
                   title: 'Study Materials',
+                  icon: Icons.menu_book_outlined,
                   isSelected: _academicSubTab == 1,
                   onTap: () {
                     setState(() => _academicSubTab = 1);
@@ -418,6 +420,7 @@ class _StudentShellState extends State<StudentShell> {
                 const SizedBox(width: 8),
                 _buildSubTabButton(
                   title: 'Syllabus',
+                  icon: Icons.schema_outlined,
                   isSelected: _academicSubTab == 2,
                   onTap: () {
                     setState(() => _academicSubTab = 2);
@@ -433,6 +436,7 @@ class _StudentShellState extends State<StudentShell> {
                 const SizedBox(width: 8),
                 _buildSubTabButton(
                   title: 'Classmates',
+                  icon: Icons.groups_outlined,
                   isSelected: _academicSubTab == 3,
                   onTap: () {
                     setState(() => _academicSubTab = 3);
@@ -447,6 +451,7 @@ class _StudentShellState extends State<StudentShell> {
                 const SizedBox(width: 8),
                 _buildSubTabButton(
                   title: 'Birthdays',
+                  icon: Icons.cake_outlined,
                   isSelected: _academicSubTab == 4,
                   onTap: () {
                     setState(() => _academicSubTab = 4);
@@ -458,6 +463,7 @@ class _StudentShellState extends State<StudentShell> {
                 const SizedBox(width: 8),
                 _buildSubTabButton(
                   title: 'Teachers',
+                  icon: Icons.person_outline,
                   isSelected: _academicSubTab == 5,
                   onTap: () {
                     setState(() => _academicSubTab = 5);
@@ -469,6 +475,7 @@ class _StudentShellState extends State<StudentShell> {
                 const SizedBox(width: 8),
                 _buildSubTabButton(
                   title: 'Exams & Results',
+                  icon: Icons.assignment_turned_in_outlined,
                   isSelected: _academicSubTab == 6,
                   onTap: () {
                     setState(() => _academicSubTab = 6);
@@ -478,6 +485,7 @@ class _StudentShellState extends State<StudentShell> {
                 const SizedBox(width: 8),
                 _buildSubTabButton(
                   title: 'Online Classes',
+                  icon: Icons.videocam_outlined,
                   isSelected: _academicSubTab == 7,
                   onTap: () {
                     setState(() => _academicSubTab = 7);
@@ -641,6 +649,7 @@ class _StudentShellState extends State<StudentShell> {
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
                 selected: isSelected,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 label: Text(
                   sub.name,
                   style: TextStyle(
@@ -649,11 +658,11 @@ class _StudentShellState extends State<StudentShell> {
                     color: isSelected ? AppColors.surface : AppColors.primaryText,
                   ),
                 ),
-                backgroundColor: AppColors.scaffoldBackground,
-                selectedColor: AppColors.primaryText,
+                backgroundColor: AppColors.surface,
+                selectedColor: const Color(0xFF1677F2),
                 checkmarkColor: AppColors.surface,
                 side: BorderSide(
-                  color: isSelected ? AppColors.primaryText : AppColors.border,
+                  color: isSelected ? const Color(0xFF1677F2) : const Color(0xFFE3ECF8),
                 ),
                 onSelected: (val) {
                   if (val) {
@@ -764,27 +773,50 @@ class _StudentShellState extends State<StudentShell> {
     required String title,
     required bool isSelected,
     required VoidCallback onTap,
+    IconData? icon,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primaryText
-              : AppColors.scaffoldBackground,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: isSelected ? AppColors.primaryText : AppColors.border,
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          constraints: const BoxConstraints(minHeight: 42),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            gradient: isSelected
+                ? const LinearGradient(
+                    colors: [Color(0xFF1677F2), Color(0xFF24B9F2)],
+                  )
+                : null,
+            color: isSelected ? null : AppColors.surface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? const Color(0xFF1677F2) : const Color(0xFFE3ECF8),
+            ),
           ),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: isSelected ? AppColors.surface : AppColors.primaryText,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 17,
+                  color: isSelected ? Colors.white : const Color(0xFF64748B),
+                ),
+                const SizedBox(width: 7),
+              ],
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : const Color(0xFF14233F),
+                ),
+              ),
+            ],
           ),
         ),
       ),
