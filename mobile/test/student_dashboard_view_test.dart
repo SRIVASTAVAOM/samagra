@@ -415,6 +415,11 @@ void main() {
       await tester.tap(find.text('Fee'));
       await tester.pump();
       expect(tester.takeException(), isNull);
+      expect(find.byTooltip('Back'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Back'), findsNothing);
     });
 
     testWidgets('Tapping Add Menu opens Customize Quick Links bottom sheet', (tester) async {

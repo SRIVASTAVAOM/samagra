@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/samagra_back_button.dart';
 import '../../academics/bloc/academics_bloc.dart';
 import '../../academics/bloc/academics_event.dart';
 import '../../academics/bloc/academics_state.dart';
@@ -62,12 +63,17 @@ class StudentShell extends StatefulWidget {
 
 class _StudentShellState extends State<StudentShell> {
   int _selectedIndex = 0;
-  int _academicSubTab = 0; // 0: Homework, 1: Materials, 2: Syllabus, 3: Classmates, 4: Birthdays, 5: Teachers, 6: Exams
-  int _servicesSubTab = 0; // 0: Profile, 1: Leaves, 2: Notices, 3: Complaints, 4: Feedback, 5: Contact
+  int _academicSubTab =
+      0; // 0: Homework, 1: Materials, 2: Syllabus, 3: Classmates, 4: Birthdays, 5: Teachers, 6: Exams
+  int _servicesSubTab =
+      0; // 0: Profile, 1: Leaves, 2: Notices, 3: Complaints, 4: Feedback, 5: Contact
+  final List<_StudentNavigationLocation> _navigationHistory = [];
 
   List<SubjectModel> _subjects = [];
   SubjectModel? _selectedSubject;
   bool _loadingSubjects = false;
+  bool _handlingSystemBack = false;
+  final PageStorageBucket _pageStorageBucket = PageStorageBucket();
   CurriculumBloc? _curriculumBloc;
   MaterialsBloc? _materialsBloc;
 
@@ -109,7 +115,19 @@ class _StudentShellState extends State<StudentShell> {
     }
   }
 
-  void _navigateToTab(int tabIndex, {int? academicSubTab, int? servicesSubTab}) {
+  void _navigateToTab(
+    int tabIndex, {
+    int? academicSubTab,
+    int? servicesSubTab,
+  }) {
+    final nextLocation = _StudentNavigationLocation(
+      selectedIndex: tabIndex,
+      academicSubTab: academicSubTab ?? _academicSubTab,
+      servicesSubTab: servicesSubTab ?? _servicesSubTab,
+    );
+    if (!nextLocation.matches(_currentLocation)) {
+      _navigationHistory.add(_currentLocation);
+    }
     setState(() {
       _selectedIndex = tabIndex;
       if (academicSubTab != null) {
@@ -121,7 +139,9 @@ class _StudentShellState extends State<StudentShell> {
     });
 
     final classId = widget.user.classId ?? '';
-    final subjectId = _selectedSubject?.id ?? (_subjects.isNotEmpty ? _subjects.first.id : '');
+    final subjectId =
+        _selectedSubject?.id ??
+        (_subjects.isNotEmpty ? _subjects.first.id : '');
     if (tabIndex == 2 && classId.isNotEmpty && subjectId.isNotEmpty) {
       if (academicSubTab == 1) {
         _materialsBloc?.add(LoadClassMaterialsEvent(classId, subjectId));
@@ -131,48 +151,81 @@ class _StudentShellState extends State<StudentShell> {
     }
   }
 
+  _StudentNavigationLocation get _currentLocation => _StudentNavigationLocation(
+    selectedIndex: _selectedIndex,
+    academicSubTab: _academicSubTab,
+    servicesSubTab: _servicesSubTab,
+  );
+
+  bool get _canNavigateBack => _navigationHistory.isNotEmpty;
+
+  void _navigateBack() {
+    if (_navigationHistory.isEmpty || _handlingSystemBack) return;
+    _handlingSystemBack = true;
+    final previous = _navigationHistory.removeLast();
+    setState(() {
+      _selectedIndex = previous.selectedIndex;
+      _academicSubTab = previous.academicSubTab;
+      _servicesSubTab = previous.servicesSubTab;
+    });
+    Future<void>.delayed(const Duration(milliseconds: 250), () {
+      if (mounted) _handlingSystemBack = false;
+    });
+  }
+
+  void _navigateToAcademicSubTab(int subTab) {
+    if (_academicSubTab == subTab) return;
+    _navigationHistory.add(_currentLocation);
+    setState(() => _academicSubTab = subTab);
+  }
+
+  void _navigateToServicesSubTab(int subTab) {
+    if (_servicesSubTab == subTab) return;
+    _navigationHistory.add(_currentLocation);
+    setState(() => _servicesSubTab = subTab);
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (ctx) => AcademicsBloc(
-            repository: ctx.read<AcademicsRepository>(),
-          )..add(
-              LoadClassRosterEvent(
-                classId: widget.user.classId ?? '',
-                sectionId: widget.user.sectionId ?? '',
+          create: (ctx) =>
+              AcademicsBloc(repository: ctx.read<AcademicsRepository>())..add(
+                LoadClassRosterEvent(
+                  classId: widget.user.classId ?? '',
+                  sectionId: widget.user.sectionId ?? '',
+                ),
               ),
-            ),
         ),
         BlocProvider(
-          create: (ctx) => ProfileBloc(
-            repository: ctx.read<ProfileRepository>(),
-          )..add(LoadStudentProfileEvent()),
+          create: (ctx) =>
+              ProfileBloc(repository: ctx.read<ProfileRepository>())
+                ..add(LoadStudentProfileEvent()),
         ),
         BlocProvider(
-          create: (ctx) => AttendanceBloc(
-            repository: ctx.read<AttendanceRepository>(),
-          )..add(const LoadStudentOwnAttendanceEvent()),
+          create: (ctx) =>
+              AttendanceBloc(repository: ctx.read<AttendanceRepository>())
+                ..add(const LoadStudentOwnAttendanceEvent()),
         ),
         BlocProvider(
-          create: (ctx) => LeavesBloc(
-            repository: ctx.read<LeavesRepository>(),
-          )..add(const LoadStudentMyLeavesEvent()),
+          create: (ctx) =>
+              LeavesBloc(repository: ctx.read<LeavesRepository>())
+                ..add(const LoadStudentMyLeavesEvent()),
         ),
         BlocProvider(
-          create: (ctx) => HomeworkBloc(
-            ctx.read<HomeworkRepository>(),
-          )..add(const LoadStudentHomeworkEvent()),
+          create: (ctx) =>
+              HomeworkBloc(ctx.read<HomeworkRepository>())
+                ..add(const LoadStudentHomeworkEvent()),
         ),
         BlocProvider(
           create: (ctx) {
-            final bloc = CurriculumBloc(
-              ctx.read<CurriculumRepository>(),
-            );
+            final bloc = CurriculumBloc(ctx.read<CurriculumRepository>());
             _curriculumBloc = bloc;
             final classId = widget.user.classId ?? '';
-            final subjectId = _selectedSubject?.id ?? (_subjects.isNotEmpty ? _subjects.first.id : '');
+            final subjectId =
+                _selectedSubject?.id ??
+                (_subjects.isNotEmpty ? _subjects.first.id : '');
             if (classId.isNotEmpty && subjectId.isNotEmpty) {
               bloc.add(LoadCurriculumUnitsEvent(classId, subjectId));
             }
@@ -181,12 +234,12 @@ class _StudentShellState extends State<StudentShell> {
         ),
         BlocProvider(
           create: (ctx) {
-            final bloc = MaterialsBloc(
-              ctx.read<MaterialsRepository>(),
-            );
+            final bloc = MaterialsBloc(ctx.read<MaterialsRepository>());
             _materialsBloc = bloc;
             final classId = widget.user.classId ?? '';
-            final subjectId = _selectedSubject?.id ?? (_subjects.isNotEmpty ? _subjects.first.id : '');
+            final subjectId =
+                _selectedSubject?.id ??
+                (_subjects.isNotEmpty ? _subjects.first.id : '');
             if (classId.isNotEmpty && subjectId.isNotEmpty) {
               bloc.add(LoadClassMaterialsEvent(classId, subjectId));
             }
@@ -194,158 +247,204 @@ class _StudentShellState extends State<StudentShell> {
           },
         ),
         BlocProvider(
-          create: (ctx) => ExamsBloc(
-            repository: ctx.read<ExamsRepository>(),
-          )..add(const LoadExamsEvent()),
+          create: (ctx) =>
+              ExamsBloc(repository: ctx.read<ExamsRepository>())
+                ..add(const LoadExamsEvent()),
         ),
         BlocProvider(
-          create: (ctx) => StudentFeaturesBloc(
-            repository: ctx.read<StudentFeaturesRepository>(),
-          )..add(const LoadStudentNoticesEvent())
-           ..add(const LoadStudentFeesEvent()),
+          create: (ctx) =>
+              StudentFeaturesBloc(
+                  repository: ctx.read<StudentFeaturesRepository>(),
+                )
+                ..add(const LoadStudentNoticesEvent())
+                ..add(const LoadStudentFeesEvent()),
         ),
         BlocProvider(
-          create: (ctx) => ScheduleBloc(
-            repository: ctx.read<ScheduleRepository>(),
-          ),
+          create: (ctx) =>
+              ScheduleBloc(repository: ctx.read<ScheduleRepository>()),
         ),
       ],
       child: Builder(
         builder: (context) {
-          return Scaffold(
-            backgroundColor: AppColors.scaffoldBackground,
-            appBar: AppBar(
-              leading: Padding(
-                padding: const EdgeInsets.only(left: 14, top: 10, bottom: 10, right: 2),
-                child: Image.asset(
-                  'assets/images/logo_icon.png',
-                  fit: BoxFit.contain,
-                ),
-              ),
-              leadingWidth: 44,
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(_selectedIndex == 0 ? 'Student Dashboard' : widget.user.displayName),
-                  BlocBuilder<ProfileBloc, ProfileState>(
-                    builder: (context, state) {
-                      String subtitle = 'Student Portal';
-                      if (state is StudentProfileLoaded) {
-                        final isUuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
-                        final rawCls = state.profile.className;
-                        final rawSec = state.profile.sectionName;
-                        final cls = (rawCls != null && rawCls.trim().isNotEmpty && !isUuid.hasMatch(rawCls)) ? rawCls.trim() : 'Grade 10';
-                        final sec = (rawSec != null && rawSec.trim().isNotEmpty && !isUuid.hasMatch(rawSec)) ? rawSec.trim() : 'Section A';
-                        subtitle = '$cls • $sec';
-                        if (state.profile.rollNumber != null &&
-                            state.profile.rollNumber!.isNotEmpty &&
-                            !isUuid.hasMatch(state.profile.rollNumber!)) {
-                          subtitle += ' • Roll #${state.profile.rollNumber}';
+          return PopScope<Object?>(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop && !Navigator.of(context).canPop()) {
+                _navigateBack();
+              }
+            },
+            child: Scaffold(
+              backgroundColor: AppColors.scaffoldBackground,
+              appBar: AppBar(
+                leading: _selectedIndex != 0 &&
+                        _canNavigateBack &&
+                        !(_selectedIndex == 2 &&
+                            (_academicSubTab == 1 || _academicSubTab == 2))
+                    ? SamagraBackButton(onPressed: _navigateBack)
+                    : Padding(
+                        padding: const EdgeInsets.only(
+                          left: 14,
+                          top: 10,
+                          bottom: 10,
+                          right: 2,
+                        ),
+                        child: Image.asset(
+                          'assets/images/logo_icon.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                leadingWidth: 56,
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _selectedIndex == 0
+                          ? 'Student Dashboard'
+                          : widget.user.displayName,
+                    ),
+                    BlocBuilder<ProfileBloc, ProfileState>(
+                      builder: (context, state) {
+                        String subtitle = 'Student Portal';
+                        if (state is StudentProfileLoaded) {
+                          final isUuid = RegExp(
+                            r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+                          );
+                          final rawCls = state.profile.className;
+                          final rawSec = state.profile.sectionName;
+                          final cls =
+                              (rawCls != null &&
+                                  rawCls.trim().isNotEmpty &&
+                                  !isUuid.hasMatch(rawCls))
+                              ? rawCls.trim()
+                              : 'Grade 10';
+                          final sec =
+                              (rawSec != null &&
+                                  rawSec.trim().isNotEmpty &&
+                                  !isUuid.hasMatch(rawSec))
+                              ? rawSec.trim()
+                              : 'Section A';
+                          subtitle = '$cls • $sec';
+                          if (state.profile.rollNumber != null &&
+                              state.profile.rollNumber!.isNotEmpty &&
+                              !isUuid.hasMatch(state.profile.rollNumber!)) {
+                            subtitle += ' • Roll #${state.profile.rollNumber}';
+                          }
                         }
+                        return Text(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.secondaryText,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                actions: [
+                  BlocBuilder<StudentFeaturesBloc, StudentFeaturesState>(
+                    builder: (context, state) {
+                      int unreadCount = 0;
+                      if (state is StudentNoticesLoaded) {
+                        unreadCount = state.notices.length;
                       }
-                      return Text(
-                        subtitle,
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.secondaryText),
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          IconButton(
+                            tooltip: 'Notifications & Homework Alerts',
+                            icon: const Icon(
+                              Icons.notifications_outlined,
+                              size: 22,
+                              color: AppColors.primaryText,
+                            ),
+                            onPressed: () {
+                              _navigateToTab(4, servicesSubTab: 2);
+                            },
+                          ),
+                          if (unreadCount > 0)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFE11D48),
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 16,
+                                  minHeight: 16,
+                                ),
+                                child: Text(
+                                  unreadCount > 9 ? '9+' : '$unreadCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
                       );
+                    },
+                  ),
+                  IconButton(
+                    tooltip: 'Sign Out',
+                    icon: const Icon(
+                      Icons.logout,
+                      size: 20,
+                      color: AppColors.secondaryText,
+                    ),
+                    onPressed: () {
+                      context.read<AuthBloc>().add(LogoutRequestedEvent());
                     },
                   ),
                 ],
               ),
-              actions: [
-                BlocBuilder<StudentFeaturesBloc, StudentFeaturesState>(
-                  builder: (context, state) {
-                    int unreadCount = 0;
-                    if (state is StudentNoticesLoaded) {
-                      unreadCount = state.notices.length;
-                    }
-                    return Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        IconButton(
-                          tooltip: 'Notifications & Homework Alerts',
-                          icon: const Icon(Icons.notifications_outlined,
-                              size: 22, color: AppColors.primaryText),
-                          onPressed: () {
-                            _navigateToTab(4, servicesSubTab: 2);
-                          },
-                        ),
-                        if (unreadCount > 0)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.all(3),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFE11D48),
-                                shape: BoxShape.circle,
-                              ),
-                              constraints: const BoxConstraints(
-                                minWidth: 16,
-                                minHeight: 16,
-                              ),
-                              child: Text(
-                                unreadCount > 9 ? '9+' : '$unreadCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-                IconButton(
-                  tooltip: 'Sign Out',
-                  icon: const Icon(Icons.logout,
-                      size: 20, color: AppColors.secondaryText),
-                  onPressed: () {
-                    context.read<AuthBloc>().add(LogoutRequestedEvent());
-                  },
-                ),
-              ],
-            ),
-            body: _buildCurrentTab(context),
-            bottomNavigationBar: Container(
-              decoration: const BoxDecoration(
-                border: Border(
-                    top: BorderSide(color: AppColors.border, width: 1.0)),
+              body: PageStorage(
+                bucket: _pageStorageBucket,
+                child: _buildCurrentTab(context),
               ),
-              child: NavigationBar(
-                selectedIndex: _selectedIndex,
-                onDestinationSelected: (idx) =>
-                    setState(() => _selectedIndex = idx),
-                destinations: const [
-                  NavigationDestination(
-                    icon: Icon(Icons.dashboard_outlined),
-                    selectedIcon: Icon(Icons.dashboard),
-                    label: 'Dashboard',
+              bottomNavigationBar: Container(
+                decoration: const BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: AppColors.border, width: 1.0),
                   ),
-                  NavigationDestination(
-                    icon: Icon(Icons.fact_check_outlined),
-                    selectedIcon: Icon(Icons.fact_check),
-                    label: 'Attendance',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.menu_book_outlined),
-                    selectedIcon: Icon(Icons.menu_book),
-                    label: 'Academics',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.receipt_long_outlined),
-                    selectedIcon: Icon(Icons.receipt_long),
-                    label: 'Fees',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.apps_outlined),
-                    selectedIcon: Icon(Icons.apps),
-                    label: 'Services',
-                  ),
-                ],
+                ),
+                child: NavigationBar(
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: (idx) => _navigateToTab(idx),
+                  destinations: const [
+                    NavigationDestination(
+                      icon: Icon(Icons.dashboard_outlined),
+                      selectedIcon: Icon(Icons.dashboard),
+                      label: 'Dashboard',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.fact_check_outlined),
+                      selectedIcon: Icon(Icons.fact_check),
+                      label: 'Attendance',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.menu_book_outlined),
+                      selectedIcon: Icon(Icons.menu_book),
+                      label: 'Academics',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.receipt_long_outlined),
+                      selectedIcon: Icon(Icons.receipt_long),
+                      label: 'Fees',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.apps_outlined),
+                      selectedIcon: Icon(Icons.apps),
+                      label: 'Services',
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -380,9 +479,7 @@ class _StudentShellState extends State<StudentShell> {
         Container(
           decoration: const BoxDecoration(
             color: Color(0xFFFFFFFF),
-            border: Border(
-              bottom: BorderSide(color: Color(0xFFE3ECF8)),
-            ),
+            border: Border(bottom: BorderSide(color: Color(0xFFE3ECF8))),
           ),
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: SingleChildScrollView(
@@ -395,10 +492,10 @@ class _StudentShellState extends State<StudentShell> {
                   icon: Icons.assignment_outlined,
                   isSelected: _academicSubTab == 0,
                   onTap: () {
-                    setState(() => _academicSubTab = 0);
-                    context
-                        .read<HomeworkBloc>()
-                        .add(const LoadStudentHomeworkEvent());
+                    _navigateToAcademicSubTab(0);
+                    context.read<HomeworkBloc>().add(
+                      const LoadStudentHomeworkEvent(),
+                    );
                   },
                 ),
                 const SizedBox(width: 8),
@@ -407,13 +504,13 @@ class _StudentShellState extends State<StudentShell> {
                   icon: Icons.menu_book_outlined,
                   isSelected: _academicSubTab == 1,
                   onTap: () {
-                    setState(() => _academicSubTab = 1);
+                    _navigateToAcademicSubTab(1);
                     final classId = widget.user.classId ?? '';
                     final subjectId = _selectedSubject?.id ?? '';
                     if (classId.isNotEmpty && subjectId.isNotEmpty) {
                       context.read<MaterialsBloc>().add(
-                            LoadClassMaterialsEvent(classId, subjectId),
-                          );
+                        LoadClassMaterialsEvent(classId, subjectId),
+                      );
                     }
                   },
                 ),
@@ -423,13 +520,13 @@ class _StudentShellState extends State<StudentShell> {
                   icon: Icons.schema_outlined,
                   isSelected: _academicSubTab == 2,
                   onTap: () {
-                    setState(() => _academicSubTab = 2);
+                    _navigateToAcademicSubTab(2);
                     final classId = widget.user.classId ?? '';
                     final subjectId = _selectedSubject?.id ?? '';
                     if (classId.isNotEmpty && subjectId.isNotEmpty) {
                       context.read<CurriculumBloc>().add(
-                            LoadCurriculumUnitsEvent(classId, subjectId),
-                          );
+                        LoadCurriculumUnitsEvent(classId, subjectId),
+                      );
                     }
                   },
                 ),
@@ -439,13 +536,13 @@ class _StudentShellState extends State<StudentShell> {
                   icon: Icons.groups_outlined,
                   isSelected: _academicSubTab == 3,
                   onTap: () {
-                    setState(() => _academicSubTab = 3);
+                    _navigateToAcademicSubTab(3);
                     context.read<AcademicsBloc>().add(
-                          LoadClassRosterEvent(
-                            classId: widget.user.classId ?? '',
-                            sectionId: widget.user.sectionId ?? '',
-                          ),
-                        );
+                      LoadClassRosterEvent(
+                        classId: widget.user.classId ?? '',
+                        sectionId: widget.user.sectionId ?? '',
+                      ),
+                    );
                   },
                 ),
                 const SizedBox(width: 8),
@@ -454,10 +551,10 @@ class _StudentShellState extends State<StudentShell> {
                   icon: Icons.cake_outlined,
                   isSelected: _academicSubTab == 4,
                   onTap: () {
-                    setState(() => _academicSubTab = 4);
-                    context
-                        .read<AcademicsBloc>()
-                        .add(LoadClassmatesBirthdaysEvent());
+                    _navigateToAcademicSubTab(4);
+                    context.read<AcademicsBloc>().add(
+                      LoadClassmatesBirthdaysEvent(),
+                    );
                   },
                 ),
                 const SizedBox(width: 8),
@@ -466,10 +563,10 @@ class _StudentShellState extends State<StudentShell> {
                   icon: Icons.person_outline,
                   isSelected: _academicSubTab == 5,
                   onTap: () {
-                    setState(() => _academicSubTab = 5);
-                    context
-                        .read<AcademicsBloc>()
-                        .add(LoadSubjectTeachersEvent());
+                    _navigateToAcademicSubTab(5);
+                    context.read<AcademicsBloc>().add(
+                      LoadSubjectTeachersEvent(),
+                    );
                   },
                 ),
                 const SizedBox(width: 8),
@@ -478,7 +575,7 @@ class _StudentShellState extends State<StudentShell> {
                   icon: Icons.assignment_turned_in_outlined,
                   isSelected: _academicSubTab == 6,
                   onTap: () {
-                    setState(() => _academicSubTab = 6);
+                    _navigateToAcademicSubTab(6);
                     context.read<ExamsBloc>().add(const LoadExamsEvent());
                   },
                 ),
@@ -488,8 +585,10 @@ class _StudentShellState extends State<StudentShell> {
                   icon: Icons.videocam_outlined,
                   isSelected: _academicSubTab == 7,
                   onTap: () {
-                    setState(() => _academicSubTab = 7);
-                    context.read<ScheduleBloc>().add(const LoadOnlineClassesEvent());
+                    _navigateToAcademicSubTab(7);
+                    context.read<ScheduleBloc>().add(
+                      const LoadOnlineClassesEvent(),
+                    );
                   },
                 ),
               ],
@@ -508,7 +607,9 @@ class _StudentShellState extends State<StudentShell> {
               }
               if (_academicSubTab == 1) {
                 final classId = widget.user.classId ?? '';
-                final currentSub = _selectedSubject ?? (_subjects.isNotEmpty ? _subjects.first : null);
+                final currentSub =
+                    _selectedSubject ??
+                    (_subjects.isNotEmpty ? _subjects.first : null);
                 return Column(
                   children: [
                     _buildSubjectSelectorChips(context, isMaterials: true),
@@ -518,6 +619,8 @@ class _StudentShellState extends State<StudentShell> {
                         classId: classId,
                         subjectId: currentSub?.id ?? '',
                         subjectName: currentSub?.name,
+                        showBackButton: _canNavigateBack,
+                        onBack: _navigateBack,
                       ),
                     ),
                   ],
@@ -525,7 +628,9 @@ class _StudentShellState extends State<StudentShell> {
               }
               if (_academicSubTab == 2) {
                 final classId = widget.user.classId ?? '';
-                final currentSub = _selectedSubject ?? (_subjects.isNotEmpty ? _subjects.first : null);
+                final currentSub =
+                    _selectedSubject ??
+                    (_subjects.isNotEmpty ? _subjects.first : null);
                 return Column(
                   children: [
                     _buildSubjectSelectorChips(context, isMaterials: false),
@@ -534,6 +639,8 @@ class _StudentShellState extends State<StudentShell> {
                         key: ValueKey('curr-$classId-${currentSub?.id}'),
                         classId: classId,
                         subjectId: currentSub?.id ?? '',
+                        showBackButton: _canNavigateBack,
+                        onBack: _navigateBack,
                       ),
                     ),
                   ],
@@ -565,36 +672,38 @@ class _StudentShellState extends State<StudentShell> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.error_outline,
-                                size: 36, color: AppColors.error),
+                            const Icon(
+                              Icons.error_outline,
+                              size: 36,
+                              color: AppColors.error,
+                            ),
                             const SizedBox(height: 12),
                             Text(
                               state.message,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.secondaryText),
+                                fontSize: 13,
+                                color: AppColors.secondaryText,
+                              ),
                             ),
                             const SizedBox(height: 16),
                             OutlinedButton(
                               onPressed: () {
                                 if (_academicSubTab == 3) {
                                   context.read<AcademicsBloc>().add(
-                                        LoadClassRosterEvent(
-                                          classId: widget.user.classId ?? '',
-                                          sectionId:
-                                              widget.user.sectionId ?? '',
-                                        ),
-                                      );
+                                    LoadClassRosterEvent(
+                                      classId: widget.user.classId ?? '',
+                                      sectionId: widget.user.sectionId ?? '',
+                                    ),
+                                  );
                                 } else if (_academicSubTab == 5) {
-                                  context
-                                      .read<AcademicsBloc>()
-                                      .add(LoadSubjectTeachersEvent());
+                                  context.read<AcademicsBloc>().add(
+                                    LoadSubjectTeachersEvent(),
+                                  );
                                 }
                               },
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(
-                                    color: AppColors.border),
+                                side: const BorderSide(color: AppColors.border),
                               ),
                               child: const Text('Retry'),
                             ),
@@ -624,7 +733,10 @@ class _StudentShellState extends State<StudentShell> {
     );
   }
 
-  Widget _buildSubjectSelectorChips(BuildContext context, {required bool isMaterials}) {
+  Widget _buildSubjectSelectorChips(
+    BuildContext context, {
+    required bool isMaterials,
+  }) {
     if (_loadingSubjects) {
       return const Padding(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -654,15 +766,21 @@ class _StudentShellState extends State<StudentShell> {
                   sub.name,
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: isSelected ? AppColors.surface : AppColors.primaryText,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                    color: isSelected
+                        ? AppColors.surface
+                        : AppColors.primaryText,
                   ),
                 ),
                 backgroundColor: AppColors.surface,
                 selectedColor: const Color(0xFF1677F2),
                 checkmarkColor: AppColors.surface,
                 side: BorderSide(
-                  color: isSelected ? const Color(0xFF1677F2) : const Color(0xFFE3ECF8),
+                  color: isSelected
+                      ? const Color(0xFF1677F2)
+                      : const Color(0xFFE3ECF8),
                 ),
                 onSelected: (val) {
                   if (val) {
@@ -671,12 +789,12 @@ class _StudentShellState extends State<StudentShell> {
                     if (classId.isNotEmpty) {
                       if (isMaterials) {
                         context.read<MaterialsBloc>().add(
-                              LoadClassMaterialsEvent(classId, sub.id),
-                            );
+                          LoadClassMaterialsEvent(classId, sub.id),
+                        );
                       } else {
                         context.read<CurriculumBloc>().add(
-                              LoadCurriculumUnitsEvent(classId, sub.id),
-                            );
+                          LoadCurriculumUnitsEvent(classId, sub.id),
+                        );
                       }
                     }
                   }
@@ -696,9 +814,7 @@ class _StudentShellState extends State<StudentShell> {
         Container(
           decoration: const BoxDecoration(
             color: AppColors.surface,
-            border: Border(
-              bottom: BorderSide(color: AppColors.border),
-            ),
+            border: Border(bottom: BorderSide(color: AppColors.border)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: SingleChildScrollView(
@@ -708,45 +824,43 @@ class _StudentShellState extends State<StudentShell> {
                 _buildSubTabButton(
                   title: 'My Profile',
                   isSelected: _servicesSubTab == 0,
-                  onTap: () => setState(() => _servicesSubTab = 0),
+                  onTap: () => _navigateToServicesSubTab(0),
                 ),
                 const SizedBox(width: 8),
                 _buildSubTabButton(
                   title: 'Leave Applications',
                   isSelected: _servicesSubTab == 1,
-                  onTap: () => setState(() => _servicesSubTab = 1),
+                  onTap: () => _navigateToServicesSubTab(1),
                 ),
                 const SizedBox(width: 8),
                 _buildSubTabButton(
                   title: 'Notices',
                   isSelected: _servicesSubTab == 2,
-                  onTap: () => setState(() => _servicesSubTab = 2),
+                  onTap: () => _navigateToServicesSubTab(2),
                 ),
                 const SizedBox(width: 8),
                 _buildSubTabButton(
                   title: 'Complaints',
                   isSelected: _servicesSubTab == 3,
-                  onTap: () => setState(() => _servicesSubTab = 3),
+                  onTap: () => _navigateToServicesSubTab(3),
                 ),
                 const SizedBox(width: 8),
                 _buildSubTabButton(
                   title: 'School Feedback',
                   isSelected: _servicesSubTab == 4,
-                  onTap: () => setState(() => _servicesSubTab = 4),
+                  onTap: () => _navigateToServicesSubTab(4),
                 ),
                 const SizedBox(width: 8),
                 _buildSubTabButton(
                   title: 'School Contact',
                   isSelected: _servicesSubTab == 5,
-                  onTap: () => setState(() => _servicesSubTab = 5),
+                  onTap: () => _navigateToServicesSubTab(5),
                 ),
               ],
             ),
           ),
         ),
-        Expanded(
-          child: _buildServicesContent(),
-        ),
+        Expanded(child: _buildServicesContent()),
       ],
     );
   }
@@ -794,7 +908,9 @@ class _StudentShellState extends State<StudentShell> {
             color: isSelected ? null : AppColors.surface,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? const Color(0xFF1677F2) : const Color(0xFFE3ECF8),
+              color: isSelected
+                  ? const Color(0xFF1677F2)
+                  : const Color(0xFFE3ECF8),
             ),
           ),
           child: Row(
@@ -822,4 +938,21 @@ class _StudentShellState extends State<StudentShell> {
       ),
     );
   }
+}
+
+class _StudentNavigationLocation {
+  final int selectedIndex;
+  final int academicSubTab;
+  final int servicesSubTab;
+
+  const _StudentNavigationLocation({
+    required this.selectedIndex,
+    required this.academicSubTab,
+    required this.servicesSubTab,
+  });
+
+  bool matches(_StudentNavigationLocation other) =>
+      selectedIndex == other.selectedIndex &&
+      academicSubTab == other.academicSubTab &&
+      servicesSubTab == other.servicesSubTab;
 }

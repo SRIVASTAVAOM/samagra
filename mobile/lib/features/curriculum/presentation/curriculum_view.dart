@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../core/widgets/samagra_back_button.dart';
 import '../bloc/curriculum_bloc.dart';
 import '../models/curriculum_model.dart';
 
@@ -9,6 +10,8 @@ class CurriculumView extends StatefulWidget {
   final String subjectId;
   final String? className;
   final String? subjectName;
+  final bool? showBackButton;
+  final VoidCallback? onBack;
 
   const CurriculumView({
     super.key,
@@ -16,6 +19,8 @@ class CurriculumView extends StatefulWidget {
     required this.subjectId,
     this.className,
     this.subjectName,
+    this.showBackButton,
+    this.onBack,
   });
 
   @override
@@ -28,20 +33,21 @@ class _CurriculumViewState extends State<CurriculumView> {
     super.initState();
     if (widget.classId.isNotEmpty && widget.subjectId.isNotEmpty) {
       context.read<CurriculumBloc>().add(
-            LoadCurriculumUnitsEvent(widget.classId, widget.subjectId),
-          );
+        LoadCurriculumUnitsEvent(widget.classId, widget.subjectId),
+      );
     }
   }
 
   @override
   void didUpdateWidget(CurriculumView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if ((oldWidget.classId != widget.classId || oldWidget.subjectId != widget.subjectId) &&
+    if ((oldWidget.classId != widget.classId ||
+            oldWidget.subjectId != widget.subjectId) &&
         widget.classId.isNotEmpty &&
         widget.subjectId.isNotEmpty) {
       context.read<CurriculumBloc>().add(
-            LoadCurriculumUnitsEvent(widget.classId, widget.subjectId),
-          );
+        LoadCurriculumUnitsEvent(widget.classId, widget.subjectId),
+      );
     }
   }
 
@@ -49,6 +55,10 @@ class _CurriculumViewState extends State<CurriculumView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: (widget.showBackButton ?? Navigator.of(context).canPop())
+            ? SamagraBackButton(onPressed: widget.onBack)
+            : null,
         title: Text(
           '${widget.subjectName ?? "Subject"} Syllabus & Curriculum',
           style: const TextStyle(
@@ -66,8 +76,8 @@ class _CurriculumViewState extends State<CurriculumView> {
             onPressed: () {
               if (widget.classId.isNotEmpty && widget.subjectId.isNotEmpty) {
                 context.read<CurriculumBloc>().add(
-                      LoadCurriculumUnitsEvent(widget.classId, widget.subjectId),
-                    );
+                  LoadCurriculumUnitsEvent(widget.classId, widget.subjectId),
+                );
               }
             },
           ),
@@ -86,62 +96,78 @@ class _CurriculumViewState extends State<CurriculumView> {
               ),
             )
           : BlocConsumer<CurriculumBloc, CurriculumState>(
-        listener: (context, state) {
-          if (state is CurriculumError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
-            );
-          }
-        },
-        builder: (context, state) {
-          if (state is CurriculumLoading) {
-            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-          }
-
-          if (state is CurriculumLoaded) {
-            final units = state.units;
-            if (units.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.menu_book_outlined, size: 48, color: AppColors.tertiaryText),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'No curriculum units defined yet',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.secondaryText),
+              listener: (context, state) {
+                if (state is CurriculumError) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(state.message),
+                      backgroundColor: AppColors.error,
                     ),
-                  ],
-                ),
-              );
-            }
-
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: units.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                return _buildUnitCard(units[index]);
+                  );
+                }
               },
-            );
-          }
+              builder: (context, state) {
+                if (state is CurriculumLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  );
+                }
 
-          return Center(
-            child: ElevatedButton(
-              onPressed: () {
-                context.read<CurriculumBloc>().add(
-                      LoadCurriculumUnitsEvent(widget.classId, widget.subjectId),
+                if (state is CurriculumLoaded) {
+                  final units = state.units;
+                  if (units.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.menu_book_outlined,
+                            size: 48,
+                            color: AppColors.tertiaryText,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'No curriculum units defined yet',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.secondaryText,
+                            ),
+                          ),
+                        ],
+                      ),
                     );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: units.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      return _buildUnitCard(units[index]);
+                    },
+                  );
+                }
+
+                return Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      context.read<CurriculumBloc>().add(
+                        LoadCurriculumUnitsEvent(
+                          widget.classId,
+                          widget.subjectId,
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryAccent,
+                      foregroundColor: AppColors.surface,
+                    ),
+                    child: const Text('Load Curriculum'),
+                  ),
+                );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryAccent,
-                foregroundColor: AppColors.surface,
-              ),
-              child: const Text('Load Curriculum'),
             ),
-          );
-        },
-      ),
     );
   }
 
@@ -165,56 +191,78 @@ class _CurriculumViewState extends State<CurriculumView> {
           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
             initiallyExpanded: true,
-            tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
             leading: CircleAvatar(
               backgroundColor: AppColors.indigo50,
               radius: 18,
               child: Text(
                 '${unit.unitNumber}',
-                style: const TextStyle(color: AppColors.primaryAccent, fontWeight: FontWeight.bold, fontSize: 13),
+                style: const TextStyle(
+                  color: AppColors.primaryAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
               ),
             ),
-          title: Text(
-            unit.title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primaryText),
-          ),
-          subtitle: unit.description != null
-              ? Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    unit.description!,
-                    style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
-                  ),
-                )
-              : null,
-          children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Divider(color: AppColors.borderLight, height: 1),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Topics & Learning Objectives',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondaryText),
-                  ),
-                  const SizedBox(height: 8),
-                  if (unit.topics.isEmpty)
+            title: Text(
+              unit.title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                color: AppColors.primaryText,
+              ),
+            ),
+            subtitle: unit.description != null
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      unit.description!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.secondaryText,
+                      ),
+                    ),
+                  )
+                : null,
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Divider(color: AppColors.borderLight, height: 1),
+                    const SizedBox(height: 12),
                     const Text(
-                      'No sub-topics added to this unit yet.',
-                      style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: AppColors.tertiaryText),
-                    )
-                  else
-                    ...unit.topics.map((t) => _buildTopicTile(t)),
-                ],
+                      'Topics & Learning Objectives',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.secondaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (unit.topics.isEmpty)
+                      const Text(
+                        'No sub-topics added to this unit yet.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                          color: AppColors.tertiaryText,
+                        ),
+                      )
+                    else
+                      ...unit.topics.map((t) => _buildTopicTile(t)),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildTopicTile(CurriculumTopicModel topic) {
@@ -232,7 +280,11 @@ class _CurriculumViewState extends State<CurriculumView> {
             ),
             child: Text(
               '${topic.topicNumber}',
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryText,
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -242,13 +294,20 @@ class _CurriculumViewState extends State<CurriculumView> {
               children: [
                 Text(
                   topic.title,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryText),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryText,
+                  ),
                 ),
                 if (topic.learningObjectives != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     'Objective: ${topic.learningObjectives!}',
-                    style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.secondaryText,
+                    ),
                   ),
                 ],
               ],

@@ -20,6 +20,7 @@ class StudentHomeworkView extends StatefulWidget {
 
 class _StudentHomeworkViewState extends State<StudentHomeworkView> {
   String _selectedFilter = 'ALL'; // 'ALL', 'PENDING', 'COMPLETED'
+  bool _filterRestored = false;
 
   @override
   void initState() {
@@ -28,8 +29,24 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_filterRestored) return;
+    final storedFilter = PageStorage.of(context).readState(
+      context,
+      identifier: const ValueKey('student-homework-filter'),
+    );
+    if (storedFilter is String &&
+        const {'ALL', 'PENDING', 'COMPLETED'}.contains(storedFilter)) {
+      _selectedFilter = storedFilter;
+    }
+    _filterRestored = true;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
+      key: const PageStorageKey<String>('student-homework-view'),
       color: const Color(0xFFF4F8FF), // Very light blue background
       child: BlocConsumer<HomeworkBloc, HomeworkState>(
         listener: (context, state) {
@@ -240,7 +257,14 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
   Widget _buildFilterChip(String filterKey, String label) {
     final isSelected = _selectedFilter == filterKey;
     return InkWell(
-      onTap: () => setState(() => _selectedFilter = filterKey),
+      onTap: () {
+        setState(() => _selectedFilter = filterKey);
+        PageStorage.of(context).writeState(
+          context,
+          filterKey,
+          identifier: const ValueKey('student-homework-filter'),
+        );
+      },
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
