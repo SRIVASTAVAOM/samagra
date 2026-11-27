@@ -97,7 +97,14 @@ export class AcademicsController {
     try {
       const roster = await AcademicsService.getMyTeacherRoster(req.user!);
       res.status(200).json({ success: true, data: roster });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'PROFILE_NOT_FOUND') {
+        res.status(404).json({
+          success: false,
+          error: 'Teacher staff profile not found.',
+        });
+        return;
+      }
       next(error);
     }
   }
@@ -106,7 +113,14 @@ export class AcademicsController {
     try {
       const data = await AcademicsService.getTeacherAllocations(req.user!);
       res.status(200).json({ success: true, data });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'PROFILE_NOT_FOUND') {
+        res.status(404).json({
+          success: false,
+          error: 'Teacher staff profile not found.',
+        });
+        return;
+      }
       next(error);
     }
   }

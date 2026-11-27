@@ -3,6 +3,16 @@ import { TokenPayload } from '../../types/auth.types';
 import { NoticeService } from '../notices/notice.service';
 
 export class AcademicsService {
+  private static async resolveStaffId(user: TokenPayload): Promise<string> {
+    if (user.profileId) return user.profileId;
+    if (user.userId) {
+      const scopedSchoolId = user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId;
+      const resolved = await AcademicsRepository.resolveStaffProfileId(user.userId, scopedSchoolId);
+      if (resolved) return resolved;
+    }
+    throw new Error('PROFILE_NOT_FOUND');
+  }
+
   static async getClassesAndSections(schoolId: string): Promise<any[]> {
     return await AcademicsRepository.getClassesAndSections(schoolId);
   }
@@ -94,10 +104,19 @@ export class AcademicsService {
 
     // 2. Data-Scope check for Teacher: Teacher must teach or be class teacher for this class/section
     if (user.roles.includes('TEACHER') && !user.roles.includes('ADMIN') && !user.roles.includes('SUPER_ADMIN')) {
-      const allocations = await AcademicsRepository.getTeacherAllocations(user.profileId!);
-      const isAllocated = allocations.some(
-        (a: any) => a.class_id === classId && a.section_id === sectionId
-      ) || (user.classId === classId && user.sectionId === sectionId);
+      const staffId = await this.resolveStaffId(user);
+      const isHomeroomTeacher = await AcademicsRepository.isTeacherClassTeacher(
+        staffId,
+        classId,
+        sectionId,
+        user.schoolId
+      );
+      const allocations = isHomeroomTeacher
+        ? []
+        : await AcademicsRepository.getTeacherAllocations(staffId, user.schoolId);
+      const isAllocated =
+        isHomeroomTeacher ||
+        allocations.some((a: any) => a.class_id === classId && a.section_id === sectionId);
 
       if (!isAllocated) {
         throw new Error('FORBIDDEN_SCOPE');
@@ -132,20 +151,22 @@ export class AcademicsService {
   }
 
   static async getMyTeacherRoster(user: TokenPayload): Promise<StudentRosterItem[]> {
-    if (!user.profileId) {
-      throw new Error('PROFILE_NOT_FOUND');
-    }
-    return await AcademicsRepository.getTeacherClassStudents(user.profileId);
+    const staffId = await this.resolveStaffId(user);
+    const scopedSchoolId = user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId;
+    return await AcademicsRepository.getTeacherClassStudents(staffId, scopedSchoolId);
   }
 
   static async getTeacherAllocations(user: TokenPayload) {
-    if (!user.profileId) {
-      throw new Error('PROFILE_NOT_FOUND');
-    }
-    const homeroom = await AcademicsRepository.getTeacherHomeroom(user.profileId);
+    const staffId = await this.resolveStaffId(user);
+    const scopedSchoolId = user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId;
+    const homeroom = await AcademicsRepository.getTeacherHomeroom(
+      staffId,
+      user.userId,
+      scopedSchoolId
+    );
     const allocations = await AcademicsRepository.getTeacherAllocations(
-      user.profileId,
-      user.roles.includes('SUPER_ADMIN') ? undefined : user.schoolId
+      staffId,
+      scopedSchoolId
     );
     return {
       homeroom,

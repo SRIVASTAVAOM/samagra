@@ -201,6 +201,24 @@ describe('Profile Viewing & Editing API Tests', () => {
       expect(res.status).toBe(404);
       expect(res.body.success).toBe(false);
     });
+
+    it('PATCH /api/v1/profiles/student/:studentId/by-teacher rejects malformed studentId with 400 and supports clearing optional fields', async () => {
+      const badIdRes = await request(app)
+        .patch('/api/v1/profiles/student/not-a-valid-uuid/by-teacher')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send({ roll_number: '15' });
+      expect(badIdRes.status).toBe(400);
+      expect(badIdRes.body.success).toBe(false);
+
+      const clearRes = await request(app)
+        .patch(`/api/v1/profiles/student/${studentId}/by-teacher`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send({
+          medical_notes: '',
+        });
+      expect(clearRes.status).toBe(200);
+      expect(clearRes.body.data.medical_notes).toBeNull();
+    });
   });
 
   describe('Tenant School Contact Sync', () => {

@@ -67,17 +67,36 @@ const staffUpdateSchema = z
     blood_group: data.blood_group !== undefined ? data.blood_group : data.bloodGroup,
   }));
 
+const emptyToNullString = (max: number, min?: number) => {
+  let schema = z.string().max(max);
+  if (min !== undefined) {
+    schema = schema.min(min);
+  }
+  return z.preprocess(
+    (val) => {
+      if (val === undefined) return undefined;
+      if (val === null) return null;
+      if (typeof val === 'string') {
+        const trimmed = val.trim();
+        return trimmed === '' ? null : trimmed;
+      }
+      return val;
+    },
+    schema.nullable().optional()
+  );
+};
+
 const teacherUpdateStudentSchema = z
   .object({
-    roll_number: z.string().max(20).optional().nullable(),
-    rollNumber: z.string().max(20).optional().nullable(),
-    blood_group: z.string().max(10).optional().nullable(),
-    bloodGroup: z.string().max(10).optional().nullable(),
-    emergency_contact_phone: z.string().min(5).max(20).optional().nullable(),
-    emergency_phone: z.string().min(5).max(20).optional().nullable(),
-    emergencyPhone: z.string().min(5).max(20).optional().nullable(),
-    medical_notes: z.string().max(500).optional().nullable(),
-    medicalNotes: z.string().max(500).optional().nullable(),
+    roll_number: emptyToNullString(20),
+    rollNumber: emptyToNullString(20),
+    blood_group: emptyToNullString(10),
+    bloodGroup: emptyToNullString(10),
+    emergency_contact_phone: emptyToNullString(20, 5),
+    emergency_phone: emptyToNullString(20, 5),
+    emergencyPhone: emptyToNullString(20, 5),
+    medical_notes: emptyToNullString(500),
+    medicalNotes: emptyToNullString(500),
     document_url: z.string().nullable().optional(),
     documentUrl: z.string().nullable().optional(),
   })
@@ -350,6 +369,14 @@ export class ProfileController {
   ): Promise<void> {
     try {
       const { studentId } = req.params;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(studentId)) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid studentId format.',
+        });
+        return;
+      }
       const validation = teacherUpdateStudentSchema.safeParse(req.body);
       if (!validation.success) {
         res.status(400).json({

@@ -113,15 +113,43 @@ describe('Academics Master & Rosters API Tests', () => {
     });
   });
 
-  describe('GET /api/v1/academics/my-roster', () => {
-    it('should return taught students for teacher', async () => {
+  describe('GET /api/v1/academics/my-roster & my-allocations', () => {
+    it('should return deduplicated taught students with class/section/subject metadata for teacher', async () => {
       const res = await request(app)
         .get('/api/v1/academics/my-roster')
         .set('Authorization', `Bearer ${teacherToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
       expect(res.body.data.length).toBeGreaterThanOrEqual(2);
+
+      const ids = res.body.data.map((s: any) => s.id);
+      expect(new Set(ids).size).toBe(ids.length);
+
+      const first = res.body.data[0];
+      expect(first).toHaveProperty('class_name');
+      expect(first).toHaveProperty('section_name');
+      expect(Array.isArray(first.subjects)).toBe(true);
+      expect(Array.isArray(first.subject_ids)).toBe(true);
+    });
+
+    it('should return teacher homeroom and subject allocations with student counts', async () => {
+      const res = await request(app)
+        .get('/api/v1/academics/my-allocations')
+        .set('Authorization', `Bearer ${teacherToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('homeroom');
+      expect(res.body.data).toHaveProperty('allocations');
+      expect(Array.isArray(res.body.data.allocations)).toBe(true);
+      if (res.body.data.homeroom) {
+        expect(typeof res.body.data.homeroom.student_count).toBe('number');
+      }
+      if (res.body.data.allocations.length > 0) {
+        expect(typeof res.body.data.allocations[0].student_count).toBe('number');
+      }
     });
 
     it('should reject student accessing my-roster with 403 Forbidden', async () => {

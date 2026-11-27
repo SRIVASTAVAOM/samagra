@@ -6,6 +6,7 @@ class HomeroomInfo extends Equatable {
   final String className;
   final String sectionId;
   final String sectionName;
+  final int? studentCount;
 
   const HomeroomInfo({
     required this.id,
@@ -13,20 +14,23 @@ class HomeroomInfo extends Equatable {
     required this.className,
     required this.sectionId,
     required this.sectionName,
+    this.studentCount,
   });
 
   factory HomeroomInfo.fromJson(Map<String, dynamic> json) {
+    final rawCount = json['student_count'] ?? json['studentCount'];
     return HomeroomInfo(
       id: json['id'] as String? ?? '',
       classId: json['class_id'] as String? ?? '',
       className: json['class_name'] as String? ?? '',
       sectionId: json['section_id'] as String? ?? '',
       sectionName: json['section_name'] as String? ?? '',
+      studentCount: rawCount is int ? rawCount : int.tryParse(rawCount?.toString() ?? ''),
     );
   }
 
   @override
-  List<Object?> get props => [id, classId, className, sectionId, sectionName];
+  List<Object?> get props => [id, classId, className, sectionId, sectionName, studentCount];
 }
 
 class TeacherAllocationItem extends Equatable {
@@ -38,6 +42,7 @@ class TeacherAllocationItem extends Equatable {
   final String subjectId;
   final String subjectName;
   final String subjectCode;
+  final int? studentCount;
 
   const TeacherAllocationItem({
     required this.id,
@@ -48,9 +53,11 @@ class TeacherAllocationItem extends Equatable {
     required this.subjectId,
     required this.subjectName,
     required this.subjectCode,
+    this.studentCount,
   });
 
   factory TeacherAllocationItem.fromJson(Map<String, dynamic> json) {
+    final rawCount = json['student_count'] ?? json['studentCount'];
     return TeacherAllocationItem(
       id: json['id'] as String? ?? '',
       classId: json['class_id'] as String? ?? '',
@@ -60,6 +67,7 @@ class TeacherAllocationItem extends Equatable {
       subjectId: json['subject_id'] as String? ?? '',
       subjectName: json['subject_name'] as String? ?? '',
       subjectCode: json['subject_code'] as String? ?? '',
+      studentCount: rawCount is int ? rawCount : int.tryParse(rawCount?.toString() ?? ''),
     );
   }
 
@@ -73,6 +81,7 @@ class TeacherAllocationItem extends Equatable {
         subjectId,
         subjectName,
         subjectCode,
+        studentCount,
       ];
 }
 

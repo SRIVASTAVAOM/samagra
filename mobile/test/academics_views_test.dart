@@ -307,5 +307,59 @@ void main() {
 
       expect(find.text('No classmates have a birthday today'), findsOneWidget);
     });
+
+    testWidgets('StudentRosterView displays class/section badge, subject tags, and clears search cleanly',
+        (tester) async {
+      final students = [
+        const StudentRosterItem(
+          id: 's1',
+          admissionNumber: 'ADM2026001',
+          rollNumber: '12',
+          firstName: 'Aarav',
+          lastName: 'Sharma',
+          gender: 'Male',
+          className: 'Grade 10',
+          sectionName: 'Section A',
+          subjects: [
+            StudentSubjectTag(id: 'sub-1', name: 'Mathematics', code: 'MATH10'),
+          ],
+          subjectIds: ['sub-1'],
+        ),
+        const StudentRosterItem(
+          id: 's2',
+          admissionNumber: 'ADM2026002',
+          rollNumber: '14',
+          firstName: '',
+          lastName: '',
+          gender: 'Female',
+          className: 'Grade 10',
+          sectionName: 'Section B',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StudentRosterView(
+              students: students,
+              showClassSectionBadge: true,
+              showSubjectTags: true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Grade 10 • Section A • Adm: ADM2026001 • Male'), findsOneWidget);
+      expect(find.text('Mathematics (MATH10)'), findsOneWidget);
+      expect(find.text('Student'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'Aarav');
+      await tester.pump();
+      expect(find.text('1 students enrolled'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.clear));
+      await tester.pump();
+      expect(find.text('2 students enrolled'), findsOneWidget);
+    });
   });
 }

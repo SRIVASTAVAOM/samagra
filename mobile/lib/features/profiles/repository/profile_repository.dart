@@ -87,13 +87,24 @@ class ProfileRepository {
   }) async {
     try {
       final payload = <String, dynamic>{};
-      if (rollNumber != null) payload['roll_number'] = rollNumber;
-      if (bloodGroup != null) payload['blood_group'] = bloodGroup;
-      if (emergencyContactPhone != null) {
-        payload['emergency_contact_phone'] = emergencyContactPhone;
-        payload['emergency_phone'] = emergencyContactPhone;
+      if (rollNumber != null) {
+        final v = rollNumber.trim();
+        payload['roll_number'] = v.isEmpty ? null : v;
       }
-      if (medicalNotes != null) payload['medical_notes'] = medicalNotes;
+      if (bloodGroup != null) {
+        final v = bloodGroup.trim();
+        payload['blood_group'] = v.isEmpty ? null : v;
+      }
+      if (emergencyContactPhone != null) {
+        final v = emergencyContactPhone.trim();
+        final resolved = v.isEmpty ? null : v;
+        payload['emergency_contact_phone'] = resolved;
+        payload['emergency_phone'] = resolved;
+      }
+      if (medicalNotes != null) {
+        final v = medicalNotes.trim();
+        payload['medical_notes'] = v.isEmpty ? null : v;
+      }
       if (documentUrl != null && documentUrl.isNotEmpty) {
         payload['document_url'] = documentUrl;
         payload['documentUrl'] = documentUrl;
@@ -104,7 +115,13 @@ class ProfileRepository {
         data: payload,
       );
     } on DioException catch (e) {
-      final message = e.response?.data?['error']?.toString() ??
+      final data = e.response?.data;
+      String? detailMessage;
+      if (data is Map && data['details'] is List && (data['details'] as List).isNotEmpty) {
+        detailMessage = (data['details'] as List).map((d) => d.toString()).join(', ');
+      }
+      final message = detailMessage ??
+          data?['error']?.toString() ??
           'Failed to update student details';
       throw Exception(message);
     }

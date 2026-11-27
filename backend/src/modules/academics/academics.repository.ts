@@ -6,6 +6,12 @@ export interface SubjectRecord {
   code: string;
 }
 
+export interface StudentSubjectTag {
+  id: string;
+  name: string;
+  code: string;
+}
+
 export interface StudentRosterItem {
   id: string;
   admission_number?: string;
@@ -24,6 +30,10 @@ export interface StudentRosterItem {
   medical_notes?: string | null;
   class_id?: string;
   section_id?: string;
+  class_name?: string | null;
+  section_name?: string | null;
+  subjects?: StudentSubjectTag[];
+  subject_ids?: string[];
 }
 
 export interface SubjectTeacherItem {
@@ -254,6 +264,44 @@ export class AcademicsRepository {
     return (res.rowCount ?? 0) > 0;
   }
 
+  static async resolveStaffProfileId(userId: string, schoolId?: string): Promise<string | null> {
+    const query = `
+      SELECT sp.id
+      FROM staff_profiles sp
+      JOIN users u ON sp.user_id = u.id
+      WHERE sp.user_id = $1
+        AND sp.is_active = TRUE
+        AND ($2::uuid IS NULL OR u.school_id = $2::uuid)
+      LIMIT 1;
+    `;
+    const { rows } = await pool.query(query, [userId, schoolId || null]);
+    return rows[0]?.id || null;
+  }
+
+  static async isTeacherClassTeacher(
+    staffProfileId: string,
+    classId: string,
+    sectionId: string,
+    schoolId?: string
+  ): Promise<boolean> {
+    const query = `
+      SELECT 1
+      FROM staff_assignments sa
+      JOIN staff_profiles sp ON sa.staff_id = sp.id
+      JOIN users u ON sp.user_id = u.id
+      JOIN classes c ON sa.class_id = c.id
+      WHERE sp.id = $1
+        AND sp.is_active = TRUE
+        AND sa.class_id = $2
+        AND sa.section_id = $3
+        AND sa.assignment_type = 'CLASS_TEACHER'
+        AND ($4::uuid IS NULL OR (u.school_id = $4::uuid AND c.school_id = $4::uuid))
+      LIMIT 1;
+    `;
+    const { rows } = await pool.query(query, [staffProfileId, classId, sectionId, schoolId || null]);
+    return rows.length > 0;
+  }
+
   static async getClassRoster(classId: string, sectionId: string, schoolId?: string): Promise<StudentRosterItem[]> {
     let query = `
       SELECT 
@@ -273,10 +321,13 @@ export class AcademicsRepository {
         sp.blood_group,
         sp.medical_notes,
         sp.current_class_id AS class_id,
-        sp.current_section_id AS section_id
+        sp.current_section_id AS section_id,
+        c.name AS class_name,
+        sec.name AS section_name
       FROM student_profiles sp
       JOIN users u ON sp.user_id = u.id
       JOIN classes c ON sp.current_class_id = c.id
+      JOIN sections sec ON sp.current_section_id = sec.id
       WHERE sp.current_class_id = $1 AND sp.current_section_id = $2 AND sp.is_active = TRUE
     `;
     const params: any[] = [classId, sectionId];
@@ -433,19 +484,43 @@ export class AcademicsRepository {
         s.name AS section_name,
         sub.id AS subject_id,
         sub.name AS subject_name,
-        sub.code AS subject_code
+        sub.code AS subject_code,
+        COALESCE(
+          (
+            SELECT COUNT(*)::int
+            FROM student_profiles stp
+            JOIN users u_stu ON stp.user_id = u_stu.id
+            WHERE stp.current_class_id = c.id
+              AND stp.current_section_id = s.id
+              AND stp.is_active = TRUE
+              AND u_stu.school_id = c.school_id
+          ),
+          0
+        ) AS student_count
       FROM teacher_subject_allocations tsa
+      JOIN staff_profiles sp ON tsa.staff_id = sp.id AND sp.is_active = TRUE
+      JOIN users u ON sp.user_id = u.id
       JOIN classes c ON tsa.class_id = c.id
-      JOIN sections s ON tsa.section_id = s.id
+      JOIN sections s ON tsa.section_id = s.id AND s.class_id = c.id
       JOIN subjects sub ON tsa.subject_id = sub.id
+      LEFT JOIN academic_years ay ON tsa.academic_year_id = ay.id
       WHERE tsa.staff_id = $1
+        AND COALESCE(sub.is_active, TRUE) = TRUE
+        AND (
+          ay.id IS NULL
+          OR ay.is_current = TRUE
+          OR NOT EXISTS (
+            SELECT 1 FROM academic_years ay2
+            WHERE ay2.school_id = c.school_id AND ay2.is_current = TRUE
+          )
+        )
     `;
     const params: any[] = [staffProfileId];
     if (schoolId) {
-      query += ` AND c.school_id = $2 AND sub.school_id = $2`;
+      query += ` AND u.school_id = $2 AND c.school_id = $2 AND sub.school_id = $2`;
       params.push(schoolId);
     }
-    query += ';';
+    query += ` ORDER BY c.name ASC, s.name ASC, sub.name ASC;`;
     const { rows } = await pool.query(query, params);
     return rows;
   }
@@ -459,42 +534,157 @@ export class AcademicsRepository {
         c.name AS class_name,
         s.id AS section_id,
         s.name AS section_name,
-        u.school_id
+        u.school_id,
+        COALESCE(
+          (
+            SELECT COUNT(*)::int
+            FROM student_profiles stp
+            JOIN users u_stu ON stp.user_id = u_stu.id
+            WHERE stp.current_class_id = c.id
+              AND stp.current_section_id = s.id
+              AND stp.is_active = TRUE
+              AND u_stu.school_id = c.school_id
+          ),
+          0
+        ) AS student_count
       FROM staff_assignments sa
       JOIN staff_profiles sp ON sa.staff_id = sp.id
       JOIN users u ON sp.user_id = u.id
       JOIN classes c ON sa.class_id = c.id
-      JOIN sections s ON sa.section_id = s.id
+      JOIN sections s ON sa.section_id = s.id AND s.class_id = c.id
       WHERE (sp.id::text = $1 OR sp.user_id::text = $2)
+        AND sp.is_active = TRUE
         AND sa.assignment_type = 'CLASS_TEACHER'
     `;
     if (schoolId) {
       query += ` AND u.school_id = $3 AND c.school_id = $3`;
       params.push(schoolId);
     }
-    query += ` LIMIT 1;`;
+    query += ` ORDER BY sa.created_at DESC LIMIT 1;`;
     const { rows } = await pool.query(query, params);
     return rows[0] || null;
   }
 
-  static async getTeacherClassStudents(staffProfileId: string): Promise<StudentRosterItem[]> {
+  static async getTeacherClassStudents(staffProfileId: string, schoolId?: string): Promise<StudentRosterItem[]> {
     const query = `
-      SELECT DISTINCT 
-        stp.id, stp.admission_number, stp.roll_number, stp.first_name, stp.last_name,
-        stp.photo_url, stp.photo_url AS avatar_url,
-        stp.gender, stp.emergency_phone, stp.blood_group, stp.medical_notes,
-        stp.current_class_id AS class_id, stp.current_section_id AS section_id
-      FROM student_profiles stp
-
-      WHERE (stp.current_class_id, stp.current_section_id) IN (
-        SELECT class_id, section_id FROM teacher_subject_allocations WHERE staff_id = $1
+      WITH teacher_scopes AS (
+        SELECT tsa.class_id, tsa.section_id
+        FROM teacher_subject_allocations tsa
+        JOIN staff_profiles sp ON tsa.staff_id = sp.id AND sp.is_active = TRUE
+        JOIN users u_stf ON sp.user_id = u_stf.id
+        JOIN classes c ON tsa.class_id = c.id
+        JOIN subjects sub ON tsa.subject_id = sub.id
+        LEFT JOIN academic_years ay ON tsa.academic_year_id = ay.id
+        WHERE tsa.staff_id = $1
+          AND COALESCE(sub.is_active, TRUE) = TRUE
+          AND ($2::uuid IS NULL OR (u_stf.school_id = $2::uuid AND c.school_id = $2::uuid AND sub.school_id = $2::uuid))
+          AND (
+            ay.id IS NULL
+            OR ay.is_current = TRUE
+            OR NOT EXISTS (
+              SELECT 1 FROM academic_years ay2
+              WHERE ay2.school_id = c.school_id AND ay2.is_current = TRUE
+            )
+          )
         UNION
-        SELECT class_id, section_id FROM staff_assignments WHERE staff_id = $1 AND class_id IS NOT NULL
+        SELECT sa.class_id, sa.section_id
+        FROM staff_assignments sa
+        JOIN staff_profiles sp ON sa.staff_id = sp.id AND sp.is_active = TRUE
+        JOIN users u_stf ON sp.user_id = u_stf.id
+        JOIN classes c ON sa.class_id = c.id
+        WHERE sa.staff_id = $1
+          AND sa.class_id IS NOT NULL
+          AND sa.section_id IS NOT NULL
+          AND ($2::uuid IS NULL OR (u_stf.school_id = $2::uuid AND c.school_id = $2::uuid))
       )
-      AND stp.is_active = TRUE
-      ORDER BY stp.first_name ASC;
+      SELECT DISTINCT ON (stp.id)
+        stp.id,
+        stp.admission_number,
+        stp.roll_number,
+        stp.roll_number AS roll_no,
+        stp.first_name,
+        stp.last_name,
+        TRIM(CONCAT(stp.first_name, ' ', COALESCE(stp.last_name, ''))) AS full_name,
+        stp.photo_url,
+        stp.photo_url AS avatar_url,
+        stp.gender,
+        stp.emergency_phone,
+        stp.blood_group,
+        stp.medical_notes,
+        stp.current_class_id AS class_id,
+        stp.current_section_id AS section_id,
+        c.name AS class_name,
+        sec.name AS section_name,
+        COALESCE(
+          (
+            SELECT json_agg(
+              DISTINCT jsonb_build_object(
+                'id', sub.id,
+                'name', sub.name,
+                'code', sub.code
+              )
+            )
+            FROM teacher_subject_allocations tsa
+            JOIN subjects sub ON tsa.subject_id = sub.id
+            LEFT JOIN academic_years ay ON tsa.academic_year_id = ay.id
+            WHERE tsa.staff_id = $1
+              AND tsa.class_id = stp.current_class_id
+              AND tsa.section_id = stp.current_section_id
+              AND COALESCE(sub.is_active, TRUE) = TRUE
+              AND ($2::uuid IS NULL OR sub.school_id = $2::uuid)
+              AND (
+                ay.id IS NULL
+                OR ay.is_current = TRUE
+                OR NOT EXISTS (
+                  SELECT 1 FROM academic_years ay2
+                  WHERE ay2.school_id = c.school_id AND ay2.is_current = TRUE
+                )
+              )
+          ),
+          '[]'::json
+        ) AS subjects,
+        COALESCE(
+          (
+            SELECT ARRAY_AGG(DISTINCT sub.id::text)
+            FROM teacher_subject_allocations tsa
+            JOIN subjects sub ON tsa.subject_id = sub.id
+            LEFT JOIN academic_years ay ON tsa.academic_year_id = ay.id
+            WHERE tsa.staff_id = $1
+              AND tsa.class_id = stp.current_class_id
+              AND tsa.section_id = stp.current_section_id
+              AND COALESCE(sub.is_active, TRUE) = TRUE
+              AND ($2::uuid IS NULL OR sub.school_id = $2::uuid)
+              AND (
+                ay.id IS NULL
+                OR ay.is_current = TRUE
+                OR NOT EXISTS (
+                  SELECT 1 FROM academic_years ay2
+                  WHERE ay2.school_id = c.school_id AND ay2.is_current = TRUE
+                )
+              )
+          ),
+          '{}'::text[]
+        ) AS subject_ids
+      FROM student_profiles stp
+      JOIN users u_stu ON stp.user_id = u_stu.id
+      JOIN classes c ON stp.current_class_id = c.id
+      JOIN sections sec ON stp.current_section_id = sec.id AND sec.class_id = c.id
+      JOIN teacher_scopes ts ON ts.class_id = stp.current_class_id AND ts.section_id = stp.current_section_id
+      WHERE stp.is_active = TRUE
+        AND ($2::uuid IS NULL OR (u_stu.school_id = $2::uuid AND c.school_id = $2::uuid))
+      ORDER BY stp.id, c.name ASC, sec.name ASC;
     `;
-    const { rows } = await pool.query(query, [staffProfileId]);
+    const { rows } = await pool.query(query, [staffProfileId, schoolId || null]);
+    rows.sort((a: StudentRosterItem, b: StudentRosterItem) => {
+      const classCmp = (a.class_name || '').localeCompare(b.class_name || '');
+      if (classCmp !== 0) return classCmp;
+      const secCmp = (a.section_name || '').localeCompare(b.section_name || '');
+      if (secCmp !== 0) return secCmp;
+      const aNum = a.roll_number && /^\d+$/.test(a.roll_number) ? parseInt(a.roll_number, 10) : Number.MAX_SAFE_INTEGER;
+      const bNum = b.roll_number && /^\d+$/.test(b.roll_number) ? parseInt(b.roll_number, 10) : Number.MAX_SAFE_INTEGER;
+      if (aNum !== bNum) return aNum - bNum;
+      return (a.first_name || '').localeCompare(b.first_name || '');
+    });
     return rows;
   }
 
