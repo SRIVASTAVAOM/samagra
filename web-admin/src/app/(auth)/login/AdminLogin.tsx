@@ -6,15 +6,11 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
-  Users,
   ShieldCheck,
-  TrendingUp,
-  Bell,
   School,
   BookOpen,
   GraduationCap,
   BarChart2,
-  Home,
 } from 'lucide-react';
 import { api, setSession } from '@/lib/api';
 import ForgotPasswordModal from './ForgotPasswordModal';
@@ -52,13 +48,6 @@ const DEFAULT_SCHOOL_BRANDING: SchoolLoginBranding = {
 interface AdminLoginProps {
   isSuperAdminOnly?: boolean;
 }
-
-const FEATURE_CARDS = [
-  { icon: Users,      iconColor: '#1b2f5c', iconBg: '#e3e8f1', title: 'Unified Access',    desc: 'One login for all roles.'     },
-  { icon: ShieldCheck,iconColor: '#16a34a', iconBg: '#dcfce7', title: 'Secure & Reliable', desc: 'Your data is always safe.'    },
-  { icon: TrendingUp, iconColor: '#d4480a', iconBg: '#ffe6d5', title: 'Smart Insights',    desc: 'AI-powered decisions.'        },
-  { icon: Bell,       iconColor: '#d97706', iconBg: '#fef3c7', title: 'Real-time Updates', desc: 'Stay informed, always.'       },
-];
 
 const BG_ICONS = [
   { Icon: GraduationCap, top: '8%',  left: '6%',  size: 26, opacity: 0.12 },

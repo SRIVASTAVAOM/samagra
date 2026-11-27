@@ -17,6 +17,8 @@ class AcademicMaterialsView extends StatefulWidget {
   final String? className;
   final String? subjectName;
   final bool showAppBar;
+  final bool? showBackButton;
+  final VoidCallback? onBack;
 
   const AcademicMaterialsView({
     super.key,
@@ -25,6 +27,8 @@ class AcademicMaterialsView extends StatefulWidget {
     this.className,
     this.subjectName,
     this.showAppBar = true,
+    this.showBackButton,
+    this.onBack,
   });
 
   @override

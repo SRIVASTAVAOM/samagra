@@ -58,7 +58,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
 
   Widget _buildTabNavigationBar() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: Color(0xFFE3ECF8))),
       ),
@@ -260,7 +260,7 @@ class _StudentFeesViewState extends State<StudentFeesView> {
 
         if (state is StudentFeesLoaded) {
           final overview = state.overview;
-          final installments = overview.fees;
+          final installments = overview.fees; // Fixed: access fees from overview
 
           return ListView(
             padding: const EdgeInsets.all(16),

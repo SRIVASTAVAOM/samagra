@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/samagra_back_button.dart';
 import '../bloc/exams_bloc.dart';
 import '../models/exam_model.dart';
 
@@ -25,14 +26,15 @@ class _ExamDatesheetViewState extends State<ExamDatesheetView> {
   void initState() {
     super.initState();
     context.read<ExamsBloc>().add(
-          LoadExamDatesheetsEvent(widget.examId, classId: widget.classId),
-        );
+      LoadExamDatesheetsEvent(widget.examId, classId: widget.classId),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const SamagraBackButton(),
         title: Text('${widget.examName} Schedule'),
         elevation: 0,
         backgroundColor: AppColors.surface,
@@ -42,8 +44,8 @@ class _ExamDatesheetViewState extends State<ExamDatesheetView> {
             icon: const Icon(Icons.refresh, color: AppColors.primaryAccent),
             onPressed: () {
               context.read<ExamsBloc>().add(
-                    LoadExamDatesheetsEvent(widget.examId, classId: widget.classId),
-                  );
+                LoadExamDatesheetsEvent(widget.examId, classId: widget.classId),
+              );
             },
           ),
         ],
@@ -66,7 +68,9 @@ class _ExamDatesheetViewState extends State<ExamDatesheetView> {
         },
         builder: (context, state) {
           if (state is ExamsLoading) {
-            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+            return const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            );
           }
 
           if (state is ExamsError) {
@@ -111,25 +115,37 @@ class _ExamDatesheetViewState extends State<ExamDatesheetView> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.calendar_today_outlined, size: 48, color: AppColors.tertiaryText),
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      size: 48,
+                      color: AppColors.tertiaryText,
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       'No exam schedule published yet.',
-                      style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
+                      style: TextStyle(
+                        color: AppColors.secondaryText,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     OutlinedButton.icon(
                       onPressed: () {
                         context.read<ExamsBloc>().add(
-                              LoadExamDatesheetsEvent(widget.examId, classId: widget.classId),
-                            );
+                          LoadExamDatesheetsEvent(
+                            widget.examId,
+                            classId: widget.classId,
+                          ),
+                        );
                       },
                       icon: const Icon(Icons.refresh, size: 16),
                       label: const Text('Refresh'),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: AppColors.border),
                         foregroundColor: AppColors.primaryText,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ],
@@ -142,8 +158,11 @@ class _ExamDatesheetViewState extends State<ExamDatesheetView> {
               backgroundColor: AppColors.surface,
               onRefresh: () async {
                 context.read<ExamsBloc>().add(
-                      LoadExamDatesheetsEvent(widget.examId, classId: widget.classId),
-                    );
+                  LoadExamDatesheetsEvent(
+                    widget.examId,
+                    classId: widget.classId,
+                  ),
+                );
               },
               child: ListView.separated(
                 padding: const EdgeInsets.all(16),
@@ -198,7 +217,10 @@ class _ExamDatesheetViewState extends State<ExamDatesheetView> {
               if (ds.subjectCode != null) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.indigo50,
                     borderRadius: BorderRadius.circular(6),
@@ -230,7 +252,11 @@ class _ExamDatesheetViewState extends State<ExamDatesheetView> {
                 Expanded(
                   child: Row(
                     children: [
-                      const Icon(Icons.event_outlined, size: 16, color: AppColors.primaryAccent),
+                      const Icon(
+                        Icons.event_outlined,
+                        size: 16,
+                        color: AppColors.primaryAccent,
+                      ),
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(
@@ -248,7 +274,11 @@ class _ExamDatesheetViewState extends State<ExamDatesheetView> {
                 const SizedBox(width: 12),
                 Row(
                   children: [
-                    const Icon(Icons.access_time_outlined, size: 16, color: AppColors.primaryAccent),
+                    const Icon(
+                      Icons.access_time_outlined,
+                      size: 16,
+                      color: AppColors.primaryAccent,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       '${ds.startTime.substring(0, 5)} - ${ds.endTime.substring(0, 5)}',
@@ -296,7 +326,11 @@ class _ExamDatesheetViewState extends State<ExamDatesheetView> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.class_outlined, size: 13, color: AppColors.secondaryText),
+                  const Icon(
+                    Icons.class_outlined,
+                    size: 13,
+                    color: AppColors.secondaryText,
+                  ),
                   const SizedBox(width: 5),
                   Text(
                     ds.className!,

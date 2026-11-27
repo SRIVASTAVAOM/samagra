@@ -53,11 +53,24 @@ class _StudentFeedbackViewState extends State<StudentFeedbackView> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: const BoxDecoration(
-            color: AppColors.surface,
-            border: Border(bottom: BorderSide(color: AppColors.border)),
+            color: Color(0xFFFFFFFF),
+            border: Border(bottom: BorderSide(color: Color(0xFFE3ECF8), width: 1)),
           ),
           child: Row(
             children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F8FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.rate_review_outlined,
+                  size: 20,
+                  color: Color(0xFF0284C7),
+                ),
+              ),
+              const SizedBox(width: 12),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,24 +79,24 @@ class _StudentFeedbackViewState extends State<StudentFeedbackView> {
                       'School Feedback',
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primaryText,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
                       ),
                     ),
                     SizedBox(height: 2),
                     Text(
                       'Share your experience and suggestions',
-                      style: TextStyle(fontSize: 11, color: AppColors.secondaryText),
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                     ),
                   ],
                 ),
               ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.rate_review_outlined, size: 16),
-                label: const Text('Give Feedback'),
+                label: const Text('Give Feedback', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryText,
-                  foregroundColor: AppColors.surface,
+                  backgroundColor: const Color(0xFF0284C7),
+                  foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
@@ -91,7 +104,7 @@ class _StudentFeedbackViewState extends State<StudentFeedbackView> {
               ),
               const SizedBox(width: 4),
               IconButton(
-                icon: const Icon(Icons.refresh, size: 20, color: AppColors.secondaryText),
+                icon: const Icon(Icons.refresh, size: 20, color: Color(0xFF64748B)),
                 tooltip: 'Refresh',
                 onPressed: () {
                   context
@@ -247,10 +260,18 @@ class _StudentFeedbackViewState extends State<StudentFeedbackView> {
 
     return Container(
       padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE3ECF8), width: 1),
+        boxShadow: [
+          BoxShadow(
+            offset: const Offset(0, 2),
+            blurRadius: 8,
+            color: Colors.black.withValues(alpha: 0.04),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,40 +280,44 @@ class _StudentFeedbackViewState extends State<StudentFeedbackView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.scaffoldBackground,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: AppColors.border),
+                  color: const Color(0xFFF4F8FF),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFE3ECF8)),
                 ),
                 child: Text(
                   fb.category,
                   style: const TextStyle(
                     fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.secondaryText,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF64748B),
                   ),
                 ),
               ),
               Row(
                 children: List.generate(
                   5,
-                  (i) => Icon(
-                    i < fb.rating ? Icons.star : Icons.star_border,
-                    size: 16,
-                    color: Colors.amber,
+                  (i) => Padding(
+                    padding: const EdgeInsets.only(right: 2),
+                    child: Icon(
+                      i < fb.rating ? Icons.star : Icons.star_border,
+                      size: 16,
+                      color: const Color(0xFFFCD34D),
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             fb.feedbackText,
             style: const TextStyle(
               fontSize: 13,
               height: 1.4,
-              color: AppColors.primaryText,
+              color: Color(0xFF0F172A),
+              fontWeight: FontWeight.w500,
             ),
           ),
           if (submittedDate.isNotEmpty) ...[

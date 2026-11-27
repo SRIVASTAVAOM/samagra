@@ -55,11 +55,24 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: const BoxDecoration(
-            color: AppColors.surface,
-            border: Border(bottom: BorderSide(color: AppColors.border)),
+            color: Color(0xFFFFFFFF),
+            border: Border(bottom: BorderSide(color: Color(0xFFE3ECF8), width: 1)),
           ),
           child: Row(
             children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F8FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.warning_amber_outlined,
+                  size: 20,
+                  color: Color(0xFF0284C7),
+                ),
+              ),
+              const SizedBox(width: 12),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,24 +81,24 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
                       'Complaints & Grievances',
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primaryText,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
                       ),
                     ),
                     SizedBox(height: 2),
                     Text(
                       'Submit concerns directly to administration',
-                      style: TextStyle(fontSize: 11, color: AppColors.secondaryText),
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                     ),
                   ],
                 ),
               ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.add, size: 16),
-                label: const Text('New'),
+                label: const Text('New', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryText,
-                  foregroundColor: AppColors.surface,
+                  backgroundColor: const Color(0xFF0284C7),
+                  foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
@@ -93,7 +106,7 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
               ),
               const SizedBox(width: 4),
               IconButton(
-                icon: const Icon(Icons.refresh, size: 20, color: AppColors.secondaryText),
+                icon: const Icon(Icons.refresh, size: 20, color: Color(0xFF64748B)),
                 tooltip: 'Refresh',
                 onPressed: () {
                   context
@@ -246,25 +259,42 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
 
   Widget _buildComplaintCard(ComplaintModel c) {
     Color statusColor;
+    Color statusBg;
+    IconData statusIcon;
+    
     switch (c.status.toUpperCase()) {
       case 'RESOLVED':
-        statusColor = AppColors.success;
+        statusColor = const Color(0xFF16A765);
+        statusBg = const Color(0xFFEAF9F0);
+        statusIcon = Icons.check_circle;
         break;
       case 'IN_REVIEW':
-        statusColor = AppColors.info;
+        statusColor = const Color(0xFF0284C7);
+        statusBg = const Color(0xFFEBF8FF);
+        statusIcon = Icons.hourglass_bottom;
         break;
       default:
-        statusColor = AppColors.warning;
+        statusColor = const Color(0xFFF59E0B);
+        statusBg = const Color(0xFFFEF3C7);
+        statusIcon = Icons.flag;
     }
 
     final filedDate = _formatDate(c.createdAt);
 
     return Container(
       padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE3ECF8), width: 1),
+        boxShadow: [
+          BoxShadow(
+            offset: const Offset(0, 2),
+            blurRadius: 8,
+            color: Colors.black.withValues(alpha: 0.04),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,54 +303,62 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.scaffoldBackground,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: AppColors.border),
+                  color: const Color(0xFFF4F8FF),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFE3ECF8)),
                 ),
                 child: Text(
                   c.category,
                   style: const TextStyle(
                     fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.secondaryText,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF64748B),
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                 ),
-                child: Text(
-                  c.status,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(statusIcon, size: 12, color: statusColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      c.status,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             c.title,
             style: const TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primaryText,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             c.description,
             style: const TextStyle(
               fontSize: 12,
               height: 1.4,
-              color: AppColors.secondaryText,
+              color: Color(0xFF64748B),
             ),
           ),
           if (filedDate.isNotEmpty) ...[
@@ -341,19 +379,19 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.scaffoldBackground,
+                color: const Color(0xFFEAF9F0),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: const Color(0xFF16A765).withValues(alpha: 0.3)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.check_circle_outline, size: 16, color: AppColors.success),
+                  const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF16A765)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Admin Resolution: ${c.resolutionNotes}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.primaryText),
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
                     ),
                   ),
                 ],

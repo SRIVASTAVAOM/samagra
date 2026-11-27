@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/user_avatar.dart';
+import '../../../../core/widgets/samagra_back_button.dart';
 import '../../../academics/bloc/exams_bloc.dart';
 import '../../../academics/repositories/exams_repository.dart';
 import '../../../academics/views/exams_list_view.dart';
@@ -65,7 +66,8 @@ class _StudentMenuItem {
 /// Follows OEM Clean Light Theme principles with crisp typography and subtle borders.
 class StudentDashboardView extends StatefulWidget {
   final UserModel user;
-  final void Function(int tabIndex, {int? academicSubTab, int? servicesSubTab})? onNavigateToTab;
+  final void Function(int tabIndex, {int? academicSubTab, int? servicesSubTab})?
+  onNavigateToTab;
 
   const StudentDashboardView({
     super.key,
@@ -77,7 +79,8 @@ class StudentDashboardView extends StatefulWidget {
   State<StudentDashboardView> createState() => _StudentDashboardViewState();
 }
 
-class _StudentDashboardViewState extends State<StudentDashboardView> with SingleTickerProviderStateMixin {
+class _StudentDashboardViewState extends State<StudentDashboardView>
+    with SingleTickerProviderStateMixin {
   StudentProfileModel? _cachedProfile;
   List<NoticeModel>? _cachedNotices;
   FeeOverviewModel? _cachedFeeOverview;
@@ -117,7 +120,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
   Future<void> _fetchInitialData() async {
     if (!mounted) return;
     try {
-      final savedKeysJson = await _storageService.read('student_quick_links_${widget.user.id}');
+      final savedKeysJson = await _storageService.read(
+        'student_quick_links_${widget.user.id}',
+      );
       if (savedKeysJson != null && savedKeysJson.isNotEmpty) {
         final decoded = jsonDecode(savedKeysJson);
         if (decoded is List) {
@@ -181,16 +186,20 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       } catch (_) {}
 
       Widget content = Scaffold(
-        appBar: AppBar(title: const Text('Attendance History')),
+        appBar: AppBar(
+          leading: const SamagraBackButton(),
+          title: const Text('Attendance History'),
+        ),
         body: const StudentAttendanceHistoryView(),
       );
       if (bloc != null) {
-        content = BlocProvider<AttendanceBloc>.value(value: bloc, child: content);
+        content = BlocProvider<AttendanceBloc>.value(
+          value: bloc,
+          child: content,
+        );
       }
 
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => content),
-      );
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => content));
     }
   }
 
@@ -208,9 +217,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
         content = BlocProvider<HomeworkBloc>.value(value: bloc, child: content);
       }
 
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => content),
-      );
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => content));
     }
   }
 
@@ -224,16 +231,20 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       } catch (_) {}
 
       Widget content = Scaffold(
-        appBar: AppBar(title: const Text('Fee Structure & Receipts')),
+        appBar: AppBar(
+          leading: const SamagraBackButton(),
+          title: const Text('Fee Structure & Receipts'),
+        ),
         body: const StudentFeesView(),
       );
       if (bloc != null) {
-        content = BlocProvider<StudentFeaturesBloc>.value(value: bloc, child: content);
+        content = BlocProvider<StudentFeaturesBloc>.value(
+          value: bloc,
+          child: content,
+        );
       }
 
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => content),
-      );
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => content));
     }
   }
 
@@ -247,16 +258,20 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       } catch (_) {}
 
       Widget content = Scaffold(
-        appBar: AppBar(title: const Text('Notices & Circulars')),
+        appBar: AppBar(
+          leading: const SamagraBackButton(),
+          title: const Text('Notices & Circulars'),
+        ),
         body: const StudentNoticesView(),
       );
       if (bloc != null) {
-        content = BlocProvider<StudentFeaturesBloc>.value(value: bloc, child: content);
+        content = BlocProvider<StudentFeaturesBloc>.value(
+          value: bloc,
+          child: content,
+        );
       }
 
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => content),
-      );
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => content));
     }
   }
 
@@ -325,16 +340,17 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       } catch (_) {}
 
       Widget content = Scaffold(
-        appBar: AppBar(title: const Text('Timetable')),
+        appBar: AppBar(
+          leading: const SamagraBackButton(),
+          title: const Text('Timetable'),
+        ),
         body: const StudentTimetableView(),
       );
       if (bloc != null) {
         content = BlocProvider<ScheduleBloc>.value(value: bloc, child: content);
       }
 
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => content),
-      );
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => content));
     }
   }
 
@@ -370,9 +386,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       content = BlocProvider<MaterialsBloc>.value(value: bloc, child: content);
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => content),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => content));
   }
 
   void _navigateToLeaves(BuildContext context) {
@@ -385,16 +399,17 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       } catch (_) {}
 
       Widget content = Scaffold(
-        appBar: AppBar(title: const Text('Leave Applications')),
+        appBar: AppBar(
+          leading: const SamagraBackButton(),
+          title: const Text('Leave Applications'),
+        ),
         body: const StudentLeaveView(),
       );
       if (bloc != null) {
         content = BlocProvider<LeavesBloc>.value(value: bloc, child: content);
       }
 
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => content),
-      );
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => content));
     }
   }
 
@@ -420,19 +435,21 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
     } catch (_) {}
 
     Widget content = Scaffold(
-      appBar: AppBar(title: const Text('Syllabus')),
+      appBar: AppBar(
+        leading: const SamagraBackButton(),
+        title: const Text('Syllabus'),
+      ),
       body: CurriculumView(
         classId: widget.user.classId ?? '',
         subjectId: subjectId,
+        showBackButton: false,
       ),
     );
     if (bloc != null) {
       content = BlocProvider<CurriculumBloc>.value(value: bloc, child: content);
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => content),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => content));
   }
 
   void _navigateToClassmates(BuildContext context) {
@@ -648,7 +665,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => Scaffold(
-            appBar: AppBar(title: const Text('Online Classes')),
+            appBar: AppBar(
+              leading: const SamagraBackButton(),
+              title: const Text('Online Classes'),
+            ),
             body: const StudentOnlineClassesView(),
           ),
         ),
@@ -672,7 +692,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
             final page = BlocProvider<ProfileBloc>.value(
               value: profileBloc,
               child: Scaffold(
-                appBar: AppBar(title: const Text('My Profile')),
+                appBar: AppBar(
+                  leading: const SamagraBackButton(),
+                  title: const Text('My Profile'),
+                ),
                 body: const StudentProfileView(),
               ),
             );
@@ -696,7 +719,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => Scaffold(
-            appBar: AppBar(title: const Text('Complaints')),
+            appBar: AppBar(
+              leading: const SamagraBackButton(),
+              title: const Text('Complaints'),
+            ),
             body: const StudentComplaintsView(),
           ),
         ),
@@ -711,7 +737,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => Scaffold(
-            appBar: AppBar(title: const Text('Feedback')),
+            appBar: AppBar(
+              leading: const SamagraBackButton(),
+              title: const Text('Feedback'),
+            ),
             body: const StudentFeedbackView(),
           ),
         ),
@@ -726,7 +755,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => Scaffold(
-            appBar: AppBar(title: const Text('School Contact')),
+            appBar: AppBar(
+              leading: const SamagraBackButton(),
+              title: const Text('School Contact'),
+            ),
             body: const SchoolContactView(),
           ),
         ),
@@ -764,7 +796,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
           side: const BorderSide(color: AppColors.border),
         ),
         titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 10,
+        ),
         actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
         title: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -834,7 +869,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primaryText,
               side: const BorderSide(color: AppColors.border),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: const Text('Close'),
           ),
@@ -862,7 +899,8 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       final records = attendanceState.records;
       if (records.isNotEmpty) {
         final presentCount = records.where((r) => r.status == 'PRESENT').length;
-        attendancePercentage = '${((presentCount / records.length) * 100).toStringAsFixed(1)}%';
+        attendancePercentage =
+            '${((presentCount / records.length) * 100).toStringAsFixed(1)}%';
       } else {
         attendancePercentage = '100.0%';
       }
@@ -917,7 +955,11 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
 
                   // 1.5 Pending Homework & Urgent Deadlines Card
                   if (pendingHomework > 0) ...[
-                    _buildPendingHomeworkAlertCard(context, pendingHomework, urgentHomeworkList),
+                    _buildPendingHomeworkAlertCard(
+                      context,
+                      pendingHomework,
+                      urgentHomeworkList,
+                    ),
                     const SizedBox(height: 14),
                   ],
 
@@ -1002,11 +1044,23 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(width: 140, height: 16, color: AppColors.slate200.withValues(alpha: opacity)),
+                  Container(
+                    width: 140,
+                    height: 16,
+                    color: AppColors.slate200.withValues(alpha: opacity),
+                  ),
                   const SizedBox(height: 20),
-                  Container(width: double.infinity, height: 14, color: AppColors.slate200.withValues(alpha: opacity)),
+                  Container(
+                    width: double.infinity,
+                    height: 14,
+                    color: AppColors.slate200.withValues(alpha: opacity),
+                  ),
                   const SizedBox(height: 10),
-                  Container(width: 220, height: 14, color: AppColors.slate200.withValues(alpha: opacity)),
+                  Container(
+                    width: 220,
+                    height: 14,
+                    color: AppColors.slate200.withValues(alpha: opacity),
+                  ),
                 ],
               ),
             ),
@@ -1027,7 +1081,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
   }
 
   // --- 1. TOP HEADER CARD ---
-  Widget _buildTopHeaderCard(BuildContext context, StudentProfileModel? profile) {
+  Widget _buildTopHeaderCard(
+    BuildContext context,
+    StudentProfileModel? profile,
+  ) {
     final schoolName = (profile?.schoolName?.trim().isNotEmpty == true)
         ? profile!.schoolName!
         : 'Apex International School';
@@ -1038,7 +1095,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
 
     bool isUuid(String? s) {
       if (s == null) return false;
-      return RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(s.trim());
+      return RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+      ).hasMatch(s.trim());
     }
 
     String resolveClass(String? raw) {
@@ -1054,7 +1113,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
     final cls = resolveClass(profile?.className);
     final sec = resolveSection(profile?.sectionName);
     String classSubtitle = '$cls • $sec';
-    if (profile?.rollNumber != null && profile!.rollNumber!.trim().isNotEmpty && !isUuid(profile.rollNumber)) {
+    if (profile?.rollNumber != null &&
+        profile!.rollNumber!.trim().isNotEmpty &&
+        !isUuid(profile.rollNumber)) {
       classSubtitle += ' • Roll #${profile.rollNumber}';
     }
 
@@ -1254,7 +1315,11 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.assignment_outlined, size: 18, color: accentColor),
+                    Icon(
+                      Icons.assignment_outlined,
+                      size: 18,
+                      color: accentColor,
+                    ),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
@@ -1273,7 +1338,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
               const SizedBox(width: 8),
               Flexible(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(6),
@@ -1306,7 +1374,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
                       decoration: BoxDecoration(
                         color: hw.isOverdue
                             ? Colors.red
-                            : (hw.isDueToday ? Colors.amber.shade800 : AppColors.primaryAccent),
+                            : (hw.isDueToday
+                                  ? Colors.amber.shade800
+                                  : AppColors.primaryAccent),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -1325,13 +1395,19 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
                     Text(
                       hw.isOverdue
                           ? 'Overdue'
-                          : (hw.isDueToday ? 'Due Today' : (hw.isDueTomorrow ? 'Due Tomorrow' : hw.dueDate)),
+                          : (hw.isDueToday
+                                ? 'Due Today'
+                                : (hw.isDueTomorrow
+                                      ? 'Due Tomorrow'
+                                      : hw.dueDate)),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: hw.isOverdue
                             ? Colors.red
-                            : (hw.isDueToday ? Colors.amber.shade800 : AppColors.secondaryText),
+                            : (hw.isDueToday
+                                  ? Colors.amber.shade800
+                                  : AppColors.secondaryText),
                       ),
                     ),
                   ],
@@ -1341,7 +1417,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
           ] else ...[
             Text(
               'You have $pendingCount pending assignment${pendingCount > 1 ? "s" : ""}. Review your deadlines.',
-              style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.secondaryText,
+              ),
             ),
           ],
           const SizedBox(height: 8),
@@ -1415,7 +1494,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
                         ),
                         // Green trend badge
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2.5,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.successLight,
                             borderRadius: BorderRadius.circular(6),
@@ -1424,7 +1506,11 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: const [
-                              Icon(Icons.trending_up, size: 12, color: AppColors.success),
+                              Icon(
+                                Icons.trending_up,
+                                size: 12,
+                                color: AppColors.success,
+                              ),
                               SizedBox(width: 3),
                               Text(
                                 'Good',
@@ -1501,12 +1587,19 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
                         ),
                         // Fee status badge
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2.5,
+                          ),
                           decoration: BoxDecoration(
-                            color: isFeeDue ? AppColors.warningLight : AppColors.successLight,
+                            color: isFeeDue
+                                ? AppColors.warningLight
+                                : AppColors.successLight,
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                              color: isFeeDue ? AppColors.warningBorder : AppColors.successBorder,
+                              color: isFeeDue
+                                  ? AppColors.warningBorder
+                                  : AppColors.successBorder,
                             ),
                           ),
                           child: Text(
@@ -1514,7 +1607,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: isFeeDue ? AppColors.warning : AppColors.success,
+                              color: isFeeDue
+                                  ? AppColors.warning
+                                  : AppColors.success,
                             ),
                           ),
                         ),
@@ -1579,7 +1674,11 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
               children: [
                 Row(
                   children: const [
-                    Icon(Icons.campaign_outlined, size: 19, color: AppColors.primaryAccent),
+                    Icon(
+                      Icons.campaign_outlined,
+                      size: 19,
+                      color: AppColors.primaryAccent,
+                    ),
                     SizedBox(width: 8),
                     Text(
                       'Notices & Circulars',
@@ -1595,7 +1694,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
                   onTap: () => _navigateToNotices(context),
                   borderRadius: BorderRadius.circular(6),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: const [
@@ -1608,7 +1710,11 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
                           ),
                         ),
                         SizedBox(width: 2),
-                        Icon(Icons.chevron_right, size: 16, color: AppColors.primaryAccent),
+                        Icon(
+                          Icons.chevron_right,
+                          size: 16,
+                          color: AppColors.primaryAccent,
+                        ),
                       ],
                     ),
                   ),
@@ -1623,7 +1729,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
               child: Center(
                 child: Text(
                   'No new notices or circulars posted',
-                  style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.secondaryText,
+                  ),
                 ),
               ),
             )
@@ -1633,7 +1742,8 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
               physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.all(12),
               itemCount: displayNotices.length,
-              separatorBuilder: (context, index) => const Divider(color: AppColors.border, height: 14),
+              separatorBuilder: (context, index) =>
+                  const Divider(color: AppColors.border, height: 14),
               itemBuilder: (ctx, index) {
                 final notice = displayNotices[index];
                 return _buildNoticeItem(context, notice);
@@ -1668,11 +1778,16 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: priorityColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: priorityColor.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: priorityColor.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Text(
                     notice.priority.toUpperCase(),
@@ -1725,7 +1840,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
   }
 
   // --- 4. QUICK LINKS GRID (CUSTOMIZABLE) ---
-  Widget _buildQuickLinksSection(BuildContext context, StudentProfileModel? profile) {
+  Widget _buildQuickLinksSection(
+    BuildContext context,
+    StudentProfileModel? profile,
+  ) {
     final studentMenusConfig =
         (profile?.menuConfig?['student_menus'] as Map<String, dynamic>?) ?? {};
 
@@ -1919,8 +2037,11 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
             children: [
               Row(
                 children: const [
-                  Icon(Icons.grid_view_outlined,
-                      size: 16, color: AppColors.primaryAccent),
+                  Icon(
+                    Icons.grid_view_outlined,
+                    size: 16,
+                    color: AppColors.primaryAccent,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Quick Links',
@@ -1934,14 +2055,22 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
               ),
               InkWell(
                 key: const Key('customize_quick_links_btn'),
-                onTap: () => _showCustomizeQuickLinksModal(context, availableCatalog),
+                onTap: () =>
+                    _showCustomizeQuickLinksModal(context, availableCatalog),
                 borderRadius: BorderRadius.circular(6),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: const [
-                      Icon(Icons.tune_rounded, size: 14, color: AppColors.primaryAccent),
+                      Icon(
+                        Icons.tune_rounded,
+                        size: 14,
+                        color: AppColors.primaryAccent,
+                      ),
                       SizedBox(width: 4),
                       Text(
                         'Customize',
@@ -2062,190 +2191,229 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
           builder: (modalCtx, setModalState) {
             return Material(
               color: AppColors.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
               clipBehavior: Clip.antiAlias,
               child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.75,
                 child: Column(
                   children: [
-                  // Drag handle & Header
-                  Container(
-                    margin: const EdgeInsets.only(top: 10, bottom: 6),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(2),
+                    // Drag handle & Header
+                    Container(
+                      margin: const EdgeInsets.only(top: 10, bottom: 6),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 10, 16, 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Customize Quick Links',
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 16, 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Customize Quick Links',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryText,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${selectedKeys.length} shortcuts selected',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.secondaryText,
+                                ),
+                              ),
+                            ],
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              setModalState(() {
+                                selectedKeys.clear();
+                                selectedKeys.addAll(_defaultQuickLinkKeys);
+                              });
+                            },
+                            child: const Text(
+                              'Reset Default',
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primaryAccent,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(color: AppColors.border, height: 1),
+                    // Catalog List
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        itemCount: allCatalog.length,
+                        separatorBuilder: (_, _) =>
+                            const Divider(color: AppColors.border, height: 1),
+                        itemBuilder: (ctx, index) {
+                          final entry = allCatalog[index];
+                          final isSelected = selectedKeys.contains(
+                            entry.item.key,
+                          );
+
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            leading: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.indigo50
+                                    : AppColors.scaffoldBackground,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.indigo200
+                                      : AppColors.border,
+                                ),
+                              ),
+                              child: Icon(
+                                entry.item.icon,
+                                size: 20,
+                                color: isSelected
+                                    ? AppColors.primaryAccent
+                                    : AppColors.secondaryText,
+                              ),
+                            ),
+                            title: Text(
+                              entry.label,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
                                 color: AppColors.primaryText,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${selectedKeys.length} shortcuts selected',
+                            subtitle: Text(
+                              entry.item.category,
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 11,
                                 color: AppColors.secondaryText,
                               ),
                             ),
-                          ],
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            setModalState(() {
-                              selectedKeys.clear();
-                              selectedKeys.addAll(_defaultQuickLinkKeys);
-                            });
-                          },
-                          child: const Text(
-                            'Reset Default',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryAccent),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(color: AppColors.border, height: 1),
-                  // Catalog List
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: allCatalog.length,
-                      separatorBuilder: (_, _) => const Divider(color: AppColors.border, height: 1),
-                      itemBuilder: (ctx, index) {
-                        final entry = allCatalog[index];
-                        final isSelected = selectedKeys.contains(entry.item.key);
-
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          leading: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: isSelected ? AppColors.indigo50 : AppColors.scaffoldBackground,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: isSelected ? AppColors.indigo200 : AppColors.border,
+                            trailing: Checkbox(
+                              value: isSelected,
+                              activeColor: AppColors.primaryAccent,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
                               ),
+                              onChanged: (val) {
+                                setModalState(() {
+                                  if (val == true) {
+                                    selectedKeys.add(entry.item.key);
+                                  } else {
+                                    if (selectedKeys.length > 1) {
+                                      selectedKeys.remove(entry.item.key);
+                                    } else {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'At least 1 shortcut is required.',
+                                          ),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                });
+                              },
                             ),
-                            child: Icon(
-                              entry.item.icon,
-                              size: 20,
-                              color: isSelected ? AppColors.primaryAccent : AppColors.secondaryText,
-                            ),
-                          ),
-                          title: Text(
-                            entry.label,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              color: AppColors.primaryText,
-                            ),
-                          ),
-                          subtitle: Text(
-                            entry.item.category,
-                            style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
-                          ),
-                          trailing: Checkbox(
-                            value: isSelected,
-                            activeColor: AppColors.primaryAccent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                            onChanged: (val) {
+                            onTap: () {
                               setModalState(() {
-                                if (val == true) {
-                                  selectedKeys.add(entry.item.key);
-                                } else {
+                                if (isSelected) {
                                   if (selectedKeys.length > 1) {
                                     selectedKeys.remove(entry.item.key);
                                   } else {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('At least 1 shortcut is required.'),
+                                        content: Text(
+                                          'At least 1 shortcut is required.',
+                                        ),
                                         duration: Duration(seconds: 2),
                                       ),
                                     );
                                   }
+                                } else {
+                                  selectedKeys.add(entry.item.key);
                                 }
                               });
                             },
-                          ),
-                          onTap: () {
-                            setModalState(() {
-                              if (isSelected) {
-                                if (selectedKeys.length > 1) {
-                                  selectedKeys.remove(entry.item.key);
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('At least 1 shortcut is required.'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
-                              } else {
-                                selectedKeys.add(entry.item.key);
-                              }
-                            });
-                          },
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                  // Bottom Save Button
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      color: AppColors.surface,
-                      border: Border(top: BorderSide(color: AppColors.border)),
-                    ),
-                    child: SafeArea(
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            _saveQuickLinks(selectedKeys.toList());
-                            Navigator.of(sheetContext).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Quick links updated!'),
-                                duration: Duration(seconds: 2),
+                    // Bottom Save Button
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        color: AppColors.surface,
+                        border: Border(
+                          top: BorderSide(color: AppColors.border),
+                        ),
+                      ),
+                      child: SafeArea(
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              _saveQuickLinks(selectedKeys.toList());
+                              Navigator.of(sheetContext).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Quick links updated!'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryAccent,
+                              foregroundColor: AppColors.surface,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryAccent,
-                            foregroundColor: AppColors.surface,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
                             ),
-                          ),
-                          child: const Text(
-                            'Save Quick Links',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                            child: const Text(
+                              'Save Quick Links',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
+            );
           },
         );
       },
@@ -2305,7 +2473,8 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
 
   // --- 5. FOOTER ---
   Widget _buildFooter(StudentProfileModel? profile) {
-    final footerText = (profile?.menuConfig?['company_footer'] as String?)
+    final footerText =
+        (profile?.menuConfig?['company_footer'] as String?)
                 ?.trim()
                 .isNotEmpty ==
             true
@@ -2318,8 +2487,11 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.shield_outlined,
-                size: 13, color: AppColors.tertiaryText),
+            const Icon(
+              Icons.shield_outlined,
+              size: 13,
+              color: AppColors.tertiaryText,
+            ),
             const SizedBox(width: 6),
             Text(
               footerText,

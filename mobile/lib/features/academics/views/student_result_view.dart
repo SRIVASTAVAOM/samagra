@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/samagra_back_button.dart';
 import '../bloc/exams_bloc.dart';
 import '../models/exam_model.dart';
 
@@ -29,6 +30,7 @@ class _StudentResultViewState extends State<StudentResultView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const SamagraBackButton(),
         title: Text('${widget.examName} Result'),
         elevation: 0,
         backgroundColor: AppColors.surface,
@@ -37,7 +39,9 @@ class _StudentResultViewState extends State<StudentResultView> {
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primaryAccent),
             onPressed: () {
-              context.read<ExamsBloc>().add(LoadStudentResultEvent(widget.examId));
+              context.read<ExamsBloc>().add(
+                LoadStudentResultEvent(widget.examId),
+              );
             },
           ),
         ],
@@ -51,13 +55,18 @@ class _StudentResultViewState extends State<StudentResultView> {
         listener: (context, state) {
           if (state is ExamsError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.error,
+              ),
             );
           }
         },
         builder: (context, state) {
           if (state is ExamsLoading) {
-            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+            return const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            );
           }
 
           if (state is StudentResultLoaded) {
@@ -72,12 +81,19 @@ class _StudentResultViewState extends State<StudentResultView> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.lock_outline, size: 48, color: AppColors.tertiaryText),
+                    Icon(
+                      Icons.lock_outline,
+                      size: 48,
+                      color: AppColors.tertiaryText,
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       state.message,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.secondaryText, fontSize: 14),
+                      style: const TextStyle(
+                        color: AppColors.secondaryText,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     OutlinedButton.icon(
@@ -104,7 +120,10 @@ class _StudentResultViewState extends State<StudentResultView> {
     );
   }
 
-  Widget _buildResultContent(BuildContext context, StudentExamResultModel result) {
+  Widget _buildResultContent(
+    BuildContext context,
+    StudentExamResultModel result,
+  ) {
     final card = result.reportCard;
 
     return ListView(
@@ -137,18 +156,28 @@ class _StudentResultViewState extends State<StudentResultView> {
                       children: [
                         Text(
                           card.studentName ?? 'Student Result',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primaryText),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppColors.primaryText,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Roll No: ${card.rollNumber ?? "-"} • ${card.className ?? ""} ${card.sectionName ?? ""}',
-                          style: const TextStyle(color: AppColors.secondaryText, fontSize: 13),
+                          style: const TextStyle(
+                            color: AppColors.secondaryText,
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.successLight,
                       borderRadius: BorderRadius.circular(6),
@@ -156,7 +185,11 @@ class _StudentResultViewState extends State<StudentResultView> {
                     ),
                     child: Text(
                       card.status.toUpperCase(),
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.success),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.success,
+                      ),
                     ),
                   ),
                 ],
@@ -167,8 +200,14 @@ class _StudentResultViewState extends State<StudentResultView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildMetric('Total Marks', '${card.totalMarksObtained.toStringAsFixed(1)} / ${card.totalMaxMarks.toStringAsFixed(0)}'),
-                  _buildMetric('Percentage', '${card.percentage.toStringAsFixed(1)}%'),
+                  _buildMetric(
+                    'Total Marks',
+                    '${card.totalMarksObtained.toStringAsFixed(1)} / ${card.totalMaxMarks.toStringAsFixed(0)}',
+                  ),
+                  _buildMetric(
+                    'Percentage',
+                    '${card.percentage.toStringAsFixed(1)}%',
+                  ),
                 ],
               ),
               if (card.classTeacherRemarks != null) ...[
@@ -186,12 +225,20 @@ class _StudentResultViewState extends State<StudentResultView> {
                     children: [
                       const Text(
                         'Teacher Remarks:',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryText,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         card.classTeacherRemarks!,
-                        style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, fontStyle: FontStyle.italic),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.secondaryText,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ],
                   ),
@@ -205,7 +252,11 @@ class _StudentResultViewState extends State<StudentResultView> {
         // Section Title
         const Text(
           'Subject-wise Breakdown',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryText,
+          ),
         ),
         const SizedBox(height: 10),
 
@@ -218,11 +269,18 @@ class _StudentResultViewState extends State<StudentResultView> {
   Widget _buildMetric(String label, String value) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+        ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryText,
+          ),
         ),
       ],
     );
@@ -252,18 +310,29 @@ class _StudentResultViewState extends State<StudentResultView> {
               children: [
                 Text(
                   sub.subjectName,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.primaryText),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: AppColors.primaryText,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Code: ${sub.subjectCode} • Max: ${sub.maxMarks.toStringAsFixed(0)}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.secondaryText,
+                  ),
                 ),
                 if (sub.remarks != null) ...[
                   const SizedBox(height: 4),
                   Text(
                     sub.remarks!,
-                    style: const TextStyle(fontSize: 12, color: AppColors.secondaryText, fontStyle: FontStyle.italic),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.secondaryText,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ],
               ],
@@ -279,7 +348,11 @@ class _StudentResultViewState extends State<StudentResultView> {
               ),
               child: const Text(
                 'ABSENT',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.error),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.error,
+                ),
               ),
             )
           else if (sub.marksObtained != null)
@@ -288,13 +361,21 @@ class _StudentResultViewState extends State<StudentResultView> {
               children: [
                 Text(
                   '${sub.marksObtained!.toStringAsFixed(1)} / ${sub.maxMarks.toStringAsFixed(0)}',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryText,
+                  ),
                 ),
                 Text(
-                  sub.marksObtained! >= sub.passingMarks ? 'Pass' : 'Needs Improvement',
+                  sub.marksObtained! >= sub.passingMarks
+                      ? 'Pass'
+                      : 'Needs Improvement',
                   style: TextStyle(
                     fontSize: 11,
-                    color: sub.marksObtained! >= sub.passingMarks ? AppColors.success : AppColors.error,
+                    color: sub.marksObtained! >= sub.passingMarks
+                        ? AppColors.success
+                        : AppColors.error,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -303,7 +384,11 @@ class _StudentResultViewState extends State<StudentResultView> {
           else
             const Text(
               'Pending',
-              style: TextStyle(fontSize: 13, color: AppColors.tertiaryText, fontStyle: FontStyle.italic),
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.tertiaryText,
+                fontStyle: FontStyle.italic,
+              ),
             ),
         ],
       ),
