@@ -13,9 +13,9 @@ class AcademicsRepository {
 
   AcademicsRepository({required this.dioClient});
 
-  Future<List<SubjectModel>> getSubjects() async {
+  Future<List<SubjectModel>> getSubjects({String? classId}) async {
     try {
-      final response = await dioClient.dio.get(ApiEndpoints.subjects);
+      final response = await dioClient.dio.get(ApiEndpoints.subjectsForClass(classId));
       final data = response.data['data'] as List<dynamic>;
       return data
           .map((item) => SubjectModel.fromJson(item as Map<String, dynamic>))

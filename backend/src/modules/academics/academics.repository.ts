@@ -68,11 +68,25 @@ export class AcademicsRepository {
     return rows;
   }
 
-  static async getSubjectsBySchool(schoolId: string): Promise<SubjectRecord[]> {
+  static async getSubjectsBySchool(schoolId: string, classId?: string): Promise<SubjectRecord[]> {
+    if (classId && /^[0-9a-fA-F-]{36}$/.test(classId)) {
+      const scoped = await pool.query(
+        `SELECT s.id, s.name, s.code, COALESCE(s.type, 'THEORY') AS type, COALESCE(s.is_active, TRUE) AS is_active
+         FROM subjects s
+         JOIN class_subjects cs ON cs.subject_id = s.id
+         WHERE s.school_id = $1 AND cs.class_id = $2 AND COALESCE(s.is_active, TRUE) = TRUE
+         ORDER BY s.name ASC;`,
+        [schoolId, classId]
+      );
+      if (scoped.rows.length > 0) {
+        return scoped.rows;
+      }
+    }
+
     const query = `
       SELECT id, name, code, COALESCE(type, 'THEORY') AS type, COALESCE(is_active, TRUE) AS is_active
       FROM subjects
-      WHERE school_id = $1
+      WHERE school_id = $1 AND COALESCE(is_active, TRUE) = TRUE
       ORDER BY name ASC;
     `;
     const { rows } = await pool.query(query, [schoolId]);

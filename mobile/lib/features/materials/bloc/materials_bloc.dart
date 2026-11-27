@@ -80,6 +80,10 @@ class MaterialsError extends MaterialsState {
 // --- BLoC ---
 class MaterialsBloc extends Bloc<MaterialsEvent, MaterialsState> {
   final MaterialsRepository _repository;
+  List<AcademicMaterialModel> _cachedMaterials = [];
+
+  List<AcademicMaterialModel> get cachedMaterials =>
+      List.unmodifiable(_cachedMaterials);
 
   MaterialsBloc(this._repository) : super(const MaterialsInitial()) {
     on<LoadClassMaterialsEvent>(_onLoadMaterials);
@@ -98,9 +102,10 @@ class MaterialsBloc extends Bloc<MaterialsEvent, MaterialsState> {
         event.subjectId,
         sectionId: event.sectionId,
       );
+      _cachedMaterials = list;
       emit(MaterialsLoaded(list));
     } catch (e) {
-      emit(MaterialsError(e.toString()));
+      emit(MaterialsError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 
@@ -142,9 +147,10 @@ class MaterialsBloc extends Bloc<MaterialsEvent, MaterialsState> {
         event.subjectId,
         sectionId: event.sectionId,
       );
+      _cachedMaterials = list;
       emit(MaterialsLoaded(list));
     } catch (e) {
-      emit(MaterialsError(e.toString()));
+      emit(MaterialsError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 
@@ -160,7 +166,7 @@ class MaterialsBloc extends Bloc<MaterialsEvent, MaterialsState> {
         fileName: res.fileName,
       ));
     } catch (e) {
-      emit(MaterialsError(e.toString()));
+      emit(MaterialsError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 }

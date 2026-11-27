@@ -29,7 +29,7 @@ class MockAcademicsRepository implements AcademicsRepository {
   }
 
   @override
-  Future<List<SubjectModel>> getSubjects() async {
+  Future<List<SubjectModel>> getSubjects({String? classId}) async {
     if (shouldThrow) throw Exception('Failed to load subjects');
     return subjects;
   }

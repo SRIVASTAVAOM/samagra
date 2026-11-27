@@ -155,6 +155,25 @@ void main() {
       );
     });
 
+    test('AcademicMaterialModel.fromJson safely parses Postgres BIGINT string file_size_bytes', () {
+      final model = AcademicMaterialModel.fromJson({
+        'id': 'mat-bigint',
+        'school_id': 'sch-1',
+        'class_id': 'cls-1',
+        'subject_id': 'sub-1',
+        'uploaded_by_staff_id': 'staff-1',
+        'title': 'Admin Notes',
+        's3_file_key': 'https://res.cloudinary.com/demo/image/upload/notes.pdf',
+        'file_name': 'notes.pdf',
+        'file_size_bytes': '2457600',
+        'content_type': 'application/pdf',
+        'is_verified': true,
+        'created_at': '2026-10-10T10:00:00Z',
+      });
+      expect(model.fileSizeBytes, 2457600);
+      expect(model.formattedSize, '2.3 MB');
+    });
+
     test('emits MaterialOperationSuccess on DownloadMaterialEvent', () async {
       final expected = [
         isA<MaterialOperationSuccess>().having(

@@ -85,7 +85,7 @@ class _StudentShellState extends State<StudentShell> {
     try {
       setState(() => _loadingSubjects = true);
       final repo = context.read<AcademicsRepository>();
-      final subjects = await repo.getSubjects();
+      final subjects = await repo.getSubjects(classId: widget.user.classId);
       if (mounted) {
         setState(() {
           _subjects = subjects;

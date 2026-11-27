@@ -145,6 +145,15 @@ describe('Academic Materials & S3 Pre-signed URL API Tests', () => {
       expect(Array.isArray(res.body.data)).toBe(true);
       expect(res.body.data.length).toBeGreaterThan(0);
     });
+
+    it('should reject invalid UUID classId/subjectId cleanly with 400', async () => {
+      const res = await request(app)
+        .get('/api/v1/materials/class/not-a-uuid/also-not-uuid')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
   });
 
   describe('GET /api/v1/materials/:id/download-url', () => {
@@ -158,6 +167,15 @@ describe('Academic Materials & S3 Pre-signed URL API Tests', () => {
       expect(res.body.data).toHaveProperty('downloadUrl');
       expect(res.body.data).toHaveProperty('fileName');
       expect(res.body.data).toHaveProperty('contentType');
+    });
+
+    it('should reject invalid material UUID with 400', async () => {
+      const res = await request(app)
+        .get('/api/v1/materials/invalid-uuid/download-url')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
     });
   });
 

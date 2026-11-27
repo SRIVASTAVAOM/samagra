@@ -34,6 +34,10 @@ class ApiEndpoints {
 
   // Academics Endpoints
   static String get subjects => '$baseUrl/academics/subjects';
+  static String subjectsForClass(String? classId) =>
+      (classId != null && classId.isNotEmpty)
+          ? '$baseUrl/academics/subjects?classId=$classId'
+          : subjects;
   static String classRoster(String classId, String sectionId) =>
       '$baseUrl/academics/class-roster/$classId/$sectionId';
   static String get myRoster => '$baseUrl/academics/my-roster';

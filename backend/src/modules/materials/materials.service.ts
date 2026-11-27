@@ -6,6 +6,24 @@ import { CloudinaryService } from '../../services/cloudinary.service';
 import { MaterialsRepository, AcademicMaterial } from './materials.repository';
 
 export class MaterialsService {
+  static async resolveStudentEnrollment(
+    user: TokenPayload
+  ): Promise<{ current_class_id: string | null; current_section_id: string | null } | null> {
+    const { rows } = await pool.query(
+      `SELECT stp.current_class_id, stp.current_section_id
+       FROM student_profiles stp
+       JOIN users u ON stp.user_id = u.id
+       WHERE u.school_id = $3
+         AND (
+           ($1 <> '' AND stp.id::text = $1)
+           OR ($2 <> '' AND stp.user_id::text = $2)
+         )
+       LIMIT 1;`,
+      [user.profileId || '', user.userId || '', user.schoolId]
+    );
+    return rows[0] || null;
+  }
+
   /**
    * Verifies teacher is allocated to class and subject.
    */
@@ -49,7 +67,8 @@ export class MaterialsService {
       fileName: string;
       fileSizeBytes: number;
       contentType: string;
-    }
+    },
+    requestBaseUrl?: string
   ): Promise<{
     uploadUrl: string;
     fileKey: string;
@@ -103,7 +122,12 @@ export class MaterialsService {
     });
 
     // 6. Generate Short-Lived Pre-Signed Upload URL (5 minutes)
-    const presigned = await CloudinaryService.generatePresignedUploadUrl(serverFileKey, data.contentType, 300);
+    const presigned = await CloudinaryService.generatePresignedUploadUrl(
+      serverFileKey,
+      data.contentType,
+      300,
+      requestBaseUrl
+    );
 
     return {
       uploadUrl: presigned.uploadUrl,
@@ -135,16 +159,11 @@ export class MaterialsService {
   ): Promise<AcademicMaterial[]> {
     // If student, check enrolled class
     if (user.roles.includes('STUDENT')) {
-      const { rows } = await pool.query(
-        `SELECT current_class_id, current_section_id 
-         FROM student_profiles 
-         WHERE (id::text = $1 OR user_id::text = $1);`,
-        [user.profileId]
-      );
-      if (rows.length === 0) {
+      const enrollment = await this.resolveStudentEnrollment(user);
+      if (!enrollment) {
         throw { statusCode: 404, message: 'Student profile not found. Please verify your enrollment.' };
       }
-      const enrolledClassId = rows[0].current_class_id;
+      const enrolledClassId = enrollment.current_class_id;
       if (!enrolledClassId) {
         throw { statusCode: 400, message: 'Student is not actively assigned to any class.' };
       }
@@ -154,7 +173,7 @@ export class MaterialsService {
       return await MaterialsRepository.getMaterialsByClassAndSubject(
         classId,
         subjectId,
-        rows[0].current_section_id,
+        enrollment.current_section_id || undefined,
         user.schoolId
       );
     }
@@ -200,16 +219,11 @@ export class MaterialsService {
 
     // Scope check: Student must be in that class and section
     if (user.roles.includes('STUDENT')) {
-      const { rows } = await pool.query(
-        `SELECT current_class_id, current_section_id 
-         FROM student_profiles 
-         WHERE (id::text = $1 OR user_id::text = $1);`,
-        [user.profileId]
-      );
-      if (rows.length === 0 || rows[0].current_class_id !== material.class_id) {
+      const enrollment = await this.resolveStudentEnrollment(user);
+      if (!enrollment || enrollment.current_class_id !== material.class_id) {
         throw { statusCode: 403, message: 'Unauthorized: You are not enrolled in the class for this material.' };
       }
-      if (material.section_id && rows[0].current_section_id && material.section_id !== rows[0].current_section_id) {
+      if (material.section_id && enrollment.current_section_id && material.section_id !== enrollment.current_section_id) {
         throw { statusCode: 403, message: 'Unauthorized: Material is scoped to a different section.' };
       }
     }

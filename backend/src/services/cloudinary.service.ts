@@ -34,6 +34,13 @@ export class CloudinaryService {
     return raw.replace(/\/+$/, '');
   }
 
+  static normalizePublicId(fileKey: string): string {
+    return fileKey
+      .replace(/^\/+/, '')
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+
   /**
    * Generates an upload URL for Cloudinary storage.
    * If credentials are provided, generates a Cloudinary upload endpoint with signed parameters.
@@ -57,7 +64,7 @@ export class CloudinaryService {
     const folder = env.CLOUDINARY_FOLDER || 'school_erp';
 
     const timestamp = Math.round(Date.now() / 1000);
-    const sanitizedPublicId = fileKey.replace(/^\/+/, '').replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const sanitizedPublicId = this.normalizePublicId(fileKey);
 
     const paramsToSign: Record<string, any> = {
       folder,
@@ -111,7 +118,10 @@ export class CloudinaryService {
     }
 
     const folder = env.CLOUDINARY_FOLDER || 'school_erp';
-    const publicId = fileKey.includes('/') ? fileKey : `${folder}/${fileKey}`;
+    const normalized = this.normalizePublicId(fileKey);
+    const publicId = fileKey.startsWith(`${folder}/`) && !fileKey.slice(folder.length + 1).includes('/')
+      ? fileKey
+      : `${folder}/${normalized}`;
     const isPdf = fileKey.toLowerCase().endsWith('.pdf');
     
     // Generate secure Cloudinary delivery URL (inline rendering supported for PDFs and images)
@@ -139,7 +149,7 @@ export class CloudinaryService {
     }
 
     const folder = env.CLOUDINARY_FOLDER || 'school_erp';
-    const sanitizedPublicId = fileKey.replace(/^\/+/, '').replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const sanitizedPublicId = this.normalizePublicId(fileKey);
     const isPdf = (contentType && contentType.toLowerCase().includes('pdf')) || fileKey.toLowerCase().endsWith('.pdf');
 
     return new Promise((resolve, reject) => {

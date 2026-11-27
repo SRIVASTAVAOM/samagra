@@ -123,7 +123,15 @@ void main() {
       expect(find.text('Formula Sheet - Trigonometry'), findsOneWidget);
       expect(find.text('trig.pdf'), findsOneWidget);
       expect(find.text('200.0 KB'), findsOneWidget);
-      expect(find.byIcon(Icons.download_outlined), findsOneWidget);
+      expect(find.text('Open Document'), findsOneWidget);
+
+      await tester.tap(find.text('Open Document'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Opening attachment viewer does not wipe out materials list
+      expect(find.text('Formula Sheet - Trigonometry'), findsOneWidget);
+      expect(find.text('Load Materials'), findsNothing);
 
       materialsBloc.close();
     });

@@ -6,8 +6,12 @@ export class AcademicsService {
     return await AcademicsRepository.getClassesAndSections(schoolId);
   }
 
-  static async getSubjects(schoolId: string): Promise<SubjectRecord[]> {
-    return await AcademicsRepository.getSubjectsBySchool(schoolId);
+  static async getSubjects(schoolId: string, classId?: string, user?: TokenPayload): Promise<SubjectRecord[]> {
+    let resolvedClassId = classId;
+    if (!resolvedClassId && user?.roles.includes('STUDENT')) {
+      resolvedClassId = user.classId || undefined;
+    }
+    return await AcademicsRepository.getSubjectsBySchool(schoolId, resolvedClassId);
   }
 
   static async getSubjectsWithDetails(schoolId: string): Promise<any[]> {

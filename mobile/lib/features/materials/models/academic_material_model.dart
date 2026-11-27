@@ -49,27 +49,43 @@ class AcademicMaterialModel {
     return '${(fileSizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
+  static int _parseInt(dynamic value, [int fallback = 0]) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) return fallback;
+      return int.tryParse(trimmed) ?? double.tryParse(trimmed)?.toInt() ?? fallback;
+    }
+    return fallback;
+  }
+
   factory AcademicMaterialModel.fromJson(Map<String, dynamic> json) {
+    final fileKey = json['s3_file_key']?.toString() ??
+        json['file_url']?.toString() ??
+        json['fileUrl']?.toString() ??
+        json['s3FileKey']?.toString() ??
+        '';
     return AcademicMaterialModel(
-      id: json['id'] as String,
-      schoolId: json['school_id'] as String? ?? '',
-      classId: json['class_id'] as String? ?? '',
-      className: json['class_name'] as String?,
-      sectionId: json['section_id'] as String?,
-      sectionName: json['section_name'] as String?,
-      subjectId: json['subject_id'] as String? ?? '',
-      subjectName: json['subject_name'] as String?,
-      subjectCode: json['subject_code'] as String?,
-      uploadedByStaffId: json['uploaded_by_staff_id'] as String? ?? '',
-      teacherName: json['teacher_name'] as String?,
-      title: json['title'] as String? ?? '',
-      description: json['description'] as String?,
-      s3FileKey: json['s3_file_key'] as String? ?? '',
-      fileName: json['file_name'] as String? ?? '',
-      fileSizeBytes: (json['file_size_bytes'] as num?)?.toInt() ?? 0,
-      contentType: json['content_type'] as String? ?? 'application/pdf',
+      id: json['id']?.toString() ?? '',
+      schoolId: json['school_id']?.toString() ?? '',
+      classId: json['class_id']?.toString() ?? '',
+      className: json['class_name']?.toString(),
+      sectionId: json['section_id']?.toString(),
+      sectionName: json['section_name']?.toString(),
+      subjectId: json['subject_id']?.toString() ?? '',
+      subjectName: json['subject_name']?.toString(),
+      subjectCode: json['subject_code']?.toString(),
+      uploadedByStaffId: json['uploaded_by_staff_id']?.toString() ?? '',
+      teacherName: json['teacher_name']?.toString(),
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString(),
+      s3FileKey: fileKey,
+      fileName: json['file_name']?.toString() ?? '',
+      fileSizeBytes: _parseInt(json['file_size_bytes']),
+      contentType: json['content_type']?.toString() ?? 'application/pdf',
       isVerified: json['is_verified'] as bool? ?? false,
-      createdAt: json['created_at'] as String? ?? '',
+      createdAt: json['created_at']?.toString() ?? '',
     );
   }
 
@@ -118,7 +134,7 @@ class PresignedUploadResponse {
       uploadUrl: json['uploadUrl'] as String,
       fileKey: json['fileKey'] as String,
       materialId: json['materialId'] as String,
-      expiresInSeconds: (json['expiresInSeconds'] as num?)?.toInt() ?? 300,
+      expiresInSeconds: AcademicMaterialModel._parseInt(json['expiresInSeconds'], 300),
       isMock: json['isMock'] as bool? ?? false,
     );
   }
@@ -141,10 +157,10 @@ class PresignedDownloadResponse {
 
   factory PresignedDownloadResponse.fromJson(Map<String, dynamic> json) {
     return PresignedDownloadResponse(
-      downloadUrl: json['downloadUrl'] as String,
-      fileName: json['fileName'] as String? ?? 'document',
-      contentType: json['contentType'] as String? ?? 'application/pdf',
-      expiresInSeconds: (json['expiresInSeconds'] as num?)?.toInt() ?? 900,
+      downloadUrl: json['downloadUrl']?.toString() ?? '',
+      fileName: json['fileName']?.toString() ?? 'document',
+      contentType: json['contentType']?.toString() ?? 'application/pdf',
+      expiresInSeconds: AcademicMaterialModel._parseInt(json['expiresInSeconds'], 900),
       isMock: json['isMock'] as bool? ?? false,
     );
   }

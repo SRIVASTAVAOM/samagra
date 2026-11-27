@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
+import '../../profiles/bloc/profile_bloc.dart';
+import '../../profiles/bloc/profile_state.dart';
 import '../bloc/materials_bloc.dart';
 import '../models/academic_material_model.dart';
 import '../../../core/widgets/document_picker_bottom_sheet.dart';
@@ -14,6 +16,7 @@ class AcademicMaterialsView extends StatefulWidget {
   final String subjectId;
   final String? className;
   final String? subjectName;
+  final bool showAppBar;
 
   const AcademicMaterialsView({
     super.key,
@@ -21,6 +24,7 @@ class AcademicMaterialsView extends StatefulWidget {
     required this.subjectId,
     this.className,
     this.subjectName,
+    this.showAppBar = true,
   });
 
   @override
@@ -28,7 +32,17 @@ class AcademicMaterialsView extends StatefulWidget {
 }
 
 class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
+  List<AcademicMaterialModel> _cachedMaterials = [];
+
   String _getEffectiveClassId(BuildContext context) {
+    try {
+      final profileState = context.read<ProfileBloc>().state;
+      if (profileState is StudentProfileLoaded &&
+          profileState.profile.currentClassId != null &&
+          profileState.profile.currentClassId!.isNotEmpty) {
+        return profileState.profile.currentClassId!;
+      }
+    } catch (_) {}
     if (widget.classId.isNotEmpty) return widget.classId;
     final authState = context.read<AuthBloc>().state;
     if (authState is Authenticated) {
@@ -37,9 +51,24 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
     return '';
   }
 
+  void _openMaterial(BuildContext context, AcademicMaterialModel item) {
+    final key = item.s3FileKey.trim();
+    if (key.startsWith('http://') || key.startsWith('https://')) {
+      _showAttachmentViewer(context, key, item.fileName);
+      return;
+    }
+    context.read<MaterialsBloc>().add(DownloadMaterialEvent(item.id));
+  }
+
   @override
   void initState() {
     super.initState();
+    final bloc = context.read<MaterialsBloc>();
+    if (bloc.state is MaterialsLoaded) {
+      _cachedMaterials = (bloc.state as MaterialsLoaded).materials;
+    } else if (bloc.cachedMaterials.isNotEmpty) {
+      _cachedMaterials = bloc.cachedMaterials;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final effectiveClassId = _getEffectiveClassId(context);
@@ -71,28 +100,30 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
     final effectiveClassId = _getEffectiveClassId(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.subjectName ?? "Subject"} Study Materials'),
-        elevation: 0,
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.primaryText,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primaryAccent),
-            onPressed: () {
-              if (effectiveClassId.isNotEmpty && widget.subjectId.isNotEmpty) {
-                context.read<MaterialsBloc>().add(
-                      LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
-                    );
-              }
-            },
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: AppColors.border, height: 1.0),
-        ),
-      ),
+      appBar: widget.showAppBar
+          ? AppBar(
+              title: Text('${widget.subjectName ?? "Subject"} Study Materials'),
+              elevation: 0,
+              backgroundColor: AppColors.surface,
+              foregroundColor: AppColors.primaryText,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: AppColors.primaryAccent),
+                  onPressed: () {
+                    if (effectiveClassId.isNotEmpty && widget.subjectId.isNotEmpty) {
+                      context.read<MaterialsBloc>().add(
+                            LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
+                          );
+                    }
+                  },
+                ),
+              ],
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(1.0),
+                child: Container(color: AppColors.border, height: 1.0),
+              ),
+            )
+          : null,
       backgroundColor: AppColors.scaffoldBackground,
       floatingActionButton: isTeacher
           ? FloatingActionButton.extended(
@@ -151,7 +182,11 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
                 )
               : BlocConsumer<MaterialsBloc, MaterialsState>(
         listener: (context, state) {
-          if (state is MaterialOperationSuccess) {
+          if (state is MaterialsLoaded) {
+            setState(() {
+              _cachedMaterials = state.materials;
+            });
+          } else if (state is MaterialOperationSuccess) {
             if (state.downloadUrl != null && state.downloadUrl!.isNotEmpty) {
               _showAttachmentViewer(context, state.downloadUrl!, state.fileName);
             } else {
@@ -169,7 +204,7 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
           }
         },
         builder: (context, state) {
-          if (state is MaterialsLoading) {
+          if (state is MaterialsLoading && _cachedMaterials.isEmpty) {
             return const Center(child: CircularProgressIndicator(strokeWidth: 2));
           }
 
@@ -197,63 +232,13 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
           }
 
           if (state is MaterialsLoaded) {
-            final materials = state.materials;
-            if (materials.isEmpty) {
-              return RefreshIndicator(
-                onRefresh: () async {
-                  final effectiveClassId = _getEffectiveClassId(context);
-                  if (effectiveClassId.isNotEmpty && widget.subjectId.isNotEmpty) {
-                    context.read<MaterialsBloc>().add(
-                          LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
-                        );
-                  }
-                },
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    SizedBox(height: MediaQuery.of(context).size.height * 0.22),
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.folder_open_outlined, size: 56, color: AppColors.tertiaryText),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'No study materials available yet',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryText),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Materials uploaded by your teachers will appear here.',
-                            style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
+            _cachedMaterials = state.materials;
+            return _buildMaterialsListView(context, state.materials);
+          }
 
-            return RefreshIndicator(
-              onRefresh: () async {
-                final effectiveClassId = _getEffectiveClassId(context);
-                if (effectiveClassId.isNotEmpty && widget.subjectId.isNotEmpty) {
-                  context.read<MaterialsBloc>().add(
-                        LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
-                      );
-                }
-              },
-              child: ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                itemCount: materials.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  return _buildMaterialCard(materials[index]);
-                },
-              ),
-            );
+          // Preserve visible list when MaterialOperationSuccess or transient MaterialsError occurs
+          if (_cachedMaterials.isNotEmpty) {
+            return _buildMaterialsListView(context, _cachedMaterials);
           }
 
           if (state is MaterialsError) {
@@ -317,6 +302,71 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
     );
   }
 
+  Widget _buildMaterialsListView(
+      BuildContext context, List<AcademicMaterialModel> materials) {
+    if (materials.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: () async {
+          final effectiveClassId = _getEffectiveClassId(context);
+          if (effectiveClassId.isNotEmpty && widget.subjectId.isNotEmpty) {
+            context.read<MaterialsBloc>().add(
+                  LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
+                );
+          }
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(height: MediaQuery.of(context).size.height * 0.22),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.folder_open_outlined,
+                      size: 56, color: AppColors.tertiaryText),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No study materials available yet',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primaryText),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Materials uploaded by your teachers or school admin will appear here.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        final effectiveClassId = _getEffectiveClassId(context);
+        if (effectiveClassId.isNotEmpty && widget.subjectId.isNotEmpty) {
+          context.read<MaterialsBloc>().add(
+                LoadClassMaterialsEvent(effectiveClassId, widget.subjectId),
+              );
+        }
+      },
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: materials.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          return _buildMaterialCard(materials[index]);
+        },
+      ),
+    );
+  }
+
   Widget _buildMaterialCard(AcademicMaterialModel item) {
     return Container(
       decoration: BoxDecoration(
@@ -336,9 +386,7 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            context.read<MaterialsBloc>().add(DownloadMaterialEvent(item.id));
-          },
+          onTap: () => _openMaterial(context, item),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -408,9 +456,7 @@ class _AcademicMaterialsViewState extends State<AcademicMaterialsView> {
                     ),
                     OutlinedButton.icon(
                       key: Key('download_material_${item.id}'),
-                      onPressed: () {
-                        context.read<MaterialsBloc>().add(DownloadMaterialEvent(item.id));
-                      },
+                      onPressed: () => _openMaterial(context, item),
                       icon: const Icon(Icons.open_in_new, size: 16),
                       label: const Text('Open Document'),
                       style: OutlinedButton.styleFrom(
@@ -896,7 +942,7 @@ class _UploadMaterialDialogState extends State<_UploadMaterialDialog> {
             foregroundColor: AppColors.surface,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
-          child: const Text('Upload to S3'),
+          child: const Text('Upload Material'),
         ),
       ],
     );

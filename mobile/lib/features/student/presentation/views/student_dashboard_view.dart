@@ -309,7 +309,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
     String? subjectName;
     try {
       final repo = context.read<AcademicsRepository>();
-      final subjects = await repo.getSubjects();
+      final subjects = await repo.getSubjects(classId: widget.user.classId);
       if (subjects.isNotEmpty) {
         subjectId = subjects.first.id;
         subjectName = subjects.first.name;
@@ -322,13 +322,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       bloc = context.read<MaterialsBloc>();
     } catch (_) {}
 
-    Widget content = Scaffold(
-      appBar: AppBar(title: const Text('Study Materials')),
-      body: AcademicMaterialsView(
-        classId: widget.user.classId ?? '',
-        subjectId: subjectId,
-        subjectName: subjectName,
-      ),
+    Widget content = AcademicMaterialsView(
+      classId: widget.user.classId ?? '',
+      subjectId: subjectId,
+      subjectName: subjectName,
     );
     if (bloc != null) {
       content = BlocProvider<MaterialsBloc>.value(value: bloc, child: content);

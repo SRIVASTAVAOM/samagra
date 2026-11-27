@@ -1,7 +1,10 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import { pool } from '../../config/db.config';
 import { MaterialsService } from './materials.service';
 import { CloudinaryService } from '../../services/cloudinary.service';
+
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 const initiateUploadSchema = z.object({
   classId: z.string().uuid().optional(),
@@ -36,7 +39,9 @@ export class MaterialsController {
   static async initiatePresignedUpload(req: Request, res: Response): Promise<void> {
     try {
       const parsed = initiateUploadSchema.parse(req.body);
-      const result = await MaterialsService.initiatePresignedUpload((req as any).user, parsed);
+      const host = req.get('host');
+      const requestBaseUrl = host ? `${req.protocol}://${host}` : undefined;
+      const result = await MaterialsService.initiatePresignedUpload((req as any).user, parsed, requestBaseUrl);
       res.status(201).json({ success: true, data: result });
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -53,6 +58,10 @@ export class MaterialsController {
   static async verifyUpload(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      if (!UUID_REGEX.test(id)) {
+        res.status(400).json({ success: false, error: 'Invalid material ID format' });
+        return;
+      }
       const material = await MaterialsService.verifyUpload((req as any).user, id);
       res.status(200).json({ success: true, data: material });
     } catch (error: any) {
@@ -67,6 +76,10 @@ export class MaterialsController {
     try {
       const { classId, subjectId } = req.params;
       const { sectionId } = req.query;
+      if (!UUID_REGEX.test(classId) || !UUID_REGEX.test(subjectId) || (sectionId && !UUID_REGEX.test(String(sectionId)))) {
+        res.status(400).json({ success: false, error: 'Invalid class, subject, or section identifier' });
+        return;
+      }
       const list = await MaterialsService.getMaterials(
         (req as any).user,
         classId,
@@ -85,6 +98,10 @@ export class MaterialsController {
   static async getDownloadUrl(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      if (!UUID_REGEX.test(id)) {
+        res.status(400).json({ success: false, error: 'Invalid material ID format' });
+        return;
+      }
       const result = await MaterialsService.getDownloadUrl((req as any).user, id);
       res.status(200).json({ success: true, data: result });
     } catch (error: any) {
@@ -325,6 +342,12 @@ export class MaterialsController {
         fileKey,
         req.headers['content-type'] as string
       );
+      if (uploadResult.url) {
+        await pool.query(
+          `UPDATE academic_materials SET s3_file_key = $1, updated_at = CURRENT_TIMESTAMP WHERE s3_file_key = $2;`,
+          [uploadResult.url, fileKey]
+        );
+      }
       res.status(200).json({
         success: true,
         message: 'File uploaded to Cloudinary successfully',

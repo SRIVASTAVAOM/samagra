@@ -14,7 +14,8 @@ export class AcademicsController {
 
   static async getSubjects(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const subjects = await AcademicsService.getSubjects(req.user!.schoolId);
+      const classId = (req.query.classId || req.query.class_id) as string | undefined;
+      const subjects = await AcademicsService.getSubjects(req.user!.schoolId, classId, req.user);
       res.status(200).json({ success: true, data: subjects });
     } catch (error) {
       next(error);
