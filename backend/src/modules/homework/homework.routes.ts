@@ -12,10 +12,10 @@ const uploadParser = express.raw({
 
 router.use(authenticateToken);
 
-// Teacher/Admin uploads homework attachment (5MB limit) - before /:id
+// Teacher/Student/Admin uploads homework or submission attachment (5MB limit) - before /:id
 router.post(
   '/attachment-upload',
-  requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']),
+  requireRole(['TEACHER', 'STUDENT', 'ADMIN', 'SUPER_ADMIN']),
   uploadParser,
   HomeworkController.uploadHomeworkAttachment
 );
@@ -31,6 +31,9 @@ router.get('/teacher/my-assigned', requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN
 
 // Student views homework for their class/section
 router.get('/student/my-class', requireRole(['STUDENT']), HomeworkController.getStudentMyClassHomework);
+
+// Student submits work (note/attachment) and marks homework completed
+router.post('/:id/submit', requireRole(['STUDENT']), HomeworkController.submitHomework);
 
 // Student toggles completion status for an assignment
 router.post('/:id/completion', requireRole(['STUDENT']), HomeworkController.setCompletionStatus);

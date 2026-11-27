@@ -82,7 +82,27 @@ class MockHomeworkRepository implements HomeworkRepository {
   }
 
   @override
-  Future<PresignedDownloadResponse> getAttachmentDownloadUrl(String homeworkId) async {
+  Future<Map<String, dynamic>> submitHomework({
+    required String homeworkId,
+    String? submissionText,
+    String? submissionAttachmentKey,
+    String? submissionAttachmentName,
+  }) async {
+    if (shouldThrow) throw Exception('Network error');
+    return {
+      'status': 'COMPLETED',
+      'submission_text': submissionText,
+      'submission_attachment_key': submissionAttachmentKey,
+      'submission_attachment_name': submissionAttachmentName,
+      'submitted_at': '2026-10-12T10:00:00Z',
+    };
+  }
+
+  @override
+  Future<PresignedDownloadResponse> getAttachmentDownloadUrl(
+    String homeworkId, {
+    bool isSubmission = false,
+  }) async {
     if (shouldThrow) throw Exception('Network error');
     return const PresignedDownloadResponse(
       downloadUrl: 'https://school-erp-bucket.s3.amazonaws.com/downloads/hw-123.pdf?sig=test',
@@ -179,6 +199,23 @@ void main() {
 
       expectLater(bloc.stream, emitsInOrder(expected));
       bloc.add(const ToggleHomeworkCompletionEvent('hw-123', 'PENDING'));
+    });
+
+    test('emits [HomeworkOperationSuccess, StudentHomeworkLoaded] on SubmitHomeworkEvent', () async {
+      final expected = [
+        isA<HomeworkOperationSuccess>(),
+        isA<StudentHomeworkLoaded>().having(
+          (s) => s.homeworkList.length,
+          'homeworkList length',
+          1,
+        ),
+      ];
+
+      expectLater(bloc.stream, emitsInOrder(expected));
+      bloc.add(const SubmitHomeworkEvent(
+        homeworkId: 'hw-123',
+        submissionText: 'Completed exercise 4.2',
+      ));
     });
 
     test('emits HomeworkOperationSuccess on DownloadHomeworkAttachmentEvent', () async {

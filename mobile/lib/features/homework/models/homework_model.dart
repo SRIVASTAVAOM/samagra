@@ -18,6 +18,10 @@ class HomeworkModel {
   final String? attachmentName;
   final String studentStatus; // 'PENDING' | 'COMPLETED'
   final String? completedAt;
+  final String? submissionText;
+  final String? submissionAttachmentKey;
+  final String? submissionAttachmentName;
+  final String? submittedAt;
   final int completedCount;
   final int totalStudents;
 
@@ -41,6 +45,10 @@ class HomeworkModel {
     this.attachmentName,
     this.studentStatus = 'PENDING',
     this.completedAt,
+    this.submissionText,
+    this.submissionAttachmentKey,
+    this.submissionAttachmentName,
+    this.submittedAt,
     this.completedCount = 0,
     this.totalStudents = 0,
   });
@@ -50,6 +58,12 @@ class HomeworkModel {
   /// Returns the URL (or key) for the attached file, if any.
   /// Used by UI components that previously referenced `attachmentUrl`.
   String? get attachmentUrl => s3AttachmentKey;
+  bool get hasSubmissionAttachment =>
+      submissionAttachmentKey != null && submissionAttachmentKey!.isNotEmpty;
+  bool get hasSubmission =>
+      (submissionText != null && submissionText!.trim().isNotEmpty) ||
+      hasSubmissionAttachment;
+  String? get submissionAttachmentUrl => submissionAttachmentKey;
 
   bool get isOverdue {
     if (isCompleted) return false;
@@ -99,6 +113,13 @@ class HomeworkModel {
       attachmentName: json['attachment_name'] as String? ?? json['attachmentName'] as String?,
       studentStatus: json['student_status'] as String? ?? 'PENDING',
       completedAt: json['completed_at'] as String?,
+      submissionText: json['submission_text'] as String? ?? json['submissionText'] as String?,
+      submissionAttachmentKey: json['submission_attachment_key'] as String? ??
+          json['submission_attachment_url'] as String? ??
+          json['submissionAttachmentKey'] as String?,
+      submissionAttachmentName: json['submission_attachment_name'] as String? ??
+          json['submissionAttachmentName'] as String?,
+      submittedAt: json['submitted_at'] as String? ?? json['submittedAt'] as String?,
       completedCount: (json['completed_count'] as num?)?.toInt() ?? 0,
       totalStudents: (json['total_students'] as num?)?.toInt() ?? 0,
     );
@@ -125,6 +146,10 @@ class HomeworkModel {
       'attachment_name': attachmentName,
       'student_status': studentStatus,
       'completed_at': completedAt,
+      'submission_text': submissionText,
+      'submission_attachment_key': submissionAttachmentKey,
+      'submission_attachment_name': submissionAttachmentName,
+      'submitted_at': submittedAt,
       'completed_count': completedCount,
       'total_students': totalStudents,
     };
@@ -133,6 +158,10 @@ class HomeworkModel {
   HomeworkModel copyWith({
     String? studentStatus,
     String? completedAt,
+    String? submissionText,
+    String? submissionAttachmentKey,
+    String? submissionAttachmentName,
+    String? submittedAt,
     int? completedCount,
   }) {
     return HomeworkModel(
@@ -155,6 +184,10 @@ class HomeworkModel {
       attachmentName: attachmentName,
       studentStatus: studentStatus ?? this.studentStatus,
       completedAt: completedAt ?? this.completedAt,
+      submissionText: submissionText ?? this.submissionText,
+      submissionAttachmentKey: submissionAttachmentKey ?? this.submissionAttachmentKey,
+      submissionAttachmentName: submissionAttachmentName ?? this.submissionAttachmentName,
+      submittedAt: submittedAt ?? this.submittedAt,
       completedCount: completedCount ?? this.completedCount,
       totalStudents: totalStudents,
     );

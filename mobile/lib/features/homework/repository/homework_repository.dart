@@ -87,8 +87,37 @@ class HomeworkRepository {
     );
   }
 
-  Future<PresignedDownloadResponse> getAttachmentDownloadUrl(String homeworkId) async {
-    final response = await _client.get(ApiEndpoints.homeworkAttachmentDownload(homeworkId));
+  Future<Map<String, dynamic>> submitHomework({
+    required String homeworkId,
+    String? submissionText,
+    String? submissionAttachmentKey,
+    String? submissionAttachmentName,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (submissionText != null && submissionText.trim().isNotEmpty) {
+      payload['submissionText'] = submissionText.trim();
+    }
+    if (submissionAttachmentKey != null && submissionAttachmentKey.trim().isNotEmpty) {
+      payload['submissionAttachmentKey'] = submissionAttachmentKey.trim();
+    }
+    if (submissionAttachmentName != null && submissionAttachmentName.trim().isNotEmpty) {
+      payload['submissionAttachmentName'] = submissionAttachmentName.trim();
+    }
+
+    final response = await _client.post(
+      ApiEndpoints.homeworkSubmit(homeworkId),
+      data: payload,
+    );
+    return (response.data['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+  }
+
+  Future<PresignedDownloadResponse> getAttachmentDownloadUrl(
+    String homeworkId, {
+    bool isSubmission = false,
+  }) async {
+    final response = await _client.get(
+      ApiEndpoints.homeworkAttachmentDownload(homeworkId, isSubmission: isSubmission),
+    );
     return PresignedDownloadResponse.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 

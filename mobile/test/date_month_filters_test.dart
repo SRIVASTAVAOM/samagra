@@ -57,7 +57,26 @@ class DummyStudentFeaturesRepo implements StudentFeaturesRepository {
   DioClient get dioClient => throw UnimplementedError();
 
   @override
+  SecureStorageService? get storageService => null;
+
+  @override
+  Future<Set<String>> getLocalDismissedNoticeIds() async => <String>{};
+
+  @override
   Future<List<NoticeModel>> getNotices() async => noticesList;
+
+  @override
+  Future<void> dismissNotice(String noticeId) async {
+    noticesList.removeWhere((n) => n.id == noticeId);
+  }
+
+  @override
+  Future<void> clearAllNotices(List<String> noticeIds) async {
+    noticesList.clear();
+  }
+
+  @override
+  Future<void> restoreDismissedNotices({List<String>? noticeIds}) async {}
 
   @override
   Future<FeeOverviewModel> getFeesOverview() async => const FeeOverviewModel(totalDues: 0, totalPaid: 0, totalOutstanding: 0, fees: []);

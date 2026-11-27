@@ -257,10 +257,22 @@ export class HomeworkService {
   static async setCompletionStatus(
     user: TokenPayload,
     homeworkId: string,
-    status: 'COMPLETED' | 'PENDING'
-  ): Promise<{ status: string; completed_at: string }> {
+    status: 'COMPLETED' | 'PENDING',
+    submission?: {
+      submissionText?: string | null;
+      submissionAttachmentKey?: string | null;
+      submissionAttachmentName?: string | null;
+    }
+  ): Promise<{
+    status: string;
+    completed_at: string;
+    submission_text: string | null;
+    submission_attachment_key: string | null;
+    submission_attachment_name: string | null;
+    submitted_at: string | null;
+  }> {
     if (!user.roles.includes('STUDENT')) {
-      throw { statusCode: 403, message: 'Only students can track their homework completion.' };
+      throw { statusCode: 403, message: 'Only students can track or submit homework.' };
     }
 
     const homework = await HomeworkRepository.getHomeworkById(homeworkId);
@@ -282,22 +294,30 @@ export class HomeworkService {
       throw { statusCode: 403, message: 'Student is not enrolled in this homework class and section.' };
     }
 
-    return await HomeworkRepository.setCompletionStatus(homeworkId, user.profileId!, status);
+    return await HomeworkRepository.setCompletionStatus(homeworkId, user.profileId!, status, submission);
   }
 
   static async getAttachmentDownloadUrl(
     user: TokenPayload,
-    homeworkId: string
+    homeworkId: string,
+    kind: 'assignment' | 'submission' = 'assignment'
   ): Promise<{ downloadUrl: string; attachmentName: string; isMock: boolean }> {
     const homework = await this.getHomeworkDetail(user, homeworkId);
-    if (!homework.s3_attachment_key) {
+    const key =
+      kind === 'submission' ? homework.submission_attachment_key : homework.s3_attachment_key;
+    const name =
+      kind === 'submission'
+        ? homework.submission_attachment_name || 'submission_attachment'
+        : homework.attachment_name || 'homework_attachment';
+
+    if (!key) {
       throw { statusCode: 404, message: 'No attachment found for this homework assignment.' };
     }
 
-    const { downloadUrl, isMock } = await CloudinaryService.generatePresignedDownloadUrl(homework.s3_attachment_key, 900);
+    const { downloadUrl, isMock } = await CloudinaryService.generatePresignedDownloadUrl(key, 900);
     return {
       downloadUrl,
-      attachmentName: homework.attachment_name || 'homework_attachment',
+      attachmentName: name,
       isMock,
     };
   }

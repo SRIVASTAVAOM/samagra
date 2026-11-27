@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../academics/bloc/academics_bloc.dart';
 import '../../academics/bloc/academics_event.dart';
 import '../../academics/bloc/academics_state.dart';
@@ -195,12 +196,28 @@ class _TeacherHomeworkManageViewState extends State<TeacherHomeworkManageView> {
               if (hw.hasAttachment) ...[
                 const SizedBox(width: 16),
                 InkWell(
-                  onTap: () {
+                  onTap: () async {
                     final targetUrl = (hw.attachmentUrl != null && hw.attachmentUrl!.isNotEmpty)
                         ? hw.attachmentUrl!
                         : hw.s3AttachmentKey;
-                    if (targetUrl != null && targetUrl.isNotEmpty) {
-                      _showAttachmentPreviewDialog(context, targetUrl, hw.attachmentName);
+                    if (targetUrl != null &&
+                        (targetUrl.startsWith('http://') ||
+                            targetUrl.startsWith('https://'))) {
+                      _showAttachmentPreviewDialog(
+                          context, targetUrl, hw.attachmentName);
+                    } else if (targetUrl != null && targetUrl.isNotEmpty) {
+                      try {
+                        final res = await context
+                            .read<HomeworkRepository>()
+                            .getAttachmentDownloadUrl(hw.id);
+                        if (!mounted) return;
+                        _showAttachmentPreviewDialog(
+                            context, res.downloadUrl, res.fileName);
+                      } catch (_) {
+                        if (!mounted) return;
+                        _showAttachmentPreviewDialog(
+                            context, targetUrl, hw.attachmentName);
+                      }
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -285,9 +302,15 @@ class _TeacherHomeworkManageViewState extends State<TeacherHomeworkManageView> {
                               Text(name ?? 'Homework PDF', style: const TextStyle(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 16),
                               ElevatedButton.icon(
-                                onPressed: () {
+                                onPressed: () async {
                                   try {
-                                    Clipboard.setData(ClipboardData(text: url));
+                                    final uri = Uri.tryParse(url);
+                                    if (uri != null &&
+                                        await launchUrl(uri,
+                                            mode: LaunchMode.externalApplication)) {
+                                      return;
+                                    }
+                                    await Clipboard.setData(ClipboardData(text: url));
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(

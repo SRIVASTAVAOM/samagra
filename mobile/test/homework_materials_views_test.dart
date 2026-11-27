@@ -51,9 +51,17 @@ void main() {
       expect(find.text('My Homework & Assignments'), findsOneWidget);
       expect(find.text('Algebra Exercise 4.2'), findsOneWidget);
       expect(find.text('Solve problems 1 through 10'), findsOneWidget);
-      expect(find.text('Due: 2026-10-15'), findsOneWidget);
-      expect(find.text('Pending'), findsOneWidget);
-      expect(find.text('Mark Completed'), findsOneWidget);
+      expect(find.text('PENDING'), findsOneWidget);
+      expect(find.text('Submit Work'), findsOneWidget);
+      expect(find.text('Mark Done'), findsOneWidget);
+
+      await tester.tap(find.text('Algebra_Notes.pdf'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Attachment viewer opens without wiping out homework list
+      expect(find.text('Algebra Exercise 4.2'), findsOneWidget);
+      expect(find.text('Load Homework'), findsNothing);
 
       homeworkBloc.close();
     });

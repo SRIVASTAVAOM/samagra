@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../models/student_features_model.dart';
 import '../repository/student_features_repository.dart';
 import 'student_features_event.dart';
 import 'student_features_state.dart';
@@ -6,10 +7,18 @@ import 'student_features_state.dart';
 class StudentFeaturesBloc
     extends Bloc<StudentFeaturesEvent, StudentFeaturesState> {
   final StudentFeaturesRepository repository;
+  List<NoticeModel> _cachedNotices = [];
+  bool _hasDismissedNotices = false;
+
+  List<NoticeModel> get cachedNotices => List.unmodifiable(_cachedNotices);
+  bool get hasDismissedNotices => _hasDismissedNotices;
 
   StudentFeaturesBloc({required this.repository})
       : super(StudentFeaturesInitial()) {
     on<LoadStudentNoticesEvent>(_onLoadNotices);
+    on<DismissStudentNoticeEvent>(_onDismissNotice);
+    on<ClearAllStudentNoticesEvent>(_onClearAllNotices);
+    on<RestoreStudentNoticesEvent>(_onRestoreNotices);
     on<LoadStudentFeesEvent>(_onLoadFees);
     on<LoadStudentReceiptsEvent>(_onLoadReceipts);
     on<LoadStudentComplaintsEvent>(_onLoadComplaints);
@@ -25,6 +34,51 @@ class StudentFeaturesBloc
     emit(StudentFeaturesLoading());
     try {
       final notices = await repository.getNotices();
+      _cachedNotices = notices;
+      emit(StudentNoticesLoaded(notices));
+    } catch (e) {
+      emit(StudentFeaturesError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onDismissNotice(
+    DismissStudentNoticeEvent event,
+    Emitter<StudentFeaturesState> emit,
+  ) async {
+    _cachedNotices =
+        _cachedNotices.where((n) => n.id != event.noticeId).toList();
+    _hasDismissedNotices = true;
+    emit(StudentNoticesLoaded(List.unmodifiable(_cachedNotices)));
+    await repository.dismissNotice(event.noticeId);
+  }
+
+  Future<void> _onClearAllNotices(
+    ClearAllStudentNoticesEvent event,
+    Emitter<StudentFeaturesState> emit,
+  ) async {
+    if (event.noticeIds.isEmpty) {
+      _cachedNotices = [];
+    } else {
+      final clearSet = event.noticeIds.toSet();
+      _cachedNotices =
+          _cachedNotices.where((n) => !clearSet.contains(n.id)).toList();
+    }
+    _hasDismissedNotices = true;
+    emit(StudentNoticesLoaded(List.unmodifiable(_cachedNotices)));
+    await repository.clearAllNotices(event.noticeIds);
+  }
+
+  Future<void> _onRestoreNotices(
+    RestoreStudentNoticesEvent event,
+    Emitter<StudentFeaturesState> emit,
+  ) async {
+    await repository.restoreDismissedNotices(noticeIds: event.noticeIds);
+    if (event.noticeIds == null || event.noticeIds!.isEmpty) {
+      _hasDismissedNotices = false;
+    }
+    try {
+      final notices = await repository.getNotices();
+      _cachedNotices = notices;
       emit(StudentNoticesLoaded(notices));
     } catch (e) {
       emit(StudentFeaturesError(e.toString().replaceAll('Exception: ', '')));

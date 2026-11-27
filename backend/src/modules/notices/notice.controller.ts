@@ -12,6 +12,48 @@ export class NoticeController {
     }
   }
 
+  static async dismissStudentNotice(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
+        res.status(400).json({ success: false, error: 'Invalid notice ID' });
+        return;
+      }
+      const dismissed = await NoticeService.dismissStudentNotice(req.user!, id);
+      if (!dismissed) {
+        res.status(404).json({ success: false, error: 'Notice not found' });
+        return;
+      }
+      res.status(200).json({ success: true, message: 'Notice dismissed from view' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async dismissAllStudentNotices(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const noticeIds = Array.isArray(req.body?.noticeIds)
+        ? req.body.noticeIds.filter((id: unknown): id is string => typeof id === 'string')
+        : undefined;
+      const count = await NoticeService.dismissAllStudentNotices(req.user!, noticeIds);
+      res.status(200).json({ success: true, message: 'Notices cleared from view', data: { dismissedCount: count } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async restoreStudentNotices(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const noticeIds = Array.isArray(req.body?.noticeIds)
+        ? req.body.noticeIds.filter((id: unknown): id is string => typeof id === 'string')
+        : undefined;
+      const count = await NoticeService.restoreStudentNotices(req.user!, noticeIds);
+      res.status(200).json({ success: true, message: 'Cleared notices restored', data: { restoredCount: count } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getAdminNotices(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const notices = await NoticeService.getAdminNotices(req.user!);

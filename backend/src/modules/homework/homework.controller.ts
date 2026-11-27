@@ -37,7 +37,52 @@ const createHomeworkSchema = z.object({
 
 const completionSchema = z.object({
   status: z.enum(['PENDING', 'COMPLETED']),
-});
+  submissionText: z.string().nullable().optional(),
+  submission_text: z.string().nullable().optional(),
+  submissionAttachmentKey: z.string().nullable().optional(),
+  submission_attachment_key: z.string().nullable().optional(),
+  submissionAttachmentName: z.string().nullable().optional(),
+  submission_attachment_name: z.string().nullable().optional(),
+}).transform((data) => ({
+  status: data.status,
+  submissionText: data.submissionText !== undefined ? data.submissionText : data.submission_text,
+  submissionAttachmentKey:
+    data.submissionAttachmentKey !== undefined
+      ? data.submissionAttachmentKey
+      : data.submission_attachment_key,
+  submissionAttachmentName:
+    data.submissionAttachmentName !== undefined
+      ? data.submissionAttachmentName
+      : data.submission_attachment_name,
+}));
+
+const submitHomeworkSchema = z.object({
+  submissionText: z.string().nullable().optional(),
+  submission_text: z.string().nullable().optional(),
+  submissionAttachmentKey: z.string().nullable().optional(),
+  submission_attachment_key: z.string().nullable().optional(),
+  submissionAttachmentName: z.string().nullable().optional(),
+  submission_attachment_name: z.string().nullable().optional(),
+}).transform((data) => {
+  const rawText = data.submissionText !== undefined ? data.submissionText : data.submission_text;
+  const trimmedText = typeof rawText === 'string' ? rawText.trim() : null;
+  const key =
+    data.submissionAttachmentKey !== undefined
+      ? data.submissionAttachmentKey
+      : data.submission_attachment_key;
+  const name =
+    data.submissionAttachmentName !== undefined
+      ? data.submissionAttachmentName
+      : data.submission_attachment_name;
+  return {
+    submissionText: trimmedText && trimmedText.length > 0 ? trimmedText : null,
+    submissionAttachmentKey: key && key.trim().length > 0 ? key.trim() : null,
+    submissionAttachmentName: name && name.trim().length > 0 ? name.trim() : null,
+  };
+}).refine(
+  (d) => !!d.submissionText || !!d.submissionAttachmentKey,
+  { message: 'Please add a submission note or attach a file/photo before submitting.' }
+);
 
 const updateHomeworkSchema = z.object({
   title: z.string().min(1, 'Title cannot be empty').optional(),
@@ -153,7 +198,22 @@ export class HomeworkController {
     try {
       const { id } = req.params;
       const parsed = completionSchema.parse(req.body);
-      const result = await HomeworkService.setCompletionStatus((req as any).user, id, parsed.status);
+      const hasSubmission =
+        parsed.submissionText !== undefined ||
+        parsed.submissionAttachmentKey !== undefined ||
+        parsed.submissionAttachmentName !== undefined;
+      const result = await HomeworkService.setCompletionStatus(
+        (req as any).user,
+        id,
+        parsed.status,
+        hasSubmission
+          ? {
+              submissionText: parsed.submissionText ?? null,
+              submissionAttachmentKey: parsed.submissionAttachmentKey ?? null,
+              submissionAttachmentName: parsed.submissionAttachmentName ?? null,
+            }
+          : undefined
+      );
       res.status(200).json({ success: true, data: result });
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -167,10 +227,42 @@ export class HomeworkController {
     }
   }
 
+  static async submitHomework(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const parsed = submitHomeworkSchema.parse(req.body);
+      const result = await HomeworkService.setCompletionStatus(
+        (req as any).user,
+        id,
+        'COMPLETED',
+        parsed
+      );
+      res.status(200).json({
+        success: true,
+        message: 'Homework submitted successfully',
+        data: result,
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({
+          success: false,
+          error: error.errors[0]?.message || 'Validation failed',
+          details: error.errors,
+        });
+        return;
+      }
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: error.message || 'Failed to submit homework',
+      });
+    }
+  }
+
   static async getAttachmentDownloadUrl(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const result = await HomeworkService.getAttachmentDownloadUrl((req as any).user, id);
+      const kind = req.query.kind === 'submission' ? 'submission' : 'assignment';
+      const result = await HomeworkService.getAttachmentDownloadUrl((req as any).user, id, kind);
       res.status(200).json({ success: true, data: result });
     } catch (error: any) {
       res.status(error.statusCode || 500).json({

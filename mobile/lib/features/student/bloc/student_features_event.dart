@@ -12,6 +12,30 @@ class LoadStudentNoticesEvent extends StudentFeaturesEvent {
   const LoadStudentNoticesEvent();
 }
 
+class DismissStudentNoticeEvent extends StudentFeaturesEvent {
+  final String noticeId;
+  const DismissStudentNoticeEvent(this.noticeId);
+
+  @override
+  List<Object?> get props => [noticeId];
+}
+
+class ClearAllStudentNoticesEvent extends StudentFeaturesEvent {
+  final List<String> noticeIds;
+  const ClearAllStudentNoticesEvent(this.noticeIds);
+
+  @override
+  List<Object?> get props => [noticeIds];
+}
+
+class RestoreStudentNoticesEvent extends StudentFeaturesEvent {
+  final List<String>? noticeIds;
+  const RestoreStudentNoticesEvent({this.noticeIds});
+
+  @override
+  List<Object?> get props => [noticeIds];
+}
+
 // Fees
 class LoadStudentFeesEvent extends StudentFeaturesEvent {
   const LoadStudentFeesEvent();

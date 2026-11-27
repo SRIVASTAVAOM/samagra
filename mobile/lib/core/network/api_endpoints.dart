@@ -43,6 +43,11 @@ class ApiEndpoints {
 
   // Notices Endpoints
   static String get studentNotices => '$baseUrl/notices/student';
+  static String dismissStudentNotice(String id) =>
+      '$baseUrl/notices/student/$id/dismiss';
+  static String get dismissAllStudentNotices =>
+      '$baseUrl/notices/student/dismiss-all';
+  static String get restoreStudentNotices => '$baseUrl/notices/student/restore';
 
   // Fees Endpoints
   static String get studentFees => '$baseUrl/fees/my-fees';
@@ -112,8 +117,11 @@ class ApiEndpoints {
   static String homeworkDetail(String id) => '$baseUrl/homework/$id';
   static String homeworkUpdate(String id) => '$baseUrl/homework/$id';
   static String homeworkCompletion(String id) => '$baseUrl/homework/$id/completion';
-  static String homeworkAttachmentDownload(String id) =>
-      '$baseUrl/homework/$id/attachment-download';
+  static String homeworkSubmit(String id) => '$baseUrl/homework/$id/submit';
+  static String homeworkAttachmentDownload(String id, {bool isSubmission = false}) =>
+      isSubmission
+          ? '$baseUrl/homework/$id/attachment-download?kind=submission'
+          : '$baseUrl/homework/$id/attachment-download';
 
   // Curriculum Endpoints
   static String curriculumUnits(String classId, String subjectId, {String? academicYearId}) =>

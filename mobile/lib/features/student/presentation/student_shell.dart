@@ -259,6 +259,11 @@ class _StudentShellState extends State<StudentShell> {
                     int unreadCount = 0;
                     if (state is StudentNoticesLoaded) {
                       unreadCount = state.notices.length;
+                    } else {
+                      unreadCount = context
+                          .read<StudentFeaturesBloc>()
+                          .cachedNotices
+                          .length;
                     }
                     return Stack(
                       alignment: Alignment.center,

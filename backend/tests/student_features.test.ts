@@ -83,6 +83,37 @@ describe('Student Dashboard Features API Tests', () => {
       const res = await request(app).get('/api/v1/notices/student');
       expect(res.status).toBe(401);
     });
+
+    it('POST /api/v1/notices/student/:id/dismiss hides notice persistently and restore brings it back', async () => {
+      const initialRes = await request(app)
+        .get('/api/v1/notices/student')
+        .set('Authorization', `Bearer ${studentToken}`);
+      expect(initialRes.status).toBe(200);
+      const firstNoticeId = initialRes.body.data[0].id as string;
+
+      const dismissRes = await request(app)
+        .post(`/api/v1/notices/student/${firstNoticeId}/dismiss`)
+        .set('Authorization', `Bearer ${studentToken}`);
+      expect(dismissRes.status).toBe(200);
+      expect(dismissRes.body.success).toBe(true);
+
+      const afterDismissRes = await request(app)
+        .get('/api/v1/notices/student')
+        .set('Authorization', `Bearer ${studentToken}`);
+      expect(afterDismissRes.status).toBe(200);
+      expect(afterDismissRes.body.data.some((n: any) => n.id === firstNoticeId)).toBe(false);
+
+      const restoreRes = await request(app)
+        .post('/api/v1/notices/student/restore')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ noticeIds: [firstNoticeId] });
+      expect(restoreRes.status).toBe(200);
+
+      const afterRestoreRes = await request(app)
+        .get('/api/v1/notices/student')
+        .set('Authorization', `Bearer ${studentToken}`);
+      expect(afterRestoreRes.body.data.some((n: any) => n.id === firstNoticeId)).toBe(true);
+    });
   });
 
   describe('4. Student Fees & Receipts', () => {

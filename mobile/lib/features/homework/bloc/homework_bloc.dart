@@ -69,9 +69,27 @@ class ToggleHomeworkCompletionEvent extends HomeworkEvent {
   const ToggleHomeworkCompletionEvent(this.homeworkId, this.currentStatus);
 }
 
+class SubmitHomeworkEvent extends HomeworkEvent {
+  final String homeworkId;
+  final String? submissionText;
+  final String? submissionAttachmentKey;
+  final String? submissionAttachmentName;
+
+  const SubmitHomeworkEvent({
+    required this.homeworkId,
+    this.submissionText,
+    this.submissionAttachmentKey,
+    this.submissionAttachmentName,
+  });
+}
+
 class DownloadHomeworkAttachmentEvent extends HomeworkEvent {
   final String homeworkId;
-  const DownloadHomeworkAttachmentEvent(this.homeworkId);
+  final bool isSubmission;
+  const DownloadHomeworkAttachmentEvent(
+    this.homeworkId, {
+    this.isSubmission = false,
+  });
 }
 
 // --- States ---
@@ -112,6 +130,10 @@ class HomeworkError extends HomeworkState {
 // --- BLoC ---
 class HomeworkBloc extends Bloc<HomeworkEvent, HomeworkState> {
   final HomeworkRepository _repository;
+  List<HomeworkModel> _cachedStudentHomework = [];
+
+  List<HomeworkModel> get cachedStudentHomework =>
+      List.unmodifiable(_cachedStudentHomework);
 
   HomeworkBloc(this._repository) : super(const HomeworkInitial()) {
     on<LoadStudentHomeworkEvent>(_onLoadStudentHomework);
@@ -120,6 +142,7 @@ class HomeworkBloc extends Bloc<HomeworkEvent, HomeworkState> {
     on<CreateHomeworkEvent>(_onCreateHomework);
     on<UpdateHomeworkEvent>(_onUpdateHomework);
     on<ToggleHomeworkCompletionEvent>(_onToggleCompletion);
+    on<SubmitHomeworkEvent>(_onSubmitHomework);
     on<DownloadHomeworkAttachmentEvent>(_onDownloadAttachment);
   }
 
@@ -130,6 +153,7 @@ class HomeworkBloc extends Bloc<HomeworkEvent, HomeworkState> {
     emit(const HomeworkLoading());
     try {
       final list = await _repository.getStudentMyClassHomework();
+      _cachedStudentHomework = list;
       emit(StudentHomeworkLoaded(list));
     } catch (e) {
       emit(HomeworkError(e.toString()));
@@ -214,10 +238,80 @@ class HomeworkBloc extends Bloc<HomeworkEvent, HomeworkState> {
     final newStatus = event.currentStatus == 'COMPLETED' ? 'PENDING' : 'COMPLETED';
     try {
       await _repository.setCompletionStatus(event.homeworkId, newStatus);
-      final list = await _repository.getStudentMyClassHomework();
-      emit(StudentHomeworkLoaded(list));
+      final updatedLocal = _cachedStudentHomework.map((hw) {
+        if (hw.id != event.homeworkId) return hw;
+        return hw.copyWith(
+          studentStatus: newStatus,
+          completedAt: newStatus == 'COMPLETED'
+              ? DateTime.now().toIso8601String()
+              : hw.completedAt,
+        );
+      }).toList();
+
+      List<HomeworkModel> latestList;
+      try {
+        final serverList = await _repository.getStudentMyClassHomework();
+        latestList = serverList.map((serverItem) {
+          if (serverItem.id == event.homeworkId &&
+              serverItem.studentStatus != newStatus) {
+            return serverItem.copyWith(studentStatus: newStatus);
+          }
+          return serverItem;
+        }).toList();
+      } catch (_) {
+        latestList = updatedLocal;
+      }
+
+      _cachedStudentHomework = latestList;
+      emit(StudentHomeworkLoaded(latestList));
     } catch (e) {
-      emit(HomeworkError(e.toString()));
+      emit(HomeworkError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onSubmitHomework(
+    SubmitHomeworkEvent event,
+    Emitter<HomeworkState> emit,
+  ) async {
+    try {
+      final res = await _repository.submitHomework(
+        homeworkId: event.homeworkId,
+        submissionText: event.submissionText,
+        submissionAttachmentKey: event.submissionAttachmentKey,
+        submissionAttachmentName: event.submissionAttachmentName,
+      );
+
+      final updatedLocal = _cachedStudentHomework.map((hw) {
+        if (hw.id != event.homeworkId) return hw;
+        return hw.copyWith(
+          studentStatus: 'COMPLETED',
+          completedAt: (res['completed_at'] as String?) ??
+              DateTime.now().toIso8601String(),
+          submissionText:
+              (res['submission_text'] as String?) ?? event.submissionText,
+          submissionAttachmentKey:
+              (res['submission_attachment_key'] as String?) ??
+                  event.submissionAttachmentKey,
+          submissionAttachmentName:
+              (res['submission_attachment_name'] as String?) ??
+                  event.submissionAttachmentName,
+          submittedAt: (res['submitted_at'] as String?) ??
+              DateTime.now().toIso8601String(),
+        );
+      }).toList();
+
+      List<HomeworkModel> latestList;
+      try {
+        latestList = await _repository.getStudentMyClassHomework();
+      } catch (_) {
+        latestList = updatedLocal;
+      }
+
+      _cachedStudentHomework = latestList;
+      emit(const HomeworkOperationSuccess('Homework submitted successfully!'));
+      emit(StudentHomeworkLoaded(latestList));
+    } catch (e) {
+      emit(HomeworkError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 
@@ -226,14 +320,17 @@ class HomeworkBloc extends Bloc<HomeworkEvent, HomeworkState> {
     Emitter<HomeworkState> emit,
   ) async {
     try {
-      final res = await _repository.getAttachmentDownloadUrl(event.homeworkId);
+      final res = await _repository.getAttachmentDownloadUrl(
+        event.homeworkId,
+        isSubmission: event.isSubmission,
+      );
       emit(HomeworkOperationSuccess(
         'Download link generated',
         downloadUrl: res.downloadUrl,
         attachmentName: res.fileName,
       ));
     } catch (e) {
-      emit(HomeworkError(e.toString()));
+      emit(HomeworkError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 }

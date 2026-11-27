@@ -196,7 +196,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
         bloc = context.read<HomeworkBloc>();
       } catch (_) {}
 
-      Widget content = const StudentHomeworkView();
+      Widget content = const StudentHomeworkView(showAppBar: true);
       if (bloc != null) {
         content = BlocProvider<HomeworkBloc>.value(value: bloc, child: content);
       }

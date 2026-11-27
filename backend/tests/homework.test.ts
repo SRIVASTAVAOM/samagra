@@ -167,6 +167,44 @@ describe('Homework Management API Tests', () => {
 
       expect(res.status).toBe(403);
     });
+
+    it('should allow student to submit homework notes and attachment via POST /:id/submit', async () => {
+      const res = await request(app)
+        .post(`/api/v1/homework/${createdHomeworkId}/submit`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({
+          submissionText: 'Solved all 5 polynomial problems cleanly.',
+          submissionAttachmentKey: 'https://res.cloudinary.com/demo/image/upload/v1/hw_solution.jpg',
+          submissionAttachmentName: 'hw_solution.jpg',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.status).toBe('COMPLETED');
+      expect(res.body.data.submission_text).toBe('Solved all 5 polynomial problems cleanly.');
+      expect(res.body.data.submission_attachment_name).toBe('hw_solution.jpg');
+
+      const listRes = await request(app)
+        .get('/api/v1/homework/student/my-class')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(listRes.status).toBe(200);
+      const item = listRes.body.data.find((h: any) => h.id === createdHomeworkId);
+      expect(item).toBeDefined();
+      expect(item.student_status).toBe('COMPLETED');
+      expect(item.submission_text).toBe('Solved all 5 polynomial problems cleanly.');
+      expect(item.submission_attachment_name).toBe('hw_solution.jpg');
+    });
+
+    it('should reject empty student submission without note or attachment', async () => {
+      const res = await request(app)
+        .post(`/api/v1/homework/${createdHomeworkId}/submit`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({});
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
   });
 
   describe('GET /api/v1/homework/teacher/my-assigned', () => {
@@ -194,6 +232,17 @@ describe('Homework Management API Tests', () => {
       expect(res.body.data).toHaveProperty('downloadUrl');
       expect(res.body.data).toHaveProperty('attachmentName');
     });
+
+    it('should return download URL for student submission attachment when kind=submission', async () => {
+      const res = await request(app)
+        .get(`/api/v1/homework/${createdHomeworkId}/attachment-download?kind=submission`)
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.downloadUrl).toContain('hw_solution.jpg');
+      expect(res.body.data.attachmentName).toBe('hw_solution.jpg');
+    });
   });
 
   describe('POST /api/v1/homework/attachment-upload', () => {
@@ -205,14 +254,16 @@ describe('Homework Management API Tests', () => {
       expect(res.status).toBe(401);
     });
 
-    it('should reject file upload from students with 403', async () => {
+    it('should allow student file upload for homework submissions', async () => {
       const res = await request(app)
-        .post('/api/v1/homework/attachment-upload?fileName=assignment.pdf')
+        .post('/api/v1/homework/attachment-upload?fileName=student_work.pdf')
         .set('Authorization', `Bearer ${studentToken}`)
         .set('Content-Type', 'application/pdf')
         .send(Buffer.from('%PDF-1.4 test content'));
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.attachmentName).toBe('student_work.pdf');
     });
 
     it('should reject empty file data with 400', async () => {

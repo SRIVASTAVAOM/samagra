@@ -8,6 +8,9 @@ const router = Router();
 router.use(authenticateToken);
 
 router.get('/student', requireRole(['STUDENT']), NoticeController.getStudentNotices);
+router.post('/student/:id/dismiss', requireRole(['STUDENT']), NoticeController.dismissStudentNotice);
+router.post('/student/dismiss-all', requireRole(['STUDENT']), NoticeController.dismissAllStudentNotices);
+router.post('/student/restore', requireRole(['STUDENT']), NoticeController.restoreStudentNotices);
 
 // Admin Notice Management
 router.get('/', requireRole(['ADMIN', 'SUPER_ADMIN']), NoticeController.getAdminNotices);

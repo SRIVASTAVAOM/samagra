@@ -22,6 +22,10 @@ export interface HomeworkAssignment {
   created_at: string;
   student_status?: 'PENDING' | 'COMPLETED';
   completed_at?: string | null;
+  submission_text?: string | null;
+  submission_attachment_key?: string | null;
+  submission_attachment_name?: string | null;
+  submitted_at?: string | null;
   completed_count?: number;
   total_students?: number;
 }
@@ -86,6 +90,11 @@ export class HomeworkRepository {
         h.s3_attachment_key, h.attachment_name, h.created_at,
         ${studentId ? `COALESCE(shc.status, 'PENDING')` : `'PENDING'`} AS student_status,
         ${studentId ? `shc.completed_at` : `NULL`} AS completed_at,
+        ${studentId ? `shc.submission_text` : `NULL`} AS submission_text,
+        ${studentId ? `shc.submission_attachment_key` : `NULL`} AS submission_attachment_key,
+        ${studentId ? `shc.submission_attachment_key` : `NULL`} AS submission_attachment_url,
+        ${studentId ? `shc.submission_attachment_name` : `NULL`} AS submission_attachment_name,
+        ${studentId ? `shc.submitted_at` : `NULL`} AS submitted_at,
         (SELECT COUNT(*)::int FROM student_homework_completions WHERE homework_id = h.id AND status = 'COMPLETED') AS completed_count,
         (SELECT COUNT(*)::int FROM student_profiles WHERE current_class_id = h.class_id AND current_section_id = h.section_id) AS total_students
       FROM homework_assignments h
@@ -145,6 +154,11 @@ export class HomeworkRepository {
         h.s3_attachment_key, h.attachment_name, h.created_at,
         ${studentId ? `COALESCE(shc.status, 'PENDING')` : `'PENDING'`} AS student_status,
         ${studentId ? `shc.completed_at` : `NULL`} AS completed_at,
+        ${studentId ? `shc.submission_text` : `NULL`} AS submission_text,
+        ${studentId ? `shc.submission_attachment_key` : `NULL`} AS submission_attachment_key,
+        ${studentId ? `shc.submission_attachment_key` : `NULL`} AS submission_attachment_url,
+        ${studentId ? `shc.submission_attachment_name` : `NULL`} AS submission_attachment_name,
+        ${studentId ? `shc.submitted_at` : `NULL`} AS submitted_at,
         (SELECT COUNT(*)::int FROM student_homework_completions WHERE homework_id = h.id AND status = 'COMPLETED') AS completed_count,
         (SELECT COUNT(*)::int FROM student_profiles WHERE current_class_id = h.class_id AND current_section_id = h.section_id) AS total_students
       FROM homework_assignments h
@@ -163,15 +177,59 @@ export class HomeworkRepository {
   static async setCompletionStatus(
     homeworkId: string,
     studentId: string,
-    status: 'COMPLETED' | 'PENDING'
-  ): Promise<{ status: string; completed_at: string }> {
+    status: 'COMPLETED' | 'PENDING',
+    submission?: {
+      submissionText?: string | null;
+      submissionAttachmentKey?: string | null;
+      submissionAttachmentName?: string | null;
+    }
+  ): Promise<{
+    status: string;
+    completed_at: string;
+    submission_text: string | null;
+    submission_attachment_key: string | null;
+    submission_attachment_name: string | null;
+    submitted_at: string | null;
+  }> {
+    const hasSubmissionPayload =
+      submission?.submissionText !== undefined ||
+      submission?.submissionAttachmentKey !== undefined ||
+      submission?.submissionAttachmentName !== undefined;
+
     const { rows } = await pool.query(
-      `INSERT INTO student_homework_completions (homework_id, student_id, status, completed_at)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+      `INSERT INTO student_homework_completions (
+         homework_id, student_id, status, completed_at,
+         submission_text, submission_attachment_key, submission_attachment_name, submitted_at
+       )
+       VALUES (
+         $1, $2, $3, CURRENT_TIMESTAMP,
+         $4, $5, $6,
+         CASE WHEN $7::boolean THEN CURRENT_TIMESTAMP ELSE NULL END
+       )
        ON CONFLICT (homework_id, student_id)
-       DO UPDATE SET status = EXCLUDED.status, completed_at = CURRENT_TIMESTAMP
-       RETURNING status, completed_at;`,
-      [homeworkId, studentId, status]
+       DO UPDATE SET
+         status = EXCLUDED.status,
+         completed_at = CURRENT_TIMESTAMP,
+         submission_text = CASE WHEN $7::boolean THEN EXCLUDED.submission_text ELSE student_homework_completions.submission_text END,
+         submission_attachment_key = CASE WHEN $7::boolean THEN EXCLUDED.submission_attachment_key ELSE student_homework_completions.submission_attachment_key END,
+         submission_attachment_name = CASE WHEN $7::boolean THEN EXCLUDED.submission_attachment_name ELSE student_homework_completions.submission_attachment_name END,
+         submitted_at = CASE WHEN $7::boolean THEN CURRENT_TIMESTAMP ELSE student_homework_completions.submitted_at END
+       RETURNING
+         status,
+         completed_at,
+         submission_text,
+         submission_attachment_key,
+         submission_attachment_name,
+         submitted_at;`,
+      [
+        homeworkId,
+        studentId,
+        status,
+        submission?.submissionText ?? null,
+        submission?.submissionAttachmentKey ?? null,
+        submission?.submissionAttachmentName ?? null,
+        hasSubmissionPayload,
+      ]
     );
     return rows[0];
   }

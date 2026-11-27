@@ -19,24 +19,106 @@ export class NoticeService {
   static async getStudentNotices(user: TokenPayload): Promise<NoticeItem[]> {
     const query = `
       SELECT 
-        id, title, content, target_role, priority, channel,
-        target_class_id, target_section_id, target_student_id,
-        published_at, created_at
-      FROM notices
-      WHERE school_id = $1
-        AND (target_role = 'ALL' OR target_role = 'STUDENT')
-        AND (target_class_id IS NULL OR target_class_id = $2)
-        AND (target_section_id IS NULL OR target_section_id = $3)
-        AND (target_student_id IS NULL OR target_student_id = $4)
-      ORDER BY published_at DESC;
+        n.id, n.title, n.content, n.target_role, n.priority, n.channel,
+        n.target_class_id, n.target_section_id, n.target_student_id,
+        n.published_at, n.created_at
+      FROM notices n
+      WHERE n.school_id = $1
+        AND (n.target_role = 'ALL' OR n.target_role = 'STUDENT')
+        AND (n.target_class_id IS NULL OR n.target_class_id = $2)
+        AND (n.target_section_id IS NULL OR n.target_section_id = $3)
+        AND (n.target_student_id IS NULL OR n.target_student_id = $4)
+        AND NOT EXISTS (
+          SELECT 1
+          FROM notice_dismissals nd
+          WHERE nd.notice_id = n.id
+            AND nd.user_id = $5
+        )
+      ORDER BY n.published_at DESC;
     `;
     const { rows } = await pool.query(query, [
       user.schoolId,
       user.classId || null,
       user.sectionId || null,
       user.profileId || null,
+      user.userId,
     ]);
     return rows;
+  }
+
+  static async dismissStudentNotice(user: TokenPayload, noticeId: string): Promise<boolean> {
+    const checkRes = await pool.query(
+      `SELECT id FROM notices
+       WHERE id = $1
+         AND school_id = $2
+         AND (target_role = 'ALL' OR target_role = 'STUDENT')
+         AND (target_class_id IS NULL OR target_class_id = $3)
+         AND (target_section_id IS NULL OR target_section_id = $4)
+         AND (target_student_id IS NULL OR target_student_id = $5)
+       LIMIT 1;`,
+      [
+        noticeId,
+        user.schoolId,
+        user.classId || null,
+        user.sectionId || null,
+        user.profileId || null,
+      ]
+    );
+    if (checkRes.rows.length === 0) {
+      return false;
+    }
+
+    await pool.query(
+      `INSERT INTO notice_dismissals (school_id, user_id, notice_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, notice_id) DO NOTHING;`,
+      [user.schoolId, user.userId, noticeId]
+    );
+    return true;
+  }
+
+  static async dismissAllStudentNotices(user: TokenPayload, noticeIds?: string[]): Promise<number> {
+    const hasFilter = Array.isArray(noticeIds) && noticeIds.length > 0;
+    const { rowCount } = await pool.query(
+      `INSERT INTO notice_dismissals (school_id, user_id, notice_id)
+       SELECT n.school_id, $5::uuid, n.id
+       FROM notices n
+       WHERE n.school_id = $1
+         AND (n.target_role = 'ALL' OR n.target_role = 'STUDENT')
+         AND (n.target_class_id IS NULL OR n.target_class_id = $2)
+         AND (n.target_section_id IS NULL OR n.target_section_id = $3)
+         AND (n.target_student_id IS NULL OR n.target_student_id = $4)
+         ${hasFilter ? 'AND n.id = ANY($6::uuid[])' : ''}
+       ON CONFLICT (user_id, notice_id) DO NOTHING;`,
+      hasFilter
+        ? [
+            user.schoolId,
+            user.classId || null,
+            user.sectionId || null,
+            user.profileId || null,
+            user.userId,
+            noticeIds,
+          ]
+        : [
+            user.schoolId,
+            user.classId || null,
+            user.sectionId || null,
+            user.profileId || null,
+            user.userId,
+          ]
+    );
+    return rowCount || 0;
+  }
+
+  static async restoreStudentNotices(user: TokenPayload, noticeIds?: string[]): Promise<number> {
+    const hasFilter = Array.isArray(noticeIds) && noticeIds.length > 0;
+    const { rowCount } = await pool.query(
+      hasFilter
+        ? `DELETE FROM notice_dismissals WHERE user_id = $1 AND school_id = $2 AND notice_id = ANY($3::uuid[]);`
+        : `DELETE FROM notice_dismissals WHERE user_id = $1 AND school_id = $2;`,
+      hasFilter ? [user.userId, user.schoolId, noticeIds] : [user.userId, user.schoolId]
+    );
+    return rowCount || 0;
   }
 
   static async getAdminNotices(user: TokenPayload): Promise<any[]> {

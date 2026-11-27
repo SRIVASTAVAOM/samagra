@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile/core/network/dio_client.dart';
+import 'package:mobile/core/storage/secure_storage_service.dart';
 import 'package:mobile/features/student/bloc/student_features_bloc.dart';
 import 'package:mobile/features/student/bloc/student_features_event.dart';
 import 'package:mobile/features/student/bloc/student_features_state.dart';
@@ -28,13 +29,40 @@ class MockStudentFeaturesRepository implements StudentFeaturesRepository {
   List<FeedbackModel> feedbackList = [];
   bool shouldThrow = false;
 
+  final Set<String> dismissedIds = {};
+
   @override
   DioClient get dioClient => throw UnimplementedError();
 
   @override
+  SecureStorageService? get storageService => null;
+
+  @override
+  Future<Set<String>> getLocalDismissedNoticeIds() async => Set<String>.from(dismissedIds);
+
+  @override
   Future<List<NoticeModel>> getNotices() async {
     if (shouldThrow) throw Exception('Failed to load notices');
-    return notices;
+    return notices.where((n) => !dismissedIds.contains(n.id)).toList();
+  }
+
+  @override
+  Future<void> dismissNotice(String noticeId) async {
+    dismissedIds.add(noticeId);
+  }
+
+  @override
+  Future<void> clearAllNotices(List<String> noticeIds) async {
+    dismissedIds.addAll(noticeIds);
+  }
+
+  @override
+  Future<void> restoreDismissedNotices({List<String>? noticeIds}) async {
+    if (noticeIds != null && noticeIds.isNotEmpty) {
+      dismissedIds.removeAll(noticeIds);
+    } else {
+      dismissedIds.clear();
+    }
   }
 
   @override
@@ -163,6 +191,45 @@ void main() {
       );
 
       bloc.add(const LoadStudentNoticesEvent());
+    });
+
+    test('DismissStudentNoticeEvent and RestoreStudentNoticesEvent persist notice dismissal', () async {
+      repo.notices = [
+        const NoticeModel(
+          id: 'n-1',
+          title: 'Annual Sports Day',
+          content: 'Sports day will be on Friday.',
+          targetRole: 'STUDENT',
+          priority: 'URGENT',
+          publishedAt: '2026-10-14',
+        ),
+        const NoticeModel(
+          id: 'n-2',
+          title: 'PTM Schedule',
+          content: 'Saturday 9 AM.',
+          targetRole: 'STUDENT',
+          priority: 'INFO',
+          publishedAt: '2026-10-15',
+        ),
+      ];
+
+      bloc.add(const LoadStudentNoticesEvent());
+      await Future.delayed(const Duration(milliseconds: 20));
+      expect((bloc.state as StudentNoticesLoaded).notices.length, 2);
+
+      bloc.add(const DismissStudentNoticeEvent('n-1'));
+      await Future.delayed(const Duration(milliseconds: 20));
+      expect((bloc.state as StudentNoticesLoaded).notices.map((e) => e.id), ['n-2']);
+
+      // Reloading should stay dismissed
+      bloc.add(const LoadStudentNoticesEvent());
+      await Future.delayed(const Duration(milliseconds: 20));
+      expect((bloc.state as StudentNoticesLoaded).notices.map((e) => e.id), ['n-2']);
+
+      // Restoring brings it back
+      bloc.add(const RestoreStudentNoticesEvent(noticeIds: ['n-1']));
+      await Future.delayed(const Duration(milliseconds: 20));
+      expect((bloc.state as StudentNoticesLoaded).notices.length, 2);
     });
 
     test('emits [StudentFeaturesLoading, StudentFeesLoaded] on LoadStudentFeesEvent', () async {

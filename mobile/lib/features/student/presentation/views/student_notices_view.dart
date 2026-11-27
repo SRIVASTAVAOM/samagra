@@ -16,12 +16,18 @@ class StudentNoticesView extends StatefulWidget {
 class _StudentNoticesViewState extends State<StudentNoticesView> {
   String? _selectedMonth; // 'YYYY-MM' e.g. '2026-11' or null for All
   DateTime? _selectedDate; // Specific date filter or null
-  final Set<String> _dismissedNoticeIds = {};
+  List<NoticeModel> _cachedNotices = [];
 
   @override
   void initState() {
     super.initState();
-    context.read<StudentFeaturesBloc>().add(const LoadStudentNoticesEvent());
+    final bloc = context.read<StudentFeaturesBloc>();
+    if (bloc.state is StudentNoticesLoaded) {
+      _cachedNotices = (bloc.state as StudentNoticesLoaded).notices;
+    } else if (bloc.cachedNotices.isNotEmpty) {
+      _cachedNotices = bloc.cachedNotices;
+    }
+    bloc.add(const LoadStudentNoticesEvent());
   }
 
   String _formatMonthYear(String yearMonth) {
@@ -66,7 +72,6 @@ class _StudentNoticesViewState extends State<StudentNoticesView> {
 
   List<NoticeModel> _filterNotices(List<NoticeModel> notices) {
     return notices.where((n) {
-      if (_dismissedNoticeIds.contains(n.id)) return false;
       final dateStr = n.publishedAt.split('T')[0].split(' ')[0].trim();
       if (_selectedDate != null) {
         final dStr =
@@ -192,16 +197,18 @@ class _StudentNoticesViewState extends State<StudentNoticesView> {
           TextButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
-              setState(() {
-                _dismissedNoticeIds.add(notice.id);
-              });
+              context
+                  .read<StudentFeaturesBloc>()
+                  .add(DismissStudentNoticeEvent(notice.id));
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Notice "${notice.title}" dismissed.'),
                   action: SnackBarAction(
                     label: 'Undo',
                     onPressed: () {
-                      setState(() => _dismissedNoticeIds.remove(notice.id));
+                      context.read<StudentFeaturesBloc>().add(
+                            RestoreStudentNoticesEvent(noticeIds: [notice.id]),
+                          );
                     },
                   ),
                 ),
@@ -243,12 +250,12 @@ class _StudentNoticesViewState extends State<StudentNoticesView> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (_dismissedNoticeIds.isNotEmpty)
+                  if (context.watch<StudentFeaturesBloc>().hasDismissedNotices)
                     TextButton.icon(
                       onPressed: () {
-                        setState(() {
-                          _dismissedNoticeIds.clear();
-                        });
+                        context
+                            .read<StudentFeaturesBloc>()
+                            .add(const RestoreStudentNoticesEvent());
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('All cleared notices restored.'),
@@ -266,8 +273,12 @@ class _StudentNoticesViewState extends State<StudentNoticesView> {
                     icon: const Icon(Icons.clear_all, size: 20, color: AppColors.secondaryText),
                     tooltip: 'Clear all notifications',
                     onPressed: () {
-                      final state = context.read<StudentFeaturesBloc>().state;
-                      if (state is StudentNoticesLoaded && state.notices.isNotEmpty) {
+                      final bloc = context.read<StudentFeaturesBloc>();
+                      final currentNotices = bloc.state is StudentNoticesLoaded
+                          ? (bloc.state as StudentNoticesLoaded).notices
+                          : _cachedNotices;
+                      if (currentNotices.isNotEmpty) {
+                        final clearIds = currentNotices.map((n) => n.id).toList();
                         showDialog(
                           context: context,
                           builder: (dialogCtx) => AlertDialog(
@@ -285,16 +296,14 @@ class _StudentNoticesViewState extends State<StudentNoticesView> {
                               ElevatedButton(
                                 onPressed: () {
                                   Navigator.pop(dialogCtx);
-                                  setState(() {
-                                    _dismissedNoticeIds.addAll(state.notices.map((n) => n.id));
-                                  });
+                                  bloc.add(ClearAllStudentNoticesEvent(clearIds));
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: const Text('Notifications cleared from view.'),
                                       action: SnackBarAction(
                                         label: 'Undo',
                                         onPressed: () {
-                                          setState(() => _dismissedNoticeIds.clear());
+                                          bloc.add(RestoreStudentNoticesEvent(noticeIds: clearIds));
                                         },
                                       ),
                                     ),
@@ -327,14 +336,19 @@ class _StudentNoticesViewState extends State<StudentNoticesView> {
           ),
         ),
         Expanded(
-          child: BlocBuilder<StudentFeaturesBloc, StudentFeaturesState>(
+          child: BlocConsumer<StudentFeaturesBloc, StudentFeaturesState>(
+            listener: (context, state) {
+              if (state is StudentNoticesLoaded) {
+                setState(() => _cachedNotices = state.notices);
+              }
+            },
             builder: (context, state) {
-              if (state is StudentFeaturesLoading) {
+              if (state is StudentFeaturesLoading && _cachedNotices.isEmpty) {
                 return const Center(
                     child: CircularProgressIndicator(strokeWidth: 2));
               }
 
-              if (state is StudentFeaturesError) {
+              if (state is StudentFeaturesError && _cachedNotices.isEmpty) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),
@@ -365,32 +379,54 @@ class _StudentNoticesViewState extends State<StudentNoticesView> {
                 );
               }
 
-              if (state is StudentNoticesLoaded) {
-                final allNotices = state.notices;
-                if (allNotices.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.campaign_outlined,
-                            size: 48, color: AppColors.secondaryText),
-                        SizedBox(height: 12),
-                        Text(
-                          'No active notices at this time',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.secondaryText,
-                          ),
+              final allNotices = state is StudentNoticesLoaded
+                  ? state.notices
+                  : _cachedNotices;
+
+              if (allNotices.isEmpty) {
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    context
+                        .read<StudentFeaturesBloc>()
+                        .add(const LoadStudentNoticesEvent());
+                  },
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(height: 120),
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.campaign_outlined,
+                                size: 48, color: AppColors.secondaryText),
+                            SizedBox(height: 12),
+                            Text(
+                              'No active notices at this time',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.secondaryText,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                }
+                      ),
+                    ],
+                  ),
+                );
+              }
 
-                final filteredNotices = _filterNotices(allNotices);
+              final filteredNotices = _filterNotices(allNotices);
 
-                return ListView(
+              return RefreshIndicator(
+                onRefresh: () async {
+                  context
+                      .read<StudentFeaturesBloc>()
+                      .add(const LoadStudentNoticesEvent());
+                },
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   children: [
                     // Date & Month Filter Bar
@@ -466,10 +502,8 @@ class _StudentNoticesViewState extends State<StudentNoticesView> {
                             child: _buildNoticeCard(n),
                           )),
                   ],
-                );
-              }
-
-              return const SizedBox.shrink();
+                ),
+              );
             },
           ),
         ),
@@ -731,12 +765,45 @@ class _StudentNoticesViewState extends State<StudentNoticesView> {
                     ),
                   ),
                 ),
-                Text(
-                  notice.publishedAt.length >= 10
-                      ? notice.publishedAt.substring(0, 10)
-                      : notice.publishedAt,
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.secondaryText),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      notice.publishedAt.length >= 10
+                          ? notice.publishedAt.substring(0, 10)
+                          : notice.publishedAt,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.secondaryText),
+                    ),
+                    const SizedBox(width: 6),
+                    InkWell(
+                      onTap: () {
+                        context
+                            .read<StudentFeaturesBloc>()
+                            .add(DismissStudentNoticeEvent(notice.id));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Notice "${notice.title}" dismissed.'),
+                            action: SnackBarAction(
+                              label: 'Undo',
+                              onPressed: () {
+                                context.read<StudentFeaturesBloc>().add(
+                                      RestoreStudentNoticesEvent(
+                                          noticeIds: [notice.id]),
+                                    );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: const Padding(
+                        padding: EdgeInsets.all(2),
+                        child: Icon(Icons.close,
+                            size: 16, color: AppColors.secondaryText),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

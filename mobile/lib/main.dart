@@ -47,7 +47,10 @@ void main() async {
   final curriculumRepository = CurriculumRepository(dioClient);
   final materialsRepository = MaterialsRepository(dioClient);
   final examsRepository = ExamsRepository(client: dioClient);
-  final studentFeaturesRepository = StudentFeaturesRepository(dioClient: dioClient);
+  final studentFeaturesRepository = StudentFeaturesRepository(
+    dioClient: dioClient,
+    storageService: storageService,
+  );
   final scheduleRepository = ScheduleRepository(dioClient: dioClient);
 
   // Authentication State BLoC
