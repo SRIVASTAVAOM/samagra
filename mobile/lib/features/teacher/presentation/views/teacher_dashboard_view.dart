@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/user_avatar.dart';
+import '../../../academics/models/classmate_birthday_model.dart';
 import '../../../academics/models/teacher_allocation_model.dart';
+import '../../../academics/repository/academics_repository.dart';
 import '../../../auth/models/user_model.dart';
 import '../../../homework/bloc/homework_bloc.dart';
 import '../../../leaves/bloc/leaves_bloc.dart';
@@ -52,6 +55,7 @@ class TeacherDashboardView extends StatefulWidget {
 
 class _TeacherDashboardViewState extends State<TeacherDashboardView> {
   List<NoticeModel>? _cachedNotices;
+  List<ClassmateBirthdayModel>? _homeroomBirthdays;
   List<String>? _customQuickLinkKeys;
   final SecureStorageService _storageService = SecureStorageService();
 
@@ -68,6 +72,34 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
   void initState() {
     super.initState();
     _fetchInitialData();
+    _fetchHomeroomBirthdays();
+  }
+
+  @override
+  void didUpdateWidget(covariant TeacherDashboardView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.allocations?.homeroom == null &&
+        widget.allocations?.homeroom != null) {
+      _fetchHomeroomBirthdays();
+    }
+  }
+
+  Future<void> _fetchHomeroomBirthdays() async {
+    if (!mounted || widget.allocations?.homeroom == null) return;
+    try {
+      AcademicsRepository? academicsRepo;
+      try {
+        academicsRepo = context.read<AcademicsRepository>();
+      } catch (_) {}
+      if (academicsRepo != null) {
+        final birthdays = await academicsRepo.getClassmatesBirthdays();
+        if (mounted) {
+          setState(() {
+            _homeroomBirthdays = birthdays;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _fetchInitialData() async {
@@ -94,7 +126,7 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
         repo = context.read<StudentFeaturesRepository>();
       } catch (_) {}
       if (repo != null) {
-        final notices = await repo.getNotices();
+        final notices = await repo.getTeacherNotices();
         if (mounted) {
           setState(() {
             _cachedNotices = notices;
@@ -130,9 +162,10 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
               context.read<ProfileBloc>().add(LoadStaffProfileEvent());
               try {
                 final repo = context.read<StudentFeaturesRepository>();
-                final notices = await repo.getNotices();
+                final notices = await repo.getTeacherNotices();
                 if (mounted) setState(() => _cachedNotices = notices);
               } catch (_) {}
+              await _fetchHomeroomBirthdays();
               await Future.delayed(const Duration(milliseconds: 300));
             },
             child: SingleChildScrollView(
@@ -150,6 +183,11 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
                   const SizedBox(height: 10),
                   _buildOverviewSection(context),
                   const SizedBox(height: 20),
+
+                  if (_homeroomBirthdays != null && _homeroomBirthdays!.isNotEmpty) ...[
+                    _buildTodayBirthdaysCard(context, _homeroomBirthdays!),
+                    const SizedBox(height: 20),
+                  ],
 
                   // BLOCK 3: Notices / Circulars Preview Box
                   _buildNoticesHeader(context),
@@ -189,14 +227,6 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
     final designation = (profile?.designation != null && profile!.designation!.trim().isNotEmpty)
         ? profile.designation!
         : 'Faculty / Subject Teacher';
-
-    final initials = teacherName.isNotEmpty
-        ? teacherName
-            .split(' ')
-            .take(2)
-            .map((e) => e.isNotEmpty ? e[0].toUpperCase() : '')
-            .join()
-        : 'T';
 
     final isClassTeacher = widget.allocations?.homeroom != null || profile?.isClassTeacher == true;
     final homeroomInfo = widget.allocations?.homeroom != null
@@ -313,34 +343,24 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
             ),
           ),
           const SizedBox(width: 14),
-          // Clean monogram circle avatar with indigo gradient
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              gradient: AppColors.indigoGradient,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.35),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.indigo500.withValues(alpha: 0.4),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+          // Unified profile photo / monogram avatar
+          UserAvatar(
+            name: teacherName,
+            avatarUrl: profile?.avatarUrl ?? widget.user.avatarUrl,
+            radius: 24,
+            fontSize: 16,
+            backgroundGradient: AppColors.indigoGradient,
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.35),
+              width: 1.5,
             ),
-            alignment: Alignment.center,
-            child: Text(
-              initials,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.indigo500.withValues(alpha: 0.4),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-            ),
+            ],
           ),
         ],
       ),
@@ -542,6 +562,115 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildTodayBirthdaysCard(
+    BuildContext context,
+    List<ClassmateBirthdayModel> birthdays,
+  ) {
+    final homeroom = widget.allocations?.homeroom;
+    final classLabel = homeroom != null
+        ? '${homeroom.className} ${homeroom.sectionName}'
+        : 'Homeroom';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.cake_outlined, size: 16, color: AppColors.primaryAccent),
+                  const SizedBox(width: 6),
+                  Text(
+                    "Today's Class Birthdays ($classLabel)",
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryText,
+                    ),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: () => widget.onNavigateToTab?.call(2, classesSubTab: 9),
+                child: const Text(
+                  'View All',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryAccent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...birthdays.take(3).map(
+                (b) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      UserAvatar(
+                        name: b.fullName,
+                        avatarUrl: b.avatarUrl,
+                        radius: 17,
+                        fontSize: 12,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              b.fullName,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primaryText,
+                              ),
+                            ),
+                            Text(
+                              'Roll No: ${b.rollNumber ?? "-"}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.secondaryText,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.indigo50,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: AppColors.indigo100),
+                        ),
+                        child: Text(
+                          b.birthdayFormatted.isNotEmpty ? b.birthdayFormatted : 'Today',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primaryAccent,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+        ],
+      ),
     );
   }
 
@@ -921,6 +1050,14 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
         icon: Icons.manage_accounts_outlined,
         onTap: (c) => widget.onNavigateToTab?.call(2, classesSubTab: 5),
       ),
+      if (widget.allocations?.homeroom != null || profile?.isClassTeacher == true)
+        _TeacherMenuItem(
+          key: 'class_birthdays',
+          defaultLabel: 'Class Birthdays',
+          category: 'Academics & Teaching',
+          icon: Icons.cake_outlined,
+          onTap: (c) => widget.onNavigateToTab?.call(2, classesSubTab: 9),
+        ),
     ];
 
     final available = <({_TeacherMenuItem item, String label})>[];

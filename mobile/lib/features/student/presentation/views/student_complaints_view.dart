@@ -14,12 +14,38 @@ class StudentComplaintsView extends StatefulWidget {
 }
 
 class _StudentComplaintsViewState extends State<StudentComplaintsView> {
+  List<ComplaintModel>? _cachedComplaints;
+  String? _lastError;
+  bool _isModalOpen = false;
+
   @override
   void initState() {
     super.initState();
     context
         .read<StudentFeaturesBloc>()
         .add(const LoadStudentComplaintsEvent());
+  }
+
+  String _formatDate(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+    final parsed = DateTime.tryParse(trimmed)?.toLocal();
+    if (parsed == null) return trimmed.split('T').first;
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${parsed.day.toString().padLeft(2, '0')} ${months[parsed.month - 1]} ${parsed.year}';
   }
 
   @override
@@ -34,10 +60,10 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
           ),
           child: Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       'Complaints & Grievances',
                       style: TextStyle(
@@ -81,7 +107,12 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
         Expanded(
           child: BlocConsumer<StudentFeaturesBloc, StudentFeaturesState>(
             listener: (context, state) {
-              if (state is ComplaintSubmittedSuccess) {
+              if (state is StudentComplaintsLoaded) {
+                setState(() {
+                  _cachedComplaints = state.complaints;
+                  _lastError = null;
+                });
+              } else if (state is ComplaintSubmittedSuccess) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(state.message),
@@ -89,48 +120,123 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
                   ),
                 );
               } else if (state is StudentFeaturesError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.message),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
-              }
-            },
-            builder: (context, state) {
-              if (state is StudentFeaturesLoading) {
-                return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-              }
-
-              if (state is StudentComplaintsLoaded) {
-                final complaints = state.complaints;
-                if (complaints.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.assignment_turned_in_outlined, size: 48, color: AppColors.secondaryText),
-                        SizedBox(height: 12),
-                        Text(
-                          'No grievances or complaints submitted',
-                          style: TextStyle(color: AppColors.secondaryText),
-                        ),
-                      ],
+                final hadCache = _cachedComplaints != null;
+                setState(() {
+                  _lastError = state.message;
+                });
+                if (!_isModalOpen && hadCache) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(state.message),
+                      backgroundColor: AppColors.error,
                     ),
                   );
                 }
+              }
+            },
+            builder: (context, state) {
+              final complaints = state is StudentComplaintsLoaded
+                  ? state.complaints
+                  : _cachedComplaints;
 
-                return ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: complaints.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    return _buildComplaintCard(complaints[index]);
-                  },
-                );
+              if (complaints == null) {
+                if (state is StudentFeaturesLoading || state is StudentFeaturesInitial) {
+                  return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                }
+
+                if (_lastError != null || state is StudentFeaturesError) {
+                  final errMsg = _lastError ??
+                      (state is StudentFeaturesError
+                          ? state.message
+                          : 'Failed to load complaints');
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline, size: 36, color: AppColors.error),
+                          const SizedBox(height: 12),
+                          Text(
+                            errMsg,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.secondaryText,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              context
+                                  .read<StudentFeaturesBloc>()
+                                  .add(const LoadStudentComplaintsEvent());
+                            },
+                            icon: const Icon(Icons.refresh, size: 16),
+                            label: const Text('Retry'),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.border),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
               }
 
-              return const SizedBox.shrink();
+              final list = complaints ?? const <ComplaintModel>[];
+
+              return Column(
+                children: [
+                  if (state is StudentFeaturesLoading)
+                    const LinearProgressIndicator(minHeight: 2),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        context
+                            .read<StudentFeaturesBloc>()
+                            .add(const LoadStudentComplaintsEvent());
+                        await Future.delayed(const Duration(milliseconds: 250));
+                      },
+                      child: list.isEmpty
+                          ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: const [
+                                SizedBox(height: 120),
+                                Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.assignment_turned_in_outlined,
+                                        size: 48,
+                                        color: AppColors.secondaryText,
+                                      ),
+                                      SizedBox(height: 12),
+                                      Text(
+                                        'No grievances or complaints submitted',
+                                        style: TextStyle(color: AppColors.secondaryText),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            )
+                          : ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.all(16),
+                              itemCount: list.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                return _buildComplaintCard(list[index]);
+                              },
+                            ),
+                    ),
+                  ),
+                ],
+              );
             },
           ),
         ),
@@ -150,6 +256,8 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
       default:
         statusColor = AppColors.warning;
     }
+
+    final filedDate = _formatDate(c.createdAt);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -173,7 +281,11 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
                 ),
                 child: Text(
                   c.category,
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.secondaryText,
+                  ),
                 ),
               ),
               Container(
@@ -184,7 +296,11 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
                 ),
                 child: Text(
                   c.status,
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
                 ),
               ),
             ],
@@ -192,13 +308,34 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
           const SizedBox(height: 8),
           Text(
             c.title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primaryText),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primaryText,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             c.description,
-            style: const TextStyle(fontSize: 12, height: 1.4, color: AppColors.secondaryText),
+            style: const TextStyle(
+              fontSize: 12,
+              height: 1.4,
+              color: AppColors.secondaryText,
+            ),
           ),
+          if (filedDate.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.schedule, size: 12, color: AppColors.secondaryText),
+                const SizedBox(width: 4),
+                Text(
+                  'Filed on $filedDate',
+                  style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
+                ),
+              ],
+            ),
+          ],
           if (c.resolutionNotes != null && c.resolutionNotes!.isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(
@@ -231,7 +368,12 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
   void _showNewComplaintModal(BuildContext context) {
     final titleController = TextEditingController();
     final descController = TextEditingController();
+    final featuresBloc = context.read<StudentFeaturesBloc>();
     String category = 'ACADEMIC';
+    bool isSubmitting = false;
+    String? modalError;
+
+    setState(() => _isModalOpen = true);
 
     showModalBottomSheet(
       context: context,
@@ -242,106 +384,193 @@ class _StudentComplaintsViewState extends State<StudentComplaintsView> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (modalCtx, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Submit New Complaint',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryText),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 20),
-                        onPressed: () => Navigator.pop(ctx),
+            return BlocListener<StudentFeaturesBloc, StudentFeaturesState>(
+              bloc: featuresBloc,
+              listener: (_, state) {
+                if (!isSubmitting) return;
+                if (state is ComplaintSubmittedSuccess) {
+                  isSubmitting = false;
+                  if (Navigator.of(ctx).canPop()) {
+                    Navigator.of(ctx).pop();
+                  }
+                } else if (state is StudentFeaturesError) {
+                  setModalState(() {
+                    isSubmitting = false;
+                    modalError = state.message;
+                  });
+                }
+              },
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 20,
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Submit New Complaint',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryText,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    if (modalError != null) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFFCA5A5)),
+                        ),
+                        child: Text(
+                          modalError!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('Category', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 4),
-                  DropdownButtonFormField<String>(
-                    initialValue: category,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Category',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 'ACADEMIC', child: Text('Academic')),
-                      DropdownMenuItem(value: 'FACILITY', child: Text('Facility & Infrastructure')),
-                      DropdownMenuItem(value: 'DISCIPLINE', child: Text('Discipline / Behavior')),
-                      DropdownMenuItem(value: 'TRANSPORT', child: Text('School Transport')),
-                      DropdownMenuItem(value: 'OTHER', child: Text('Other')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setModalState(() => category = val);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('Title / Subject', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 4),
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      hintText: 'Brief summary of the issue',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('Detailed Description', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 4),
-                  TextField(
-                    controller: descController,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      hintText: 'Explain the issue clearly...',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.all(12),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                    const SizedBox(height: 4),
+                    DropdownButtonFormField<String>(
+                      initialValue: category,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
-                      onPressed: () {
-                        if (titleController.text.trim().isEmpty || descController.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Please fill all required fields')),
-                          );
-                          return;
-                        }
-                        Navigator.pop(ctx);
-                        context.read<StudentFeaturesBloc>().add(
-                              SubmitStudentComplaintEvent(
-                                title: titleController.text.trim(),
-                                category: category,
-                                description: descController.text.trim(),
+                      items: const [
+                        DropdownMenuItem(value: 'ACADEMIC', child: Text('Academic')),
+                        DropdownMenuItem(
+                            value: 'FACILITY', child: Text('Facility & Infrastructure')),
+                        DropdownMenuItem(
+                            value: 'DISCIPLINE', child: Text('Discipline / Behavior')),
+                        DropdownMenuItem(
+                            value: 'TRANSPORT', child: Text('School Transport')),
+                        DropdownMenuItem(value: 'OTHER', child: Text('Other')),
+                      ],
+                      onChanged: isSubmitting
+                          ? null
+                          : (val) {
+                              if (val != null) setModalState(() => category = val);
+                            },
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Title / Subject',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: titleController,
+                      maxLength: 255,
+                      enabled: !isSubmitting,
+                      decoration: const InputDecoration(
+                        hintText: 'Brief summary of the issue',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Detailed Description',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: descController,
+                      maxLines: 4,
+                      enabled: !isSubmitting,
+                      decoration: const InputDecoration(
+                        hintText: 'Explain the issue clearly...',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.all(12),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryAccent,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: isSubmitting
+                            ? null
+                            : () {
+                                final title = titleController.text.trim();
+                                final desc = descController.text.trim();
+                                if (title.isEmpty || desc.isEmpty) {
+                                  setModalState(() {
+                                    modalError =
+                                        'Please enter both a title and a detailed description.';
+                                  });
+                                  return;
+                                }
+                                setModalState(() {
+                                  modalError = null;
+                                  isSubmitting = true;
+                                });
+                                featuresBloc.add(
+                                  SubmitStudentComplaintEvent(
+                                    title: title,
+                                    category: category,
+                                    description: desc,
+                                  ),
+                                );
+                              },
+                        child: isSubmitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Submit Complaint',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            );
-                      },
-                      child: const Text('Submit Complaint', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
         );
       },
-    );
+    ).whenComplete(() {
+      if (mounted) {
+        setState(() => _isModalOpen = false);
+      } else {
+        _isModalOpen = false;
+      }
+    });
   }
 }

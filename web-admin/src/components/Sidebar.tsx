@@ -87,7 +87,8 @@ const navSections: NavSection[] = [
     items: [
       { name: 'Notices & Circulars', href: '/notices',       icon: Megaphone    },
       { name: 'Push Notifications',  href: '/notifications', icon: Bell         },
-      { name: 'Feedback & Grievances', href: '/feedback',      icon: MessageSquare },
+      { name: 'Feedback & Grievances', href: '/feedback',    icon: MessageSquare },
+      { name: 'School Contact & Settings', href: '/settings', icon: Building2   },
     ],
   },
 ];

@@ -137,7 +137,7 @@ export class ExamsRepository {
   // 2. List Exams
   static async getExams(
     schoolId: string,
-    filters?: { wingId?: string; academicYearId?: string; isPublished?: boolean }
+    filters?: { wingId?: string; academicYearId?: string; classId?: string; sectionId?: string; isPublished?: boolean }
   ): Promise<ExamRecord[]> {
     let query = `
       SELECT e.*, ay.label as academic_year_label, w.name as wing_name
@@ -155,6 +155,25 @@ export class ExamsRepository {
     if (filters?.academicYearId) {
       params.push(filters.academicYearId);
       query += ` AND e.academic_year_id = $${params.length}`;
+    }
+    if (filters?.classId) {
+      params.push(filters.classId);
+      const classParamIdx = params.length;
+      params.push(filters.sectionId || null);
+      const sectionParamIdx = params.length;
+      query += `
+        AND (
+          EXISTS (
+            SELECT 1 FROM exam_datesheets ds
+            WHERE ds.exam_id = e.id
+              AND ds.class_id = $${classParamIdx}
+              AND ($${sectionParamIdx}::uuid IS NULL OR ds.section_id IS NULL OR ds.section_id = $${sectionParamIdx}::uuid)
+          )
+          OR NOT EXISTS (
+            SELECT 1 FROM exam_datesheets ds2 WHERE ds2.exam_id = e.id
+          )
+        )
+      `;
     }
     if (filters?.isPublished !== undefined) {
       params.push(filters.isPublished);
@@ -252,7 +271,7 @@ export class ExamsRepository {
   }
 
   // 7. Get Datesheets for an Exam
-  static async getDatesheets(examId: string, classId?: string): Promise<ExamDatesheetRecord[]> {
+  static async getDatesheets(examId: string, classId?: string, sectionId?: string): Promise<ExamDatesheetRecord[]> {
     let query = `
       SELECT ds.*, e.name as exam_name, e.is_published, c.name as class_name, sec.name as section_name,
              sub.name as subject_name, sub.code as subject_code,
@@ -269,6 +288,10 @@ export class ExamsRepository {
     if (classId) {
       params.push(classId);
       query += ` AND ds.class_id = $${params.length}`;
+    }
+    if (sectionId) {
+      params.push(sectionId);
+      query += ` AND (ds.section_id IS NULL OR ds.section_id = $${params.length})`;
     }
     query += ` ORDER BY ds.exam_date ASC, ds.start_time ASC;`;
     const res = await pool.query(query, params);
@@ -301,7 +324,6 @@ export class ExamsRepository {
   static async isDatesheetMarksLocked(datesheetId: string): Promise<{ locked: boolean; reason?: string }> {
     const query = `
       SELECT 
-        e.is_published as exam_published,
         EXISTS(SELECT 1 FROM exam_marks WHERE exam_datesheet_id = $1 AND status = 'VERIFIED') as has_verified_marks,
         EXISTS(
           SELECT 1 FROM report_cards rc 
@@ -311,14 +333,13 @@ export class ExamsRepository {
             AND rc.status IN ('APPROVED', 'PUBLISHED')
         ) as report_card_finalized
       FROM exam_datesheets ds
-      JOIN exams e ON ds.exam_id = e.id
       WHERE ds.id = $1;
     `;
     const res = await pool.query(query, [datesheetId]);
     if (res.rows.length === 0) return { locked: false };
     const row = res.rows[0];
-    if (row.exam_published || row.has_verified_marks || row.report_card_finalized) {
-      return { locked: true, reason: 'Marks are locked after verification or publication.' };
+    if (row.has_verified_marks || row.report_card_finalized) {
+      return { locked: true, reason: 'Marks are locked after verification or report card approval.' };
     }
     return { locked: false };
   }
@@ -335,6 +356,7 @@ export class ExamsRepository {
       LEFT JOIN exam_marks em ON em.exam_datesheet_id = $1 AND em.student_id = sp.id
       LEFT JOIN staff_profiles stf ON em.entered_by_staff_id = stf.id
       WHERE sp.current_class_id = $2
+        AND sp.is_active = TRUE
     `;
     const params: any[] = [datesheetId, classId];
     if (sectionId) {
@@ -618,12 +640,12 @@ export class ExamsRepository {
     }));
   }
 
-  // 15. Coordinator Approve Report Cards for Class
+  // 15. Coordinator/Admin Approve Report Cards for Class
   static async approveClassReportCards(
     examId: string,
     classId: string,
     sectionId: string,
-    coordinatorStaffId: string
+    coordinatorStaffId: string | null
   ): Promise<number> {
     const query = `
       UPDATE report_cards
@@ -686,9 +708,13 @@ export class ExamsRepository {
               COALESCE(em.status, 'NOT_ENTERED') as status
        FROM exam_datesheets ds
        JOIN subjects sub ON ds.subject_id = sub.id
+       JOIN classes c ON ds.class_id = c.id
        JOIN student_profiles sp ON ds.class_id = sp.current_class_id
+       JOIN users u ON sp.user_id = u.id AND c.school_id = u.school_id
        LEFT JOIN exam_marks em ON em.exam_datesheet_id = ds.id AND em.student_id = sp.id
-       WHERE ds.exam_id = $1 AND sp.id = $2
+       WHERE ds.exam_id = $1
+         AND sp.id = $2
+         AND (ds.section_id IS NULL OR ds.section_id = sp.current_section_id)
        ORDER BY ds.exam_date ASC, ds.start_time ASC;`,
       [examId, studentId]
     );

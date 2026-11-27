@@ -217,5 +217,55 @@ void main() {
 
       bloc.add(LoadSubjectsEvent());
     });
+
+    test('StudentRosterItem.fromJson parses classmate fields and formats birthday', () {
+      final fromIso = StudentRosterItem.fromJson({
+        'id': 's1',
+        'full_name': 'Aarav Sharma',
+        'roll_no': '101',
+        'first_name': '',
+        'last_name': '',
+        'date_of_birth': '2009-08-15',
+      });
+
+      expect(fromIso.fullName, 'Aarav Sharma');
+      expect(fromIso.rollNumber, '101');
+      expect(fromIso.formattedBirthday, '15 Aug 2009');
+      expect(fromIso.admissionNumber, '');
+
+      final withPreformatted = StudentRosterItem.fromJson({
+        'id': 's2',
+        'first_name': 'Riya',
+        'last_name': 'Patel',
+        'roll_number': '102',
+        'date_of_birth': '2010-03-04',
+        'birthday_formatted': '04 Mar 2010',
+      });
+
+      expect(withPreformatted.fullName, 'Riya Patel');
+      expect(withPreformatted.formattedBirthday, '04 Mar 2010');
+    });
+
+    test('SubjectTeacherItem.fromJson parses qualification, avatarUrl, and teacher_phone', () {
+      final item = SubjectTeacherItem.fromJson({
+        'subject_id': 'sub-1',
+        'subject_name': 'Mathematics',
+        'subject_code': 'MATH10',
+        'subject_type': 'THEORY',
+        'teacher_name': 'Sunita Sharma',
+        'teacher_phone': '+91 9811122233',
+        'qualification': 'M.Sc, B.Ed',
+        'avatar_url': 'https://cdn.example.com/sunita.jpg',
+        'is_class_teacher': true,
+      });
+
+      expect(item.subjectId, 'sub-1');
+      expect(item.subjectType, 'THEORY');
+      expect(item.teacherName, 'Sunita Sharma');
+      expect(item.teacherPhone, '+91 9811122233');
+      expect(item.qualification, 'M.Sc, B.Ed');
+      expect(item.avatarUrl, 'https://cdn.example.com/sunita.jpg');
+      expect(item.isClassTeacher, isTrue);
+    });
   });
 }

@@ -47,6 +47,7 @@ class ApiEndpoints {
 
   // Notices Endpoints
   static String get studentNotices => '$baseUrl/notices/student';
+  static String get teacherNotices => '$baseUrl/notices/teacher';
   static String dismissStudentNotice(String id) =>
       '$baseUrl/notices/student/$id/dismiss';
   static String get dismissAllStudentNotices =>
@@ -64,6 +65,7 @@ class ApiEndpoints {
 
   // Profiles Endpoints
   static String get studentProfile => '$baseUrl/profiles/student';
+  static String get studentProfilePhoto => '$baseUrl/profiles/student/photo';
   static String get staffProfile => '$baseUrl/profiles/staff';
 
   // Attendance Endpoints

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/user_avatar.dart';
 import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
 import '../bloc/profile_state.dart';
@@ -96,17 +97,11 @@ class TeacherProfileView extends StatelessWidget {
           ),
           child: Row(
             children: [
-              CircleAvatar(
+              UserAvatar(
+                name: p.fullName,
+                avatarUrl: p.avatarUrl,
                 radius: 26,
-                backgroundColor: AppColors.scaffoldBackground,
-                child: Text(
-                  p.firstName.isNotEmpty ? p.firstName[0].toUpperCase() : 'T',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryText,
-                  ),
-                ),
+                fontSize: 20,
               ),
               const SizedBox(width: 16),
               Expanded(

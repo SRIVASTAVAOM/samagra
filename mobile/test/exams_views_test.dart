@@ -187,5 +187,37 @@ void main() {
 
       bloc.close();
     });
+
+    testWidgets('ExamDatesheetView renders inline error and Retry action on error state',
+        (tester) async {
+      mockRepo.shouldThrow = true;
+      final bloc = ExamsBloc(repository: mockRepo);
+
+      await tester.pumpWidget(
+        buildTestableWidget(
+          child: const ExamDatesheetView(
+            examId: 'exam-1',
+            examName: 'Mid-Term Examinations 2026',
+            classId: 'class-1',
+          ),
+          bloc: bloc,
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Network error'), findsWidgets);
+      expect(find.text('Retry'), findsOneWidget);
+
+      mockRepo.shouldThrow = false;
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Mathematics'), findsOneWidget);
+
+      bloc.close();
+    });
   });
 }

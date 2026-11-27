@@ -7,7 +7,11 @@ export class SupportController {
     try {
       const complaints = await SupportService.getStudentComplaints(req.user!);
       res.status(200).json({ success: true, data: complaints });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'PROFILE_NOT_FOUND') {
+        res.status(404).json({ success: false, error: 'Student profile not found' });
+        return;
+      }
       next(error);
     }
   }
@@ -18,7 +22,11 @@ export class SupportController {
       const complaint = await SupportService.submitComplaint(req.user!, { title, category, description });
       res.status(201).json({ success: true, message: 'Complaint submitted successfully.', data: complaint });
     } catch (error: any) {
-      if (['INVALID_CATEGORY', 'TITLE_REQUIRED', 'DESCRIPTION_REQUIRED'].includes(error.message)) {
+      if (error.message === 'PROFILE_NOT_FOUND') {
+        res.status(404).json({ success: false, error: 'Student profile not found' });
+        return;
+      }
+      if (['INVALID_CATEGORY', 'TITLE_REQUIRED', 'TITLE_TOO_LONG', 'DESCRIPTION_REQUIRED'].includes(error.message)) {
         res.status(400).json({ success: false, error: error.message });
         return;
       }
@@ -30,7 +38,11 @@ export class SupportController {
     try {
       const feedback = await SupportService.getStudentFeedback(req.user!);
       res.status(200).json({ success: true, data: feedback });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'PROFILE_NOT_FOUND') {
+        res.status(404).json({ success: false, error: 'Student profile not found' });
+        return;
+      }
       next(error);
     }
   }
@@ -41,6 +53,10 @@ export class SupportController {
       const feedback = await SupportService.submitFeedback(req.user!, { category, rating, feedback_text });
       res.status(201).json({ success: true, message: 'Feedback submitted successfully.', data: feedback });
     } catch (error: any) {
+      if (error.message === 'PROFILE_NOT_FOUND') {
+        res.status(404).json({ success: false, error: 'Student profile not found' });
+        return;
+      }
       if (['INVALID_CATEGORY', 'INVALID_RATING', 'FEEDBACK_TEXT_REQUIRED'].includes(error.message)) {
         res.status(400).json({ success: false, error: error.message });
         return;

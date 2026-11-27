@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/dio_client.dart';
@@ -48,6 +49,34 @@ class ProfileRepository {
     }
   }
 
+  Future<StudentProfileModel> uploadStudentPhoto(
+    List<int> bytes,
+    String fileName,
+  ) async {
+    try {
+      final lower = fileName.toLowerCase();
+      final mimeType = lower.endsWith('.png')
+          ? 'image/png'
+          : (lower.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
+
+      final response = await dioClient.dio.post(
+        '${ApiEndpoints.studentProfilePhoto}?fileName=${Uri.encodeComponent(fileName)}',
+        data: Uint8List.fromList(bytes),
+        options: Options(
+          headers: {
+            'Content-Type': mimeType,
+          },
+        ),
+      );
+      return StudentProfileModel.fromJson(
+          response.data['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      final message = e.response?.data?['error']?.toString() ??
+          'Failed to upload profile photo';
+      throw Exception(message);
+    }
+  }
+
   Future<void> updateStudentProfileByTeacher(
     String studentId, {
     String? rollNumber,
@@ -80,7 +109,6 @@ class ProfileRepository {
       throw Exception(message);
     }
   }
-
 
   Future<StaffProfileModel> getStaffProfile() async {
     try {

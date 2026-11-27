@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   User,
   Send,
+  RefreshCw,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -114,7 +115,7 @@ export default function FeedbackPage() {
   const avgRating =
     totalFeedback > 0
       ? (feedbackList.reduce((acc, f) => acc + f.rating, 0) / totalFeedback).toFixed(1)
-      : '5.0';
+      : '—';
   const pendingComplaints = complaintsList.filter((c) => c.status === 'PENDING').length;
   const resolvedComplaints = complaintsList.filter((c) => c.status === 'RESOLVED').length;
 
@@ -128,6 +129,7 @@ export default function FeedbackPage() {
         !searchQuery.trim() ||
         f.feedback_text.toLowerCase().includes(q) ||
         f.student_name.toLowerCase().includes(q) ||
+        (f.admission_number || '').toLowerCase().includes(q) ||
         f.category.toLowerCase().includes(q);
 
       return matchesCat && matchesRating && matchesSearch;
@@ -144,7 +146,8 @@ export default function FeedbackPage() {
         !searchQuery.trim() ||
         c.title.toLowerCase().includes(q) ||
         c.description.toLowerCase().includes(q) ||
-        c.student_name.toLowerCase().includes(q);
+        c.student_name.toLowerCase().includes(q) ||
+        (c.admission_number || '').toLowerCase().includes(q);
 
       return matchesCat && matchesStatus && matchesSearch;
     });
@@ -174,32 +177,52 @@ export default function FeedbackPage() {
           </p>
         </div>
 
-        {/* Tab Toggle */}
-        <div className="flex items-center gap-1 bg-white/10 p-1.5 rounded-xl border border-white/10">
+        {/* Tab Toggle & Refresh */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 bg-white/10 p-1.5 rounded-xl border border-white/10">
+            <button
+              onClick={() => {
+                setActiveTab('FEEDBACK');
+                setCategoryFilter('ALL');
+                setStatusFilter('ALL');
+              }}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                activeTab === 'FEEDBACK'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              Ratings & Feedback ({feedbackList.length})
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('COMPLAINTS');
+                setCategoryFilter('ALL');
+                setRatingFilter('ALL');
+              }}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${
+                activeTab === 'COMPLAINTS'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              Grievances ({complaintsList.length})
+              {pendingComplaints > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-rose-500 text-white font-bold">
+                  {pendingComplaints}
+                </span>
+              )}
+            </button>
+          </div>
           <button
-            onClick={() => setActiveTab('FEEDBACK')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-              activeTab === 'FEEDBACK'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-300 hover:text-white'
-            }`}
+            type="button"
+            onClick={loadData}
+            disabled={loading}
+            title="Refresh Feedback & Grievances"
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-semibold transition disabled:opacity-50 cursor-pointer"
           >
-            Ratings & Feedback ({feedbackList.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('COMPLAINTS')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${
-              activeTab === 'COMPLAINTS'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            Grievances ({complaintsList.length})
-            {pendingComplaints > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-rose-500 text-white font-bold">
-                {pendingComplaints}
-              </span>
-            )}
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
           </button>
         </div>
       </div>
@@ -227,7 +250,9 @@ export default function FeedbackPage() {
           </div>
           <div>
             <p className="text-xs text-slate-500 font-medium">Average Rating</p>
-            <p className="text-xl font-bold text-slate-800">{avgRating} / 5.0</p>
+            <p className="text-xl font-bold text-slate-800">
+              {avgRating === '—' ? '—' : `${avgRating} / 5.0`}
+            </p>
           </div>
         </div>
 
@@ -310,6 +335,20 @@ export default function FeedbackPage() {
             </>
           ) : (
             <>
+              {/* Grievance Category Filter */}
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="ALL">All Categories</option>
+                <option value="ACADEMIC">Academic</option>
+                <option value="FACILITY">Facility</option>
+                <option value="DISCIPLINE">Discipline</option>
+                <option value="TRANSPORT">Transport</option>
+                <option value="OTHER">Other</option>
+              </select>
+
               {/* Grievance Status Filter */}
               <select
                 value={statusFilter}

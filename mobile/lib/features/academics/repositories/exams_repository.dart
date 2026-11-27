@@ -18,6 +18,23 @@ class ExamsRepository {
 
   ExamsRepository({required this.client});
 
+  String _extractDioErrorMessage(DioException e, String fallback) {
+    final data = e.response?.data;
+    if (data is Map<String, dynamic>) {
+      final error = data['error'];
+      if (error is Map<String, dynamic> && error['message'] != null) {
+        return error['message'].toString();
+      }
+      if (error is String && error.trim().isNotEmpty) {
+        return error;
+      }
+      if (data['message'] != null) {
+        return data['message'].toString();
+      }
+    }
+    return fallback;
+  }
+
   /// 1. List Examinations
   Future<List<ExamModel>> getExams({String? wingId, String? academicYearId}) async {
     try {
@@ -33,8 +50,7 @@ class ExamsRepository {
       final data = response.data['data'] as List<dynamic>;
       return data.map((e) => ExamModel.fromJson(e as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
-      final msg = e.response?.data?['error']?['message'] ?? 'Failed to load examinations.';
-      throw Exception(msg);
+      throw Exception(_extractDioErrorMessage(e, 'Failed to load examinations.'));
     }
   }
 
@@ -48,8 +64,7 @@ class ExamsRepository {
       final data = response.data['data'] as List<dynamic>;
       return data.map((e) => ExamDatesheetModel.fromJson(e as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
-      final msg = e.response?.data?['error']?['message'] ?? 'Failed to load exam datesheet.';
-      throw Exception(msg);
+      throw Exception(_extractDioErrorMessage(e, 'Failed to load exam datesheet.'));
     }
   }
 
@@ -72,8 +87,7 @@ class ExamsRepository {
 
       return MarksRosterResult(datesheet: datesheet, roster: rosterList);
     } on DioException catch (e) {
-      final msg = e.response?.data?['error']?['message'] ?? 'Failed to load marks roster.';
-      throw Exception(msg);
+      throw Exception(_extractDioErrorMessage(e, 'Failed to load marks roster.'));
     }
   }
 
@@ -93,8 +107,7 @@ class ExamsRepository {
         },
       );
     } on DioException catch (e) {
-      final msg = e.response?.data?['error']?['message'] ?? 'Failed to save marks.';
-      throw Exception(msg);
+      throw Exception(_extractDioErrorMessage(e, 'Failed to save marks.'));
     }
   }
 
@@ -107,8 +120,7 @@ class ExamsRepository {
       final data = response.data['data'] as Map<String, dynamic>;
       return DatesheetSummaryModel.fromJson(data);
     } on DioException catch (e) {
-      final msg = e.response?.data?['error']?['message'] ?? 'Failed to load datesheet summary.';
-      throw Exception(msg);
+      throw Exception(_extractDioErrorMessage(e, 'Failed to load datesheet summary.'));
     }
   }
 
@@ -120,8 +132,7 @@ class ExamsRepository {
       );
       return response.data['data']?['verifiedCount'] as int? ?? 1;
     } on DioException catch (e) {
-      final msg = e.response?.data?['error']?['message'] ?? 'Failed to verify marks.';
-      throw Exception(msg);
+      throw Exception(_extractDioErrorMessage(e, 'Failed to verify marks.'));
     }
   }
 
@@ -141,8 +152,7 @@ class ExamsRepository {
       final data = response.data['data'] as List<dynamic>;
       return data.map((e) => ReportCardModel.fromJson(e as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
-      final msg = e.response?.data?['error']?['message'] ?? 'Failed to generate report cards.';
-      throw Exception(msg);
+      throw Exception(_extractDioErrorMessage(e, 'Failed to generate report cards.'));
     }
   }
 
@@ -160,8 +170,7 @@ class ExamsRepository {
       final data = response.data['data'] as List<dynamic>;
       return data.map((e) => ReportCardModel.fromJson(e as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
-      final msg = e.response?.data?['error']?['message'] ?? 'Failed to load report cards.';
-      throw Exception(msg);
+      throw Exception(_extractDioErrorMessage(e, 'Failed to load report cards.'));
     }
   }
 
@@ -173,8 +182,7 @@ class ExamsRepository {
       );
       return response.data['data']?['approvedCount'] as int? ?? 1;
     } on DioException catch (e) {
-      final msg = e.response?.data?['error']?['message'] ?? 'Failed to approve report cards.';
-      throw Exception(msg);
+      throw Exception(_extractDioErrorMessage(e, 'Failed to approve report cards.'));
     }
   }
 
@@ -187,8 +195,7 @@ class ExamsRepository {
       final data = response.data['data'] as Map<String, dynamic>;
       return StudentExamResultModel.fromJson(data);
     } on DioException catch (e) {
-      final msg = e.response?.data?['error']?['message'] ?? 'Failed to fetch exam result.';
-      throw Exception(msg);
+      throw Exception(_extractDioErrorMessage(e, 'Failed to fetch exam result.'));
     }
   }
 
@@ -200,8 +207,7 @@ class ExamsRepository {
         data: {'isPublished': isPublished},
       );
     } on DioException catch (e) {
-      final msg = e.response?.data?['error']?['message'] ?? 'Failed to update publication status.';
-      throw Exception(msg);
+      throw Exception(_extractDioErrorMessage(e, 'Failed to update publication status.'));
     }
   }
 }

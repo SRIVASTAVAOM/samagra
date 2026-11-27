@@ -12,6 +12,40 @@ import {
 
 export class ExamsService {
   /**
+   * Helper: Resolve active student enrollment profile via profileId or userId + schoolId
+   */
+  static async resolveStudentEnrollment(user: TokenPayload): Promise<{
+    studentProfileId: string;
+    currentClassId: string | null;
+    currentSectionId: string | null;
+    classWingId: string | null;
+    schoolId: string;
+  }> {
+    const { rows } = await pool.query(
+      `SELECT sp.id AS student_profile_id, sp.current_class_id, sp.current_section_id,
+              c.wing_id AS class_wing_id, u.school_id
+       FROM student_profiles sp
+       JOIN users u ON sp.user_id = u.id
+       LEFT JOIN classes c ON sp.current_class_id = c.id
+       WHERE (sp.id::text = $1 OR sp.user_id::text = $2)
+         AND u.school_id = $3
+       LIMIT 1;`,
+      [user.profileId || user.userId, user.userId, user.schoolId]
+    );
+    if (rows.length === 0) {
+      throw { statusCode: 404, message: 'Student enrollment profile not found.' };
+    }
+    const r = rows[0];
+    return {
+      studentProfileId: r.student_profile_id,
+      currentClassId: r.current_class_id || null,
+      currentSectionId: r.current_section_id || null,
+      classWingId: r.class_wing_id || null,
+      schoolId: r.school_id,
+    };
+  }
+
+  /**
    * Helper: Check if coordinator is assigned to the target wing (or class's wing)
    */
   static async verifyCoordinatorWingScope(staffId: string, wingId: string): Promise<void> {
@@ -118,12 +152,27 @@ export class ExamsService {
     user: TokenPayload,
     filters?: { wingId?: string; academicYearId?: string }
   ): Promise<ExamRecord[]> {
-    const isStudent = user.roles.includes('STUDENT');
-    // Students only see published exams
-    return await ExamsRepository.getExams(user.schoolId, {
-      ...filters,
-      isPublished: isStudent ? true : undefined,
-    });
+    const isOnlyStudent =
+      user.roles.includes('STUDENT') &&
+      !user.roles.includes('TEACHER') &&
+      !user.roles.includes('ADMIN') &&
+      !user.roles.includes('SUPER_ADMIN');
+
+    if (isOnlyStudent) {
+      const enrollment = await this.resolveStudentEnrollment(user);
+      if (!enrollment.currentClassId) {
+        return [];
+      }
+      return await ExamsRepository.getExams(enrollment.schoolId, {
+        ...filters,
+        wingId: filters?.wingId || enrollment.classWingId || undefined,
+        classId: enrollment.currentClassId,
+        sectionId: enrollment.currentSectionId || undefined,
+        isPublished: true,
+      });
+    }
+
+    return await ExamsRepository.getExams(user.schoolId, filters);
   }
 
   // 3. Get Exam Details
@@ -234,18 +283,33 @@ export class ExamsService {
     examId: string,
     classId?: string
   ): Promise<ExamDatesheetRecord[]> {
-    let targetClassId = classId;
-
-    if (user.roles.includes('STUDENT')) {
-      // Must use student's enrolled class
-      const stdRes = await pool.query(`SELECT current_class_id FROM student_profiles WHERE id = $1;`, [user.profileId]);
-      if (stdRes.rows.length === 0 || !stdRes.rows[0].current_class_id) {
-        throw { statusCode: 403, message: 'Student is not enrolled in any class.' };
-      }
-      targetClassId = stdRes.rows[0].current_class_id;
+    const exam = await ExamsRepository.getExamById(examId, user.schoolId);
+    if (!exam) {
+      throw { statusCode: 404, message: 'Examination not found.' };
     }
 
-    return await ExamsRepository.getDatesheets(examId, targetClassId);
+    const isOnlyStudent =
+      user.roles.includes('STUDENT') &&
+      !user.roles.includes('TEACHER') &&
+      !user.roles.includes('ADMIN') &&
+      !user.roles.includes('SUPER_ADMIN');
+
+    if (isOnlyStudent) {
+      if (!exam.is_published) {
+        throw { statusCode: 403, message: 'Examination schedule has not been published yet.' };
+      }
+      const enrollment = await this.resolveStudentEnrollment(user);
+      if (!enrollment.currentClassId) {
+        throw { statusCode: 403, message: 'Student is not enrolled in any class.' };
+      }
+      return await ExamsRepository.getDatesheets(
+        examId,
+        enrollment.currentClassId,
+        enrollment.currentSectionId || undefined
+      );
+    }
+
+    return await ExamsRepository.getDatesheets(examId, classId);
   }
 
   // 7. Get Marks Roster for Teacher/Coordinator
@@ -425,15 +489,20 @@ export class ExamsService {
       throw { statusCode: 403, message: 'Only School Admin can approve report cards.' };
     }
 
-    const classRes = await pool.query(
-      `SELECT wing_id FROM classes WHERE id = $1 AND ($2::boolean OR school_id = $3);`,
-      [classId, user.roles.includes('SUPER_ADMIN'), user.schoolId]
-    );
-    if (classRes.rows.length > 0 && classRes.rows[0].wing_id) {
-      await this.verifyCoordinatorWingScope(user.profileId!, classRes.rows[0].wing_id);
+    const exam = await ExamsRepository.getExamById(examId, user.schoolId);
+    if (!exam) {
+      throw { statusCode: 404, message: 'Examination not found.' };
     }
 
-    const count = await ExamsRepository.approveClassReportCards(examId, classId, sectionId, user.profileId!);
+    const classRes = await pool.query(
+      `SELECT id FROM classes WHERE id = $1 AND ($2::boolean OR school_id = $3);`,
+      [classId, user.roles.includes('SUPER_ADMIN'), user.schoolId]
+    );
+    if (classRes.rows.length === 0) {
+      throw { statusCode: 404, message: 'Class not found in this school.' };
+    }
+
+    const count = await ExamsRepository.approveClassReportCards(examId, classId, sectionId, user.profileId || null);
     return { approvedCount: count };
   }
 
@@ -450,7 +519,9 @@ export class ExamsService {
       throw { statusCode: 403, message: 'Only students can access this student result endpoint.' };
     }
 
-    const exam = await ExamsRepository.getExamById(examId, user.schoolId);
+    const enrollment = await this.resolveStudentEnrollment(user);
+
+    const exam = await ExamsRepository.getExamById(examId, enrollment.schoolId);
     if (!exam) {
       throw { statusCode: 404, message: 'Examination not found.' };
     }
@@ -459,8 +530,11 @@ export class ExamsService {
       throw { statusCode: 403, message: 'Examination results have not been published yet.' };
     }
 
-    const result = await ExamsRepository.getStudentResult(examId, user.profileId!);
-    if (!result.reportCard || result.reportCard.status !== 'APPROVED') {
+    const result = await ExamsRepository.getStudentResult(examId, enrollment.studentProfileId);
+    if (
+      !result.reportCard ||
+      (result.reportCard.status !== 'APPROVED' && result.reportCard.status !== 'PUBLISHED')
+    ) {
       throw {
         statusCode: 403,
         message: 'Your report card has not been approved and published yet.',

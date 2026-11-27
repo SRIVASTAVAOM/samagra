@@ -69,8 +69,23 @@ class _StudentShellState extends State<StudentShell> {
   List<SubjectModel> _subjects = [];
   SubjectModel? _selectedSubject;
   bool _loadingSubjects = false;
+  AcademicsBloc? _academicsBloc;
   CurriculumBloc? _curriculumBloc;
   MaterialsBloc? _materialsBloc;
+
+  void _loadClassmates() {
+    final classId = widget.user.classId ?? '';
+    final sectionId = widget.user.sectionId ?? '';
+    if (classId.isEmpty || sectionId.isEmpty) {
+      return;
+    }
+    _academicsBloc?.add(
+      LoadClassRosterEvent(
+        classId: classId,
+        sectionId: sectionId,
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -123,11 +138,19 @@ class _StudentShellState extends State<StudentShell> {
 
     final classId = widget.user.classId ?? '';
     final subjectId = _selectedSubject?.id ?? (_subjects.isNotEmpty ? _subjects.first.id : '');
-    if (tabIndex == 2 && classId.isNotEmpty && subjectId.isNotEmpty) {
-      if (academicSubTab == 1) {
-        _materialsBloc?.add(LoadClassMaterialsEvent(classId, subjectId));
-      } else if (academicSubTab == 2) {
-        _curriculumBloc?.add(LoadCurriculumUnitsEvent(classId, subjectId));
+    if (tabIndex == 2) {
+      if (academicSubTab == 3) {
+        _loadClassmates();
+      } else if (academicSubTab == 4) {
+        _academicsBloc?.add(LoadClassmatesBirthdaysEvent());
+      } else if (academicSubTab == 5) {
+        _academicsBloc?.add(LoadSubjectTeachersEvent());
+      } else if (classId.isNotEmpty && subjectId.isNotEmpty) {
+        if (academicSubTab == 1) {
+          _materialsBloc?.add(LoadClassMaterialsEvent(classId, subjectId));
+        } else if (academicSubTab == 2) {
+          _curriculumBloc?.add(LoadCurriculumUnitsEvent(classId, subjectId));
+        }
       }
     }
   }
@@ -137,14 +160,22 @@ class _StudentShellState extends State<StudentShell> {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (ctx) => AcademicsBloc(
-            repository: ctx.read<AcademicsRepository>(),
-          )..add(
-              LoadClassRosterEvent(
-                classId: widget.user.classId ?? '',
-                sectionId: widget.user.sectionId ?? '',
-              ),
-            ),
+          create: (ctx) {
+            final bloc = AcademicsBloc(
+              repository: ctx.read<AcademicsRepository>(),
+            );
+            _academicsBloc = bloc;
+            if ((widget.user.classId ?? '').isNotEmpty &&
+                (widget.user.sectionId ?? '').isNotEmpty) {
+              bloc.add(
+                LoadClassRosterEvent(
+                  classId: widget.user.classId ?? '',
+                  sectionId: widget.user.sectionId ?? '',
+                ),
+              );
+            }
+            return bloc;
+          },
         ),
         BlocProvider(
           create: (ctx) => ProfileBloc(
@@ -235,13 +266,18 @@ class _StudentShellState extends State<StudentShell> {
                         final isUuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
                         final rawCls = state.profile.className;
                         final rawSec = state.profile.sectionName;
-                        final cls = (rawCls != null && rawCls.trim().isNotEmpty && !isUuid.hasMatch(rawCls)) ? rawCls.trim() : 'Grade 10';
-                        final sec = (rawSec != null && rawSec.trim().isNotEmpty && !isUuid.hasMatch(rawSec)) ? rawSec.trim() : 'Section A';
-                        subtitle = '$cls • $sec';
-                        if (state.profile.rollNumber != null &&
-                            state.profile.rollNumber!.isNotEmpty &&
-                            !isUuid.hasMatch(state.profile.rollNumber!)) {
-                          subtitle += ' • Roll #${state.profile.rollNumber}';
+                        final cls = (rawCls != null && rawCls.trim().isNotEmpty && !isUuid.hasMatch(rawCls)) ? rawCls.trim() : null;
+                        final sec = (rawSec != null && rawSec.trim().isNotEmpty && !isUuid.hasMatch(rawSec)) ? rawSec.trim() : null;
+                        final parts = <String>[
+                          ?cls,
+                          ?sec,
+                          if (state.profile.rollNumber != null &&
+                              state.profile.rollNumber!.trim().isNotEmpty &&
+                              !isUuid.hasMatch(state.profile.rollNumber!))
+                            'Roll #${state.profile.rollNumber!.trim()}',
+                        ];
+                        if (parts.isNotEmpty) {
+                          subtitle = parts.join(' • ');
                         }
                       }
                       return Text(
@@ -442,12 +478,7 @@ class _StudentShellState extends State<StudentShell> {
                   isSelected: _academicSubTab == 3,
                   onTap: () {
                     setState(() => _academicSubTab = 3);
-                    context.read<AcademicsBloc>().add(
-                          LoadClassRosterEvent(
-                            classId: widget.user.classId ?? '',
-                            sectionId: widget.user.sectionId ?? '',
-                          ),
-                        );
+                    _loadClassmates();
                   },
                 ),
                 const SizedBox(width: 8),
@@ -557,6 +588,18 @@ class _StudentShellState extends State<StudentShell> {
               }
 
               // AcademicsBloc handles Subtabs 3 (Classmates) and 5 (Teachers)
+              if (_academicSubTab == 3 &&
+                  ((widget.user.classId ?? '').isEmpty ||
+                      (widget.user.sectionId ?? '').isEmpty)) {
+                return StudentRosterView(
+                  students: const [],
+                  isStudentClassmatesMode: true,
+                  errorMessage:
+                      'Class or section assignment is missing for your profile.',
+                  onRetry: _loadClassmates,
+                );
+              }
+
               return BlocBuilder<AcademicsBloc, AcademicsState>(
                 builder: (context, state) {
                   if (state is AcademicsLoading) {
@@ -589,13 +632,7 @@ class _StudentShellState extends State<StudentShell> {
                             OutlinedButton(
                               onPressed: () {
                                 if (_academicSubTab == 3) {
-                                  context.read<AcademicsBloc>().add(
-                                        LoadClassRosterEvent(
-                                          classId: widget.user.classId ?? '',
-                                          sectionId:
-                                              widget.user.sectionId ?? '',
-                                        ),
-                                      );
+                                  _loadClassmates();
                                 } else if (_academicSubTab == 5) {
                                   context
                                       .read<AcademicsBloc>()
@@ -615,11 +652,19 @@ class _StudentShellState extends State<StudentShell> {
                   }
 
                   if (_academicSubTab == 3 && state is RosterLoaded) {
-                    return StudentRosterView(students: state.students);
+                    return StudentRosterView(
+                      students: state.students,
+                      isStudentClassmatesMode: true,
+                      onRetry: _loadClassmates,
+                    );
                   }
 
                   if (_academicSubTab == 5 && state is SubjectTeachersLoaded) {
-                    return SubjectTeachersView(teachers: state.teachers);
+                    return SubjectTeachersView(
+                      teachers: state.teachers,
+                      onRetry: () =>
+                          _academicsBloc?.add(LoadSubjectTeachersEvent()),
+                    );
                   }
 
                   return const Center(

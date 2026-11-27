@@ -35,6 +35,7 @@ import '../../academics/bloc/exams_bloc.dart';
 import '../../academics/models/teacher_allocation_model.dart';
 import '../../academics/repositories/exams_repository.dart';
 import '../../academics/views/exams_list_view.dart';
+import '../../student/presentation/views/student_birthdays_view.dart';
 import '../../schedule/bloc/schedule_bloc.dart';
 import '../../schedule/presentation/teacher_timetable_view.dart';
 import '../../schedule/presentation/teacher_substitutions_view.dart';
@@ -629,6 +630,14 @@ class _TeacherShellState extends State<TeacherShell> {
                     context.read<ScheduleBloc>().add(const LoadOnlineClassesEvent());
                   },
                 ),
+                if (_allocations?.homeroom != null) ...[
+                  const SizedBox(width: 8),
+                  _buildSubTabButton(
+                    title: 'Birthdays',
+                    isSelected: _classesSubTab == 9,
+                    onTap: () => setState(() => _classesSubTab = 9),
+                  ),
+                ],
               ],
             ),
           ),
@@ -636,6 +645,25 @@ class _TeacherShellState extends State<TeacherShell> {
         Expanded(
           child: Builder(
             builder: (context) {
+              if (_classesSubTab == 9) {
+                if (_allocations?.homeroom == null) {
+                  return _buildNoAssignmentCard(
+                    'Class birthdays are available only for Class Teachers assigned to a homeroom.',
+                  );
+                }
+                final hr = _allocations!.homeroom!;
+                return BlocProvider<AcademicsBloc>(
+                  create: (ctx) => AcademicsBloc(
+                    repository: ctx.read<AcademicsRepository>(),
+                  )..add(LoadClassmatesBirthdaysEvent()),
+                  child: StudentBirthdaysView(
+                    key: ValueKey('teacher-bday-${hr.classId}-${hr.sectionId}'),
+                    title: "${hr.className} ${hr.sectionName} Today's Birthdays",
+                    emptyMessage: 'No students in your homeroom have a birthday today',
+                    autoLoad: false,
+                  ),
+                );
+              }
               if (_classesSubTab == 6) {
                 return const TeacherTimetableView();
               }

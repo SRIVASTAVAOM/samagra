@@ -288,6 +288,47 @@ export const api = {
       });
     },
 
+    uploadPhoto: async (file: File): Promise<{
+      photoUrl: string;
+      publicId?: string;
+      format?: string;
+      bytes?: number;
+    }> => {
+      const token = getToken();
+      const formData = new FormData();
+      formData.append('photo', file);
+      const url = `${API_BASE_URL}/admin/upload/photo`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new ApiError(
+          json.error || json.message || 'Failed to upload photo',
+          response.status,
+          json.details
+        );
+      }
+      return json.data;
+    },
+
+    updateStudentPhoto: async (id: string, photo_url: string): Promise<any> => {
+      return request<any>(`/admin/students/${encodeURIComponent(id)}/photo`, {
+        method: 'PATCH',
+        body: JSON.stringify({ photo_url }),
+      });
+    },
+
+    deleteStudentPhoto: async (id: string): Promise<any> => {
+      return request<any>(`/admin/students/${encodeURIComponent(id)}/photo`, {
+        method: 'DELETE',
+      });
+    },
+
     resetStudentPassword: async (id: string, password?: string): Promise<any> => {
       return request<any>(`/admin/students/${encodeURIComponent(id)}/reset-password`, {
         method: 'POST',
@@ -1036,7 +1077,18 @@ export const api = {
       });
     },
 
-    updateSchoolConfig: async (schoolId: string, payload: { name?: string; branding?: any; features?: any; menuConfig?: any }): Promise<any> => {
+    updateSchoolConfig: async (
+      schoolId: string,
+      payload: {
+        name?: string;
+        contactEmail?: string;
+        contactPhone?: string;
+        address?: string;
+        branding?: any;
+        features?: any;
+        menuConfig?: any;
+      }
+    ): Promise<any> => {
       return request(`/super-admin/schools/${encodeURIComponent(schoolId)}/config`, {
         method: 'PATCH',
         body: JSON.stringify(payload),

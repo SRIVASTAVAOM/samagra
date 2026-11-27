@@ -63,9 +63,25 @@ export class AcademicsController {
   static async getClassRoster(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { classId, sectionId } = req.params;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(classId) || !uuidRegex.test(sectionId)) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid classId or sectionId format.',
+        });
+        return;
+      }
+
       const roster = await AcademicsService.getClassRoster(req.user!, classId, sectionId);
       res.status(200).json({ success: true, data: roster });
     } catch (error: any) {
+      if (error.message === 'PROFILE_NOT_FOUND') {
+        res.status(404).json({
+          success: false,
+          error: 'Student enrollment profile not found.',
+        });
+        return;
+      }
       if (error.message === 'FORBIDDEN_SCOPE') {
         res.status(403).json({
           success: false,
@@ -99,7 +115,14 @@ export class AcademicsController {
     try {
       const teachers = await AcademicsService.getStudentSubjectTeachers(req.user!);
       res.status(200).json({ success: true, data: teachers });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'PROFILE_NOT_FOUND') {
+        res.status(404).json({
+          success: false,
+          error: 'Student enrollment profile not found.',
+        });
+        return;
+      }
       next(error);
     }
   }

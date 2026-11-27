@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/user_avatar.dart';
 import '../models/student_roster_item.dart';
 
 class StudentRosterView extends StatefulWidget {
@@ -9,6 +10,7 @@ class StudentRosterView extends StatefulWidget {
   final VoidCallback? onRetry;
   final String title;
   final bool canEdit;
+  final bool isStudentClassmatesMode;
   final Function(StudentRosterItem)? onEditStudent;
 
   const StudentRosterView({
@@ -19,6 +21,7 @@ class StudentRosterView extends StatefulWidget {
     this.onRetry,
     this.title = 'Class Roster',
     this.canEdit = false,
+    this.isStudentClassmatesMode = false,
     this.onEditStudent,
   });
 
@@ -71,7 +74,12 @@ class _StudentRosterViewState extends State<StudentRosterView> {
     }
 
     final filtered = widget.students.where((s) {
-      final q = _searchQuery.toLowerCase();
+      final q = _searchQuery.trim().toLowerCase();
+      if (q.isEmpty) return true;
+      if (widget.isStudentClassmatesMode) {
+        return s.fullName.toLowerCase().contains(q) ||
+            (s.rollNumber != null && s.rollNumber!.toLowerCase().contains(q));
+      }
       return s.fullName.toLowerCase().contains(q) ||
           s.admissionNumber.toLowerCase().contains(q) ||
           (s.rollNumber != null && s.rollNumber!.toLowerCase().contains(q));
@@ -106,7 +114,9 @@ class _StudentRosterViewState extends State<StudentRosterView> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Text(
-            '${filtered.length} students enrolled',
+            widget.isStudentClassmatesMode
+                ? '${filtered.length} ${filtered.length == 1 ? 'classmate' : 'classmates'}'
+                : '${filtered.length} students enrolled',
             style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
           ),
         ),
@@ -138,19 +148,11 @@ class _StudentRosterViewState extends State<StudentRosterView> {
                   padding: const EdgeInsets.all(12),
                   child: Row(
                     children: [
-                      CircleAvatar(
+                      UserAvatar(
+                        name: student.fullName.isNotEmpty ? student.fullName : 'Student',
+                        avatarUrl: student.avatarUrl,
                         radius: 18,
-                        backgroundColor: AppColors.scaffoldBackground,
-                        child: Text(
-                          student.firstName.isNotEmpty
-                              ? student.firstName[0].toUpperCase()
-                              : 'S',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryText,
-                          ),
-                        ),
+                        fontSize: 13,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -161,7 +163,9 @@ class _StudentRosterViewState extends State<StudentRosterView> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    student.fullName,
+                                    student.fullName.isNotEmpty
+                                        ? student.fullName
+                                        : 'Classmate',
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -169,7 +173,28 @@ class _StudentRosterViewState extends State<StudentRosterView> {
                                     ),
                                   ),
                                 ),
-                                if (student.rollNumber != null)
+                                if (widget.isStudentClassmatesMode)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.scaffoldBackground,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: AppColors.border),
+                                    ),
+                                    child: Text(
+                                      (student.rollNumber != null &&
+                                              student.rollNumber!.trim().isNotEmpty)
+                                          ? 'Roll No: ${student.rollNumber}'
+                                          : 'Roll No: -',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.secondaryText,
+                                      ),
+                                    ),
+                                  )
+                                else if (student.rollNumber != null)
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 6, vertical: 2),
@@ -189,56 +214,79 @@ class _StudentRosterViewState extends State<StudentRosterView> {
                                   ),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Adm: ${student.admissionNumber} • ${student.gender}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.secondaryText,
-                              ),
-                            ),
-                            if (student.bloodGroup != null ||
-                                student.emergencyPhone != null ||
-                                (student.medicalNotes != null &&
-                                    student.medicalNotes!.isNotEmpty)) ...[
-                              const SizedBox(height: 4),
-                              Wrap(
-                                spacing: 12,
-                                runSpacing: 4,
+                            if (widget.isStudentClassmatesMode) ...[
+                              const SizedBox(height: 6),
+                              Row(
                                 children: [
-                                  if (student.bloodGroup != null)
-                                    Text(
-                                      'Blood: ${student.bloodGroup}',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.secondaryText,
-                                      ),
+                                  const Icon(
+                                    Icons.cake_outlined,
+                                    size: 14,
+                                    color: AppColors.secondaryText,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Birthday: ${student.formattedBirthday ?? 'Not available'}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.secondaryText,
                                     ),
-                                  if (student.emergencyPhone != null)
-                                    Text(
-                                      'Emergency: ${student.emergencyPhone}',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.secondaryText,
-                                      ),
-                                    ),
-                                  if (student.medicalNotes != null &&
-                                      student.medicalNotes!.isNotEmpty)
-                                    Text(
-                                      'Medical: ${student.medicalNotes}',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontStyle: FontStyle.italic,
-                                        color: Color(0xFFD97706),
-                                      ),
-                                    ),
+                                  ),
                                 ],
                               ),
+                            ] else ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Adm: ${student.admissionNumber} • ${student.gender}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.secondaryText,
+                                ),
+                              ),
+                              if (student.bloodGroup != null ||
+                                  student.emergencyPhone != null ||
+                                  (student.medicalNotes != null &&
+                                      student.medicalNotes!.isNotEmpty)) ...[
+                                const SizedBox(height: 4),
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 4,
+                                  children: [
+                                    if (student.bloodGroup != null)
+                                      Text(
+                                        'Blood: ${student.bloodGroup}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.secondaryText,
+                                        ),
+                                      ),
+                                    if (student.emergencyPhone != null)
+                                      Text(
+                                        'Emergency: ${student.emergencyPhone}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.secondaryText,
+                                        ),
+                                      ),
+                                    if (student.medicalNotes != null &&
+                                        student.medicalNotes!.isNotEmpty)
+                                      Text(
+                                        'Medical: ${student.medicalNotes}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontStyle: FontStyle.italic,
+                                          color: Color(0xFFD97706),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ],
                         ),
                       ),
-                      if (widget.canEdit && widget.onEditStudent != null)
+                      if (!widget.isStudentClassmatesMode &&
+                          widget.canEdit &&
+                          widget.onEditStudent != null)
                         IconButton(
                           icon: const Icon(Icons.edit_outlined,
                               size: 18, color: AppColors.primaryText),

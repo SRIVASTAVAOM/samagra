@@ -216,16 +216,13 @@ describe('Examinations, Marks & Report Cards API Tests', () => {
       expect(res.status).toBe(400);
     });
 
-    it('should allow student to fetch datesheet for their enrolled class', async () => {
+    it('should REJECT student fetching datesheet for an unpublished exam with 403 Forbidden', async () => {
       const res = await request(app)
         .get(`/api/v1/exams/${testExamId}/datesheets`)
         .set('Authorization', `Bearer ${studentToken}`);
 
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(Array.isArray(res.body.data)).toBe(true);
-      expect(res.body.data.length).toBeGreaterThan(0);
-      expect(res.body.data[0].subject_name).toBe('Mathematics');
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
     });
   });
 
@@ -481,6 +478,24 @@ describe('Examinations, Marks & Report Cards API Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.is_published).toBe(true);
+    });
+
+    it('should allow student to list published exam and fetch datesheet for their enrolled class', async () => {
+      const examsRes = await request(app)
+        .get('/api/v1/exams')
+        .set('Authorization', `Bearer ${studentToken}`);
+      expect(examsRes.status).toBe(200);
+      expect(examsRes.body.data.some((e: any) => e.id === testExamId)).toBe(true);
+
+      const dsRes = await request(app)
+        .get(`/api/v1/exams/${testExamId}/datesheets`)
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(dsRes.status).toBe(200);
+      expect(dsRes.body.success).toBe(true);
+      expect(Array.isArray(dsRes.body.data)).toBe(true);
+      expect(dsRes.body.data.length).toBeGreaterThan(0);
+      expect(dsRes.body.data[0].subject_name).toBe('Mathematics');
     });
 
     it('should allow Student to view their own result once exam is published and approved', async () => {

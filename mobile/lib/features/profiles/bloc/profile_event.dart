@@ -23,7 +23,21 @@ class UpdateStudentProfileEvent extends ProfileEvent {
   });
 
   @override
-  List<Object?> get props => [emergencyPhone, bloodGroup, medicalNotes, documentUrl];
+  List<Object?> get props =>
+      [emergencyPhone, bloodGroup, medicalNotes, documentUrl];
+}
+
+class UploadStudentPhotoEvent extends ProfileEvent {
+  final List<int> bytes;
+  final String fileName;
+
+  const UploadStudentPhotoEvent({
+    required this.bytes,
+    required this.fileName,
+  });
+
+  @override
+  List<Object?> get props => [bytes, fileName];
 }
 
 class LoadStaffProfileEvent extends ProfileEvent {}
@@ -42,5 +56,6 @@ class UpdateStaffProfileEvent extends ProfileEvent {
   });
 
   @override
-  List<Object?> get props => [phone, emergencyPhone, qualification, bloodGroup];
+  List<Object?> get props =>
+      [phone, emergencyPhone, qualification, bloodGroup];
 }

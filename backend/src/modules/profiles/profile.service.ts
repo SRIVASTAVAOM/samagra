@@ -1,10 +1,29 @@
 import { ProfileRepository } from './profile.repository';
 import { TokenPayload } from '../../types/auth.types';
+import { CloudinaryService } from '../../services/cloudinary.service';
 
 export class ProfileService {
+  private static async resolveStudentId(user: TokenPayload): Promise<string> {
+    if (user.profileId) return user.profileId;
+    if (user.userId) {
+      const resolved = await ProfileRepository.resolveStudentProfileId(user.userId, user.schoolId);
+      if (resolved) return resolved;
+    }
+    throw new Error('PROFILE_NOT_FOUND');
+  }
+
+  private static async resolveStaffId(user: TokenPayload): Promise<string> {
+    if (user.profileId) return user.profileId;
+    if (user.userId) {
+      const resolved = await ProfileRepository.resolveStaffProfileId(user.userId, user.schoolId);
+      if (resolved) return resolved;
+    }
+    throw new Error('PROFILE_NOT_FOUND');
+  }
+
   static async getStudentProfile(user: TokenPayload) {
-    if (!user.profileId) throw new Error('PROFILE_NOT_FOUND');
-    const profile = await ProfileRepository.getStudentProfile(user.profileId);
+    const profileId = await this.resolveStudentId(user);
+    const profile = await ProfileRepository.getStudentProfile(profileId, user.schoolId);
     if (!profile) throw new Error('PROFILE_NOT_FOUND');
     return profile;
   }
@@ -12,20 +31,72 @@ export class ProfileService {
   static async updateStudentProfile(
     user: TokenPayload,
     updates: {
-      emergency_phone?: string;
-      blood_group?: string;
-      medical_notes?: string;
+      emergency_phone?: string | null;
+      blood_group?: string | null;
+      medical_notes?: string | null;
       document_url?: string | null;
+      photo_url?: string | null;
     }
   ) {
-    if (!user.profileId) throw new Error('PROFILE_NOT_FOUND');
-    const updated = await ProfileRepository.updateStudentProfile(user.profileId, updates);
+    const profileId = await this.resolveStudentId(user);
+    const previous = updates.photo_url
+      ? await ProfileRepository.getStudentPhotoPermission(profileId, user.schoolId)
+      : null;
+
+    const updated = await ProfileRepository.updateStudentProfile(profileId, user.schoolId, updates);
+    if (!updated) throw new Error('PROFILE_NOT_FOUND');
+
+    if (
+      updates.photo_url &&
+      previous?.photo_url &&
+      previous.photo_url !== updates.photo_url &&
+      previous.photo_url.includes('cloudinary')
+    ) {
+      CloudinaryService.deletePhoto(previous.photo_url).catch(() => {});
+    }
+
+    return updated;
+  }
+
+  static async uploadStudentPhoto(
+    user: TokenPayload,
+    file: { buffer: Buffer; fileName: string; mimeType: string }
+  ) {
+    const profileId = await this.resolveStudentId(user);
+    const permission = await ProfileRepository.getStudentPhotoPermission(profileId, user.schoolId);
+    if (!permission) throw new Error('PROFILE_NOT_FOUND');
+
+    if (permission.photo_self_edit_used && !permission.can_reupload_photo) {
+      throw new Error('PHOTO_CHANGE_LIMIT_REACHED');
+    }
+
+    const uploadResult = await CloudinaryService.uploadPhoto(file.buffer, {
+      fileName: file.fileName,
+      mimeType: file.mimeType,
+      userId: user.userId,
+      role: user.roles?.join(','),
+      subfolder: 'photos/students',
+    });
+
+    const updated = await ProfileRepository.updateStudentProfile(profileId, user.schoolId, {
+      photo_url: uploadResult.secureUrl,
+    });
+    if (!updated) throw new Error('PROFILE_NOT_FOUND');
+
+    if (
+      permission.photo_url &&
+      permission.photo_url !== uploadResult.secureUrl &&
+      permission.photo_url.includes('cloudinary')
+    ) {
+      CloudinaryService.deletePhoto(permission.photo_url).catch(() => {});
+    }
+
     return updated;
   }
 
   static async getStaffProfile(user: TokenPayload) {
-    if (!user.profileId) throw new Error('PROFILE_NOT_FOUND');
-    const profile = await ProfileRepository.getStaffProfile(user.profileId);
+    const profileId = await this.resolveStaffId(user);
+    const profile = await ProfileRepository.getStaffProfile(profileId, user.schoolId);
     if (!profile) throw new Error('PROFILE_NOT_FOUND');
     return profile;
   }
@@ -33,14 +104,15 @@ export class ProfileService {
   static async updateStaffProfile(
     user: TokenPayload,
     updates: {
-      emergency_phone?: string;
-      phone?: string;
-      qualification?: string;
-      blood_group?: string;
+      emergency_phone?: string | null;
+      phone?: string | null;
+      qualification?: string | null;
+      blood_group?: string | null;
     }
   ) {
-    if (!user.profileId) throw new Error('PROFILE_NOT_FOUND');
-    const updated = await ProfileRepository.updateStaffProfile(user.profileId, updates);
+    const profileId = await this.resolveStaffId(user);
+    const updated = await ProfileRepository.updateStaffProfile(profileId, user.schoolId, updates);
+    if (!updated) throw new Error('PROFILE_NOT_FOUND');
     return updated;
   }
 
@@ -55,7 +127,7 @@ export class ProfileService {
       document_url?: string | null;
     }
   ) {
-    if (!user.profileId) throw new Error('PROFILE_NOT_FOUND');
+    const staffId = await this.resolveStaffId(user);
 
     const student = await ProfileRepository.getStudentWithSchool(studentId);
     if (!student) throw new Error('STUDENT_NOT_FOUND');
@@ -69,7 +141,7 @@ export class ProfileService {
     }
 
     const isClassTeacher = await ProfileRepository.isClassTeacherForClass(
-      user.profileId,
+      staffId,
       student.current_class_id,
       student.current_section_id
     );
@@ -81,4 +153,3 @@ export class ProfileService {
     return await ProfileRepository.updateStudentProfileByTeacher(studentId, updates);
   }
 }
-

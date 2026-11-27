@@ -10,12 +10,12 @@ router.use(authenticateToken);
 // Student profile endpoints
 router.get('/student', requireRole(['STUDENT']), ProfileController.getStudentProfile);
 router.patch('/student', requireRole(['STUDENT']), ProfileController.updateStudentProfile);
+router.post('/student/photo', requireRole(['STUDENT']), ProfileController.uploadStudentPhoto);
 router.patch(
   '/student/:studentId/by-teacher',
   requireRole(['TEACHER']),
   ProfileController.updateStudentProfileByTeacher
 );
-
 
 // Staff profile endpoints (Teacher, Admin, Super Admin)
 router.get(

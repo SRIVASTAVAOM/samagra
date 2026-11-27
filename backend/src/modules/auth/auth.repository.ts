@@ -6,6 +6,9 @@ export interface UserAuthRecord {
   school_id: string | null;
   school_name?: string | null;
   school_code?: string | null;
+  school_phone?: string | null;
+  school_email?: string | null;
+  school_address?: string | null;
   menu_config?: any;
   branding_config?: any;
   school_status?: string | null;
@@ -46,6 +49,20 @@ export class AuthRepository {
         s.status AS school_status,
         s.name AS school_name,
         s.code AS school_code,
+        COALESCE(
+          NULLIF(TRIM(s.contact_phone), ''),
+          NULLIF(TRIM(s.branding_config->>'phone'), ''),
+          NULLIF(TRIM(s.admin_phone), '')
+        ) AS school_phone,
+        COALESCE(
+          NULLIF(TRIM(s.contact_email), ''),
+          NULLIF(TRIM(s.branding_config->>'email'), ''),
+          NULLIF(TRIM(s.admin_email), '')
+        ) AS school_email,
+        COALESCE(
+          NULLIF(TRIM(s.address), ''),
+          NULLIF(TRIM(s.branding_config->>'address'), '')
+        ) AS school_address,
         s.menu_config,
         s.branding_config,
         u.identifier,
@@ -86,7 +103,7 @@ export class AuthRepository {
         OR (stp.admission_number IS NOT NULL AND (LOWER(TRIM(stp.admission_number)) = LOWER($1) OR LOWER(TRIM(stp.admission_number)) = LOWER($2)))
         OR (stp.emergency_phone IS NOT NULL AND TRIM(stp.emergency_phone) = $1)
       )
-      GROUP BY u.id, s.status, s.name, s.code, s.menu_config, s.branding_config
+      GROUP BY u.id, s.id, s.status, s.name, s.code, s.contact_phone, s.contact_email, s.address, s.admin_phone, s.admin_email, s.menu_config, s.branding_config
       LIMIT 1;
     `;
 
@@ -100,6 +117,9 @@ export class AuthRepository {
       school_status: r.school_status,
       school_name: r.school_name,
       school_code: r.school_code,
+      school_phone: r.school_phone,
+      school_email: r.school_email,
+      school_address: r.school_address,
       menu_config: r.menu_config,
       branding_config: r.branding_config,
       identifier: r.identifier,
@@ -127,6 +147,20 @@ export class AuthRepository {
         s.status AS school_status,
         s.name AS school_name,
         s.code AS school_code,
+        COALESCE(
+          NULLIF(TRIM(s.contact_phone), ''),
+          NULLIF(TRIM(s.branding_config->>'phone'), ''),
+          NULLIF(TRIM(s.admin_phone), '')
+        ) AS school_phone,
+        COALESCE(
+          NULLIF(TRIM(s.contact_email), ''),
+          NULLIF(TRIM(s.branding_config->>'email'), ''),
+          NULLIF(TRIM(s.admin_email), '')
+        ) AS school_email,
+        COALESCE(
+          NULLIF(TRIM(s.address), ''),
+          NULLIF(TRIM(s.branding_config->>'address'), '')
+        ) AS school_address,
         s.menu_config,
         s.branding_config,
         u.identifier,
@@ -158,7 +192,7 @@ export class AuthRepository {
       LEFT JOIN staff_assignments sa ON sp.id = sa.staff_id
       LEFT JOIN student_profiles stp ON u.id = stp.user_id
       WHERE u.id = $1
-      GROUP BY u.id, s.status, s.name, s.code, s.menu_config, s.branding_config
+      GROUP BY u.id, s.id, s.status, s.name, s.code, s.contact_phone, s.contact_email, s.address, s.admin_phone, s.admin_email, s.menu_config, s.branding_config
       LIMIT 1;
     `;
 
@@ -172,6 +206,9 @@ export class AuthRepository {
       school_status: r.school_status,
       school_name: r.school_name,
       school_code: r.school_code,
+      school_phone: r.school_phone,
+      school_email: r.school_email,
+      school_address: r.school_address,
       menu_config: r.menu_config,
       branding_config: r.branding_config,
       identifier: r.identifier,

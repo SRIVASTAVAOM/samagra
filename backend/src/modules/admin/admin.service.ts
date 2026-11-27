@@ -5,6 +5,7 @@ import {
   GreensheetResponse,
 } from './admin.repository';
 import { TokenPayload } from '../../types/auth.types';
+import { NoticeService } from '../notices/notice.service';
 
 export class AdminService {
   /**
@@ -256,12 +257,61 @@ export class AdminService {
     complaintId: string,
     data: { status: string; resolution_notes?: string }
   ): Promise<any> {
-    if (!data.status) {
-      const error: any = new Error('Status is required');
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!complaintId || !uuidRegex.test(complaintId.trim())) {
+      const error: any = new Error('Invalid complaint ID');
       error.statusCode = 400;
       throw error;
     }
-    return AdminRepository.updateComplaintStatus(user.schoolId, complaintId, data);
+
+    const validStatuses = ['PENDING', 'IN_REVIEW', 'RESOLVED'];
+    const normalizedStatus =
+      typeof data.status === 'string' ? data.status.trim().toUpperCase() : '';
+    if (!validStatuses.includes(normalizedStatus)) {
+      const error: any = new Error(
+        'Status must be one of PENDING, IN_REVIEW, or RESOLVED'
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const updated = await AdminRepository.updateComplaintStatus(
+      user.schoolId,
+      complaintId.trim(),
+      {
+        status: normalizedStatus,
+        resolution_notes: data.resolution_notes,
+      }
+    );
+
+    if (!updated) {
+      const error: any = new Error('Complaint not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (updated.student_id) {
+      const statusLabel = normalizedStatus.replace('_', ' ');
+      const notes = updated.resolution_notes
+        ? ` Response: ${updated.resolution_notes}`
+        : '';
+      try {
+        await NoticeService.createNotice(user, {
+          title: `Complaint Update: ${String(updated.title || '').slice(0, 180)}`,
+          content: `Your grievance status has been updated to ${statusLabel}.${notes}`,
+          target_role: 'STUDENT',
+          target_student_id: updated.student_id,
+          priority: normalizedStatus === 'RESOLVED' ? 'NORMAL' : 'INFO',
+          channel: 'IN_APP',
+          idempotencyKey: `complaint_${updated.id}_${normalizedStatus}_${updated.resolution_notes || ''}`,
+        });
+      } catch (noticeErr) {
+        console.warn('[Complaint Notice Warning]:', (noticeErr as any)?.message || noticeErr);
+      }
+    }
+
+    return updated;
   }
 
   // Bulk Ingestion & Academic Allocation Hub

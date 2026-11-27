@@ -5,6 +5,7 @@ import { pool } from '../src/config/db.config';
 describe('Profile Viewing & Editing API Tests', () => {
   let studentToken: string;
   let teacherToken: string;
+  let adminToken: string;
 
   beforeAll(async () => {
     const sRes = await request(app)
@@ -16,6 +17,11 @@ describe('Profile Viewing & Editing API Tests', () => {
       .post('/api/v1/auth/login')
       .send({ identifier: 'teacher1', password: 'Password@123' });
     teacherToken = tRes.body.data.token;
+
+    const aRes = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ identifier: 'management1', password: 'Password@123' });
+    adminToken = aRes.body.data.token;
   });
 
   afterAll(async () => {
@@ -51,6 +57,59 @@ describe('Profile Viewing & Editing API Tests', () => {
       expect(res.body.data.emergency_phone).toBe('+91 9988776655');
       expect(res.body.data.blood_group).toBe('B+');
       expect(res.body.data.medical_notes).toBe('Mild dust allergy');
+      expect(res.body.data.admission_number).toBe('ADM2026001');
+      expect(res.body.data.school_name).toBe('Apex International School');
+    });
+
+    it('enforces one-time student photo upload and Admin re-upload approval flow', async () => {
+      const profileRes = await request(app)
+        .get('/api/v1/profiles/student')
+        .set('Authorization', `Bearer ${studentToken}`);
+      expect(profileRes.status).toBe(200);
+      const studentId = profileRes.body.data.id;
+
+      // Ensure clean baseline for test via Admin
+      await request(app)
+        .patch(`/api/v1/admin/students/${studentId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ photo_self_edit_used: false, can_reupload_photo: false });
+
+      // 1. First self-upload succeeds
+      const firstUpload = await request(app)
+        .patch('/api/v1/profiles/student')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ photo_url: 'https://cdn.example.com/student_first.jpg' });
+      expect(firstUpload.status).toBe(200);
+      expect(firstUpload.body.data.photo_url).toBe('https://cdn.example.com/student_first.jpg');
+      expect(firstUpload.body.data.photo_self_edit_used).toBe(true);
+      expect(firstUpload.body.data.can_upload_photo).toBe(false);
+
+      // 2. Second self-upload is blocked with 403 until Admin re-approves
+      const secondUpload = await request(app)
+        .patch('/api/v1/profiles/student')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ photo_url: 'https://cdn.example.com/student_second.jpg' });
+      expect(secondUpload.status).toBe(403);
+      expect(secondUpload.body.success).toBe(false);
+
+      // 3. Admin approves re-upload + updates emergency phone
+      const adminGrant = await request(app)
+        .patch(`/api/v1/admin/students/${studentId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ can_reupload_photo: true, emergency_phone: '+91 9811100000' });
+      expect(adminGrant.status).toBe(200);
+      expect(adminGrant.body.data.can_reupload_photo).toBe(true);
+      expect(adminGrant.body.data.emergency_phone).toBe('+91 9811100000');
+
+      // 4. Student can now upload once more and consumes the re-upload flag
+      const thirdUpload = await request(app)
+        .patch('/api/v1/profiles/student')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ photo_url: 'https://cdn.example.com/student_reapproved.jpg' });
+      expect(thirdUpload.status).toBe(200);
+      expect(thirdUpload.body.data.photo_url).toBe('https://cdn.example.com/student_reapproved.jpg');
+      expect(thirdUpload.body.data.can_reupload_photo).toBe(false);
+      expect(thirdUpload.body.data.can_upload_photo).toBe(false);
     });
 
     it('PATCH /api/v1/profiles/student rejects invalid phone format (<5 chars)', async () => {
@@ -141,6 +200,52 @@ describe('Profile Viewing & Editing API Tests', () => {
 
       expect(res.status).toBe(404);
       expect(res.body.success).toBe(false);
+    });
+  });
+
+  describe('Tenant School Contact Sync', () => {
+    it('PATCH /api/v1/admin/tenant-config validates input and syncs school contact to student profile', async () => {
+      const badEmail = await request(app)
+        .patch('/api/v1/admin/tenant-config')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ contactEmail: 'invalid-email' });
+      expect(badEmail.status).toBe(400);
+
+      const badPhone = await request(app)
+        .patch('/api/v1/admin/tenant-config')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ contactPhone: '12' });
+      expect(badPhone.status).toBe(400);
+
+      const getRes = await request(app)
+        .get('/api/v1/admin/tenant-config')
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(getRes.status).toBe(200);
+      const originalPhone = getRes.body.data.contactPhone || '+91 9876543210';
+
+      const updateRes = await request(app)
+        .patch('/api/v1/admin/tenant-config')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          contactPhone: '+91 9911223344',
+          branding: { officeHours: 'Mon-Fri 8:30 AM - 3:00 PM' },
+        });
+      expect(updateRes.status).toBe(200);
+
+      const profileRes = await request(app)
+        .get('/api/v1/profiles/student')
+        .set('Authorization', `Bearer ${studentToken}`);
+      expect(profileRes.status).toBe(200);
+      expect(profileRes.body.data.school_phone).toBe('+91 9911223344');
+      expect(profileRes.body.data.branding_config.officeHours).toBe(
+        'Mon-Fri 8:30 AM - 3:00 PM'
+      );
+
+      // Restore original school phone
+      await request(app)
+        .patch('/api/v1/admin/tenant-config')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ contactPhone: originalPhone });
     });
   });
 });

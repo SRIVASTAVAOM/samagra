@@ -11,6 +11,8 @@ import 'package:mobile/features/student/repository/student_features_repository.d
 import 'package:mobile/features/student/presentation/views/student_notices_view.dart';
 import 'package:mobile/features/student/presentation/views/student_fees_view.dart';
 import 'package:mobile/features/student/presentation/views/school_contact_view.dart';
+import 'package:mobile/features/student/presentation/views/student_complaints_view.dart';
+import 'package:mobile/features/student/presentation/views/student_feedback_view.dart';
 import 'package:mobile/features/profiles/bloc/profile_bloc.dart';
 import 'package:mobile/features/profiles/bloc/profile_state.dart';
 import 'package:mobile/features/profiles/models/student_profile_model.dart';
@@ -43,6 +45,12 @@ class MockStudentFeaturesRepository implements StudentFeaturesRepository {
   @override
   Future<List<NoticeModel>> getNotices() async {
     if (shouldThrow) throw Exception('Failed to load notices');
+    return notices.where((n) => !dismissedIds.contains(n.id)).toList();
+  }
+
+  @override
+  Future<List<NoticeModel>> getTeacherNotices() async {
+    if (shouldThrow) throw Exception('Failed to load teacher notices');
     return notices.where((n) => !dismissedIds.contains(n.id)).toList();
   }
 
@@ -353,6 +361,199 @@ void main() {
       expect(find.text('+91 9876543210'), findsOneWidget);
       expect(find.text('info@apexschool.edu'), findsOneWidget);
       expect(find.text('123 Education Lane, Knowledge Park'), findsOneWidget);
+
+      profileBloc.close();
+    });
+
+    testWidgets(
+        'StudentComplaintsView retains cached complaints when unrelated StudentFeaturesState arrives',
+        (tester) async {
+      repo.complaints = [
+        const ComplaintModel(
+          id: 'cmp-1',
+          title: 'Broken Bench in Class',
+          category: 'FACILITY',
+          description: 'Back row bench leg is loose.',
+          status: 'IN_REVIEW',
+          resolutionNotes: 'Carpenter assigned.',
+          createdAt: '2026-10-15T10:30:00Z',
+        ),
+      ];
+
+      final bloc = StudentFeaturesBloc(repository: repo);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider<StudentFeaturesBloc>.value(
+            value: bloc,
+            child: const Scaffold(body: StudentComplaintsView()),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Broken Bench in Class'), findsOneWidget);
+      expect(find.text('Admin Resolution: Carpenter assigned.'), findsOneWidget);
+
+      // Unrelated state on shared StudentFeaturesBloc must NOT blank out Complaints UI
+      bloc.emit(const StudentNoticesLoaded([]));
+      await tester.pump();
+
+      expect(find.text('Broken Bench in Class'), findsOneWidget);
+
+      bloc.close();
+    });
+
+    testWidgets('StudentComplaintsView displays error and Retry button when initial load fails',
+        (tester) async {
+      repo.shouldThrow = true;
+      final bloc = StudentFeaturesBloc(repository: repo);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider<StudentFeaturesBloc>.value(
+            value: bloc,
+            child: const Scaffold(body: StudentComplaintsView()),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Retry'), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.text('Failed to load complaints'), findsOneWidget);
+
+      bloc.close();
+    });
+
+    testWidgets(
+        'StudentFeedbackView retains cached feedback when unrelated StudentFeaturesState arrives',
+        (tester) async {
+      repo.feedbackList = [
+        const FeedbackModel(
+          id: 'fb-1',
+          category: 'TEACHING',
+          rating: 5,
+          feedbackText: 'Very clear explanations in Physics class.',
+          createdAt: '2026-10-16T09:15:00Z',
+        ),
+      ];
+
+      final bloc = StudentFeaturesBloc(repository: repo);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider<StudentFeaturesBloc>.value(
+            value: bloc,
+            child: const Scaffold(body: StudentFeedbackView()),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Very clear explanations in Physics class.'), findsOneWidget);
+
+      // Unrelated state on shared StudentFeaturesBloc must NOT blank out Feedback UI
+      bloc.emit(const StudentNoticesLoaded([]));
+      await tester.pump();
+
+      expect(find.text('Very clear explanations in Physics class.'), findsOneWidget);
+
+      bloc.close();
+    });
+
+    testWidgets('StudentFeedbackView displays error and Retry button when initial load fails',
+        (tester) async {
+      repo.shouldThrow = true;
+      final bloc = StudentFeaturesBloc(repository: repo);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider<StudentFeaturesBloc>.value(
+            value: bloc,
+            child: const Scaffold(body: StudentFeedbackView()),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Retry'), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.text('Failed to load feedback'), findsOneWidget);
+
+      bloc.close();
+    });
+
+    testWidgets('SchoolContactView shows error and Retry button when ProfileError is active',
+        (tester) async {
+      final profileRepo = MockProfileRepository();
+      final profileBloc = ProfileBloc(repository: profileRepo);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider<ProfileBloc>.value(
+            value: profileBloc,
+            child: const Scaffold(body: SchoolContactView()),
+          ),
+        ),
+      );
+
+      profileBloc.emit(const ProfileError('Unable to fetch school details'));
+      await tester.pump();
+
+      expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('Unable to fetch school details'), findsOneWidget);
+
+      profileBloc.close();
+    });
+
+    testWidgets('SchoolContactView uses brandingConfig fallbacks and dynamic officeHours',
+        (tester) async {
+      final profileRepo = MockProfileRepository();
+      final profileBloc = ProfileBloc(repository: profileRepo);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider<ProfileBloc>.value(
+            value: profileBloc,
+            child: const Scaffold(body: SchoolContactView()),
+          ),
+        ),
+      );
+
+      profileBloc.emit(const StudentProfileLoaded(
+        StudentProfileModel(
+          id: 'std-2',
+          admissionNumber: 'ADM002',
+          firstName: 'Riya',
+          lastName: 'Kapoor',
+          gender: 'Female',
+          dateOfBirth: '2011-02-10',
+          admissionDate: '2024-04-01',
+          schoolName: 'Sunrise Public School',
+          brandingConfig: {
+            'phone': '+91 9000011111',
+            'email': 'help@sunrise.edu',
+            'address': '88 Hill Road, Shimla',
+            'officeHours': 'Mon-Fri 9:00 AM - 2:00 PM',
+          },
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.text('Sunrise Public School'), findsOneWidget);
+      expect(find.text('+91 9000011111'), findsOneWidget);
+      expect(find.text('help@sunrise.edu'), findsOneWidget);
+      expect(find.text('88 Hill Road, Shimla'), findsOneWidget);
+      expect(find.text('Mon-Fri 9:00 AM - 2:00 PM'), findsOneWidget);
 
       profileBloc.close();
     });

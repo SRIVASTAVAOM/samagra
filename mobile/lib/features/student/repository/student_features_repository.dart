@@ -62,6 +62,23 @@ class StudentFeaturesRepository {
     }
   }
 
+  Future<List<NoticeModel>> getTeacherNotices() async {
+    try {
+      final response = await dioClient.dio.get(ApiEndpoints.teacherNotices);
+      final list = (response.data['data'] as List<dynamic>?) ?? [];
+      final notices = list
+          .map((e) => NoticeModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final dismissed = await getLocalDismissedNoticeIds();
+      if (dismissed.isEmpty) return notices;
+      return notices.where((n) => !dismissed.contains(n.id)).toList();
+    } on DioException catch (e) {
+      final message =
+          e.response?.data?['error']?.toString() ?? 'Failed to load teacher notices';
+      throw Exception(message);
+    }
+  }
+
   Future<void> dismissNotice(String noticeId) async {
     final dismissed = await getLocalDismissedNoticeIds();
     dismissed.add(noticeId);

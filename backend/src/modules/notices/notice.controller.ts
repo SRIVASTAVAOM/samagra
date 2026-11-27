@@ -12,6 +12,15 @@ export class NoticeController {
     }
   }
 
+  static async getTeacherNotices(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const notices = await NoticeService.getTeacherNotices(req.user!);
+      res.status(200).json({ success: true, data: notices });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async dismissStudentNotice(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;

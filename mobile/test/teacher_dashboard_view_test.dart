@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/dio_client.dart';
 import 'package:mobile/core/storage/secure_storage_service.dart';
+import 'package:mobile/features/academics/models/classmate_birthday_model.dart';
 import 'package:mobile/features/academics/models/teacher_allocation_model.dart';
+import 'package:mobile/features/academics/repository/academics_repository.dart';
 import 'package:mobile/features/auth/models/user_model.dart';
 import 'package:mobile/features/homework/bloc/homework_bloc.dart';
 import 'package:mobile/features/homework/models/homework_model.dart';
@@ -17,6 +19,27 @@ import 'package:mobile/features/profiles/bloc/profile_state.dart';
 import 'package:mobile/features/profiles/models/staff_profile_model.dart';
 import 'package:mobile/features/profiles/repository/profile_repository.dart';
 import 'package:mobile/features/teacher/presentation/views/teacher_dashboard_view.dart';
+
+class StubBirthdaysRepo implements AcademicsRepository {
+  @override
+  DioClient get dioClient => DioClient(storageService: SecureStorageService());
+
+  @override
+  Future<List<ClassmateBirthdayModel>> getClassmatesBirthdays() async => [
+        const ClassmateBirthdayModel(
+          id: 'b-1',
+          rollNumber: '102',
+          firstName: 'Riya',
+          lastName: 'Patel',
+          birthMonth: 11,
+          birthDay: 27,
+          birthdayFormatted: '27 Nov',
+        ),
+      ];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 class StubProfileRepo implements ProfileRepository {
   @override
@@ -350,6 +373,49 @@ void main() {
       expect(find.text('School Circulars'), findsOneWidget);
       expect(find.text('All Months'), findsOneWidget);
       expect(find.text('Pick Date'), findsOneWidget);
+    });
+
+    testWidgets('Class Teacher dashboard surfaces Today\'s Class Birthdays card and routes to Class Birthdays tab',
+        (tester) async {
+      int? tappedTab;
+      int? tappedClassesSub;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.light(),
+          home: RepositoryProvider<AcademicsRepository>(
+            create: (_) => StubBirthdaysRepo(),
+            child: MultiBlocProvider(
+              providers: [
+                BlocProvider<ProfileBloc>.value(value: profileBloc),
+                BlocProvider<HomeworkBloc>.value(value: homeworkBloc),
+                BlocProvider<LeavesBloc>.value(value: leavesBloc),
+              ],
+              child: TeacherDashboardView(
+                user: user,
+                allocations: allocations,
+                onNavigateToTab: (tab,
+                    {attendanceSubTab, classesSubTab, leavesSubTab}) {
+                  tappedTab = tab;
+                  tappedClassesSub = classesSubTab;
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text("Today's Class Birthdays (Class 10 A)"), findsOneWidget);
+      expect(find.text('Riya Patel'), findsOneWidget);
+      expect(find.text('Roll No: 102'), findsOneWidget);
+      expect(find.text('27 Nov'), findsOneWidget);
+
+      await tester.tap(find.text('View All').first);
+      await tester.pump();
+      expect(tappedTab, equals(2));
+      expect(tappedClassesSub, equals(9));
     });
   });
 }

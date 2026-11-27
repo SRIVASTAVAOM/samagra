@@ -69,6 +69,8 @@ export default function SuperAdminPage() {
     affiliation: 'Affiliated to CBSE, New Delhi',
     address: '',
     phone: '',
+    email: '',
+    officeHours: '',
   });
 
   const handleOpenConfigModal = (school: any) => {
@@ -87,7 +89,9 @@ export default function SuperAdminPage() {
       name: school.name || '',
       affiliation: existingBranding.affiliation || 'Affiliated to CBSE, New Delhi',
       address: school.address || existingBranding.address || '',
-      phone: school.contact_phone || existingBranding.phone || '',
+      phone: school.contact_phone || existingBranding.phone || school.admin_phone || '',
+      email: school.contact_email || existingBranding.email || school.admin_email || '',
+      officeHours: existingBranding.officeHours || existingBranding.office_hours || '',
     });
   };
 
@@ -97,6 +101,9 @@ export default function SuperAdminPage() {
     try {
       await api.superAdmin.updateSchoolConfig(configModalSchool.id, {
         name: configBranding.name,
+        contactEmail: configBranding.email,
+        contactPhone: configBranding.phone,
+        address: configBranding.address,
         branding: configBranding,
         features: configFeatures,
       });
@@ -1125,6 +1132,26 @@ export default function SuperAdminPage() {
                     onChange={(e) => setConfigBranding({ ...configBranding, phone: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 outline-none focus:border-teal-500"
                     placeholder="e.g. +91 98765 43210"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Contact Email</label>
+                  <input
+                    type="email"
+                    value={configBranding.email}
+                    onChange={(e) => setConfigBranding({ ...configBranding, email: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 outline-none focus:border-teal-500"
+                    placeholder="e.g. info@school.edu"
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="text-xs font-semibold text-slate-700">Office Working Hours</label>
+                  <input
+                    type="text"
+                    value={configBranding.officeHours}
+                    onChange={(e) => setConfigBranding({ ...configBranding, officeHours: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 outline-none focus:border-teal-500"
+                    placeholder="e.g. Mon–Fri 8:00 AM – 3:30 PM"
                   />
                 </div>
               </div>

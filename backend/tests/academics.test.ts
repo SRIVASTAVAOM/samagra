@@ -55,7 +55,7 @@ describe('Academics Master & Rosters API Tests', () => {
   });
 
   describe('GET /api/v1/academics/class-roster/:classId/:sectionId', () => {
-    it('should allow student to fetch their own class roster', async () => {
+    it('should allow student to fetch their own class roster with clean classmate fields and no sensitive PII', async () => {
       const res = await request(app)
         .get(`/api/v1/academics/class-roster/${classId}/${sectionId}`)
         .set('Authorization', `Bearer ${studentToken}`);
@@ -66,6 +66,27 @@ describe('Academics Master & Rosters API Tests', () => {
       expect(res.body.data.length).toBeGreaterThanOrEqual(2); // student1 and student2
       expect(res.body.data.some((s: any) => s.admission_number === 'ADM2026001')).toBe(true);
       expect(res.body.data.some((s: any) => s.admission_number === 'ADM2026002')).toBe(true);
+
+      const first = res.body.data[0];
+      expect(first).toHaveProperty('first_name');
+      expect(first).toHaveProperty('full_name');
+      expect(first).toHaveProperty('roll_number');
+      expect(first).toHaveProperty('roll_no');
+      expect(first).toHaveProperty('date_of_birth');
+      expect(first).toHaveProperty('birthday_formatted');
+      expect(first.emergency_phone).toBeUndefined();
+      expect(first.blood_group).toBeUndefined();
+      expect(first.medical_notes).toBeUndefined();
+      expect(first.gender).toBeUndefined();
+    });
+
+    it('should REJECT malformed classId or sectionId with 400 Bad Request', async () => {
+      const res = await request(app)
+        .get('/api/v1/academics/class-roster/not-a-uuid/also-invalid')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
     });
 
     it('should REJECT student trying to view another class roster with 403 Forbidden', async () => {
@@ -113,7 +134,7 @@ describe('Academics Master & Rosters API Tests', () => {
   });
 
   describe('GET /api/v1/academics/subject-teachers', () => {
-    it('should return allocated subject teachers for student', async () => {
+    it('should return Class Teacher and allocated subject teachers with full metadata for student', async () => {
       const res = await request(app)
         .get('/api/v1/academics/subject-teachers')
         .set('Authorization', `Bearer ${studentToken}`);
@@ -121,8 +142,17 @@ describe('Academics Master & Rosters API Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.some((t: any) => t.is_class_teacher === true && t.subject_code === 'HOMEROOM')).toBe(true);
       expect(res.body.data.some((t: any) => t.subject_name === 'Mathematics')).toBe(true);
       expect(res.body.data.some((t: any) => t.subject_name === 'Science')).toBe(true);
+
+      const math = res.body.data.find((t: any) => t.subject_name === 'Mathematics');
+      expect(math).toBeDefined();
+      expect(math).toHaveProperty('subject_id');
+      expect(math).toHaveProperty('subject_type');
+      expect(math).toHaveProperty('teacher_phone');
+      expect(math).toHaveProperty('avatar_url');
+      expect(math).toHaveProperty('employee_code');
     });
   });
 

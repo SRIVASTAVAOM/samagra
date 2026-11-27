@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/user_avatar.dart';
 import '../../../academics/bloc/exams_bloc.dart';
+import '../../../academics/repositories/exams_repository.dart';
 import '../../../academics/views/exams_list_view.dart';
 import '../../../attendance/bloc/attendance_bloc.dart';
 import '../../../attendance/bloc/attendance_state.dart';
 import '../../../attendance/presentation/student_attendance_history_view.dart';
 import '../../../auth/models/user_model.dart';
+import '../../../auth/repositories/auth_repository.dart';
 import '../../../homework/bloc/homework_bloc.dart';
 import '../../../homework/models/homework_model.dart';
 import '../../../homework/presentation/student_homework_view.dart';
@@ -26,6 +29,9 @@ import '../../bloc/student_features_bloc.dart';
 import '../../bloc/student_features_state.dart';
 import '../../models/student_features_model.dart';
 import '../../repository/student_features_repository.dart';
+import '../../../academics/bloc/academics_bloc.dart';
+import '../../../academics/bloc/academics_event.dart';
+import '../../../academics/bloc/academics_state.dart';
 import '../../../academics/presentation/student_roster_view.dart';
 import '../../../academics/presentation/subject_teachers_view.dart';
 import '../../../curriculum/presentation/curriculum_view.dart';
@@ -72,6 +78,7 @@ class StudentDashboardView extends StatefulWidget {
 }
 
 class _StudentDashboardViewState extends State<StudentDashboardView> with SingleTickerProviderStateMixin {
+  StudentProfileModel? _cachedProfile;
   List<NoticeModel>? _cachedNotices;
   FeeOverviewModel? _cachedFeeOverview;
   List<String>? _customQuickLinkKeys;
@@ -256,24 +263,56 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
   void _navigateToExams(BuildContext context) {
     if (widget.onNavigateToTab != null) {
       widget.onNavigateToTab!(2, academicSubTab: 6);
-    } else {
-      ExamsBloc? bloc;
-      try {
-        bloc = context.read<ExamsBloc>();
-      } catch (_) {}
-
-      Widget content = Scaffold(
-        appBar: AppBar(title: const Text('Exams & Results')),
-        body: const ExamsListView(userRole: 'STUDENT'),
-      );
-      if (bloc != null) {
-        content = BlocProvider<ExamsBloc>.value(value: bloc, child: content);
-      }
-
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => content),
-      );
+      return;
     }
+
+    ExamsBloc? existingBloc;
+    try {
+      existingBloc = context.read<ExamsBloc>();
+    } catch (_) {}
+
+    ExamsRepository? examsRepo;
+    if (existingBloc == null) {
+      try {
+        examsRepo = context.read<ExamsRepository>();
+      } catch (_) {}
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) {
+          if (existingBloc != null) {
+            return BlocProvider<ExamsBloc>.value(
+              value: existingBloc,
+              child: Scaffold(
+                appBar: AppBar(title: const Text('Exams & Results')),
+                body: const ExamsListView(userRole: 'STUDENT'),
+              ),
+            );
+          }
+
+          if (examsRepo != null) {
+            return BlocProvider<ExamsBloc>(
+              create: (_) => ExamsBloc(repository: examsRepo!),
+              child: Scaffold(
+                appBar: AppBar(title: const Text('Exams & Results')),
+                body: const ExamsListView(userRole: 'STUDENT'),
+              ),
+            );
+          }
+
+          return Scaffold(
+            appBar: AppBar(title: const Text('Exams & Results')),
+            body: const Center(
+              child: Text(
+                'Exams service is not available.',
+                style: TextStyle(color: AppColors.secondaryText),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _navigateToTimetable(BuildContext context) {
@@ -399,46 +438,207 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
   void _navigateToClassmates(BuildContext context) {
     if (widget.onNavigateToTab != null) {
       widget.onNavigateToTab!(2, academicSubTab: 3);
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => Scaffold(
-            appBar: AppBar(title: const Text('Classmates')),
-            body: const StudentRosterView(students: []),
-          ),
-        ),
-      );
+      return;
     }
+
+    AcademicsRepository? academicsRepo;
+    try {
+      academicsRepo = context.read<AcademicsRepository>();
+    } catch (_) {}
+
+    final classId = widget.user.classId ?? '';
+    final sectionId = widget.user.sectionId ?? '';
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) {
+          if (academicsRepo == null) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Classmates')),
+              body: const StudentRosterView(
+                students: [],
+                isStudentClassmatesMode: true,
+                errorMessage: 'Classmates service is not available.',
+              ),
+            );
+          }
+
+          if (classId.isEmpty || sectionId.isEmpty) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Classmates')),
+              body: const StudentRosterView(
+                students: [],
+                isStudentClassmatesMode: true,
+                errorMessage: 'Class or section assignment is missing for your profile.',
+              ),
+            );
+          }
+
+          return BlocProvider<AcademicsBloc>(
+            create: (_) => AcademicsBloc(repository: academicsRepo!)
+              ..add(LoadClassRosterEvent(classId: classId, sectionId: sectionId)),
+            child: Scaffold(
+              appBar: AppBar(title: const Text('Classmates')),
+              body: BlocBuilder<AcademicsBloc, AcademicsState>(
+                builder: (ctx, state) {
+                  if (state is AcademicsLoading || state is AcademicsInitial) {
+                    return const StudentRosterView(
+                      students: [],
+                      isLoading: true,
+                      isStudentClassmatesMode: true,
+                    );
+                  }
+                  if (state is AcademicsError) {
+                    return StudentRosterView(
+                      students: const [],
+                      errorMessage: state.message,
+                      isStudentClassmatesMode: true,
+                      onRetry: () {
+                        ctx.read<AcademicsBloc>().add(
+                              LoadClassRosterEvent(
+                                classId: classId,
+                                sectionId: sectionId,
+                              ),
+                            );
+                      },
+                    );
+                  }
+                  if (state is RosterLoaded) {
+                    return StudentRosterView(
+                      students: state.students,
+                      isStudentClassmatesMode: true,
+                      onRetry: () {
+                        ctx.read<AcademicsBloc>().add(
+                              LoadClassRosterEvent(
+                                classId: classId,
+                                sectionId: sectionId,
+                              ),
+                            );
+                      },
+                    );
+                  }
+                  return const StudentRosterView(
+                    students: [],
+                    isLoading: true,
+                    isStudentClassmatesMode: true,
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _navigateToBirthdays(BuildContext context) {
     if (widget.onNavigateToTab != null) {
       widget.onNavigateToTab!(2, academicSubTab: 4);
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => Scaffold(
-            appBar: AppBar(title: const Text('Birthdays')),
-            body: const StudentBirthdaysView(),
-          ),
-        ),
-      );
+      return;
     }
+
+    AcademicsRepository? academicsRepo;
+    try {
+      academicsRepo = context.read<AcademicsRepository>();
+    } catch (_) {}
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) {
+          if (academicsRepo == null) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Birthdays')),
+              body: const Center(
+                child: Text(
+                  'Birthdays service is not available.',
+                  style: TextStyle(color: AppColors.secondaryText),
+                ),
+              ),
+            );
+          }
+
+          return BlocProvider<AcademicsBloc>(
+            create: (_) => AcademicsBloc(repository: academicsRepo!)
+              ..add(LoadClassmatesBirthdaysEvent()),
+            child: Scaffold(
+              appBar: AppBar(title: const Text('Birthdays')),
+              body: const StudentBirthdaysView(),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _navigateToTeachers(BuildContext context) {
     if (widget.onNavigateToTab != null) {
       widget.onNavigateToTab!(2, academicSubTab: 5);
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => Scaffold(
-            appBar: AppBar(title: const Text('Teachers')),
-            body: const SubjectTeachersView(teachers: []),
-          ),
-        ),
-      );
+      return;
     }
+
+    AcademicsRepository? academicsRepo;
+    try {
+      academicsRepo = context.read<AcademicsRepository>();
+    } catch (_) {}
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) {
+          if (academicsRepo == null) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Teachers')),
+              body: const SubjectTeachersView(
+                teachers: [],
+                errorMessage: 'Teachers service is not available.',
+              ),
+            );
+          }
+
+          return BlocProvider<AcademicsBloc>(
+            create: (_) => AcademicsBloc(repository: academicsRepo!)
+              ..add(LoadSubjectTeachersEvent()),
+            child: Scaffold(
+              appBar: AppBar(title: const Text('Teachers')),
+              body: BlocBuilder<AcademicsBloc, AcademicsState>(
+                builder: (ctx, state) {
+                  if (state is AcademicsLoading || state is AcademicsInitial) {
+                    return const SubjectTeachersView(
+                      teachers: [],
+                      isLoading: true,
+                    );
+                  }
+                  if (state is AcademicsError) {
+                    return SubjectTeachersView(
+                      teachers: const [],
+                      errorMessage: state.message,
+                      onRetry: () {
+                        ctx
+                            .read<AcademicsBloc>()
+                            .add(LoadSubjectTeachersEvent());
+                      },
+                    );
+                  }
+                  if (state is SubjectTeachersLoaded) {
+                    return SubjectTeachersView(
+                      teachers: state.teachers,
+                      onRetry: () {
+                        ctx
+                            .read<AcademicsBloc>()
+                            .add(LoadSubjectTeachersEvent());
+                      },
+                    );
+                  }
+                  return const SubjectTeachersView(
+                    teachers: [],
+                    isLoading: true,
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _navigateToOnlineClasses(BuildContext context) {
@@ -460,12 +660,30 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
     if (widget.onNavigateToTab != null) {
       widget.onNavigateToTab!(4, servicesSubTab: 0);
     } else {
+      final profileBloc = context.read<ProfileBloc>();
+      AuthRepository? authRepo;
+      try {
+        authRepo = context.read<AuthRepository>();
+      } catch (_) {}
+
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => Scaffold(
-            appBar: AppBar(title: const Text('My Profile')),
-            body: const StudentProfileView(),
-          ),
+          builder: (_) {
+            final page = BlocProvider<ProfileBloc>.value(
+              value: profileBloc,
+              child: Scaffold(
+                appBar: AppBar(title: const Text('My Profile')),
+                body: const StudentProfileView(),
+              ),
+            );
+            if (authRepo != null) {
+              return RepositoryProvider<AuthRepository>.value(
+                value: authRepo,
+                child: page,
+              );
+            }
+            return page;
+          },
         ),
       );
     }
@@ -629,10 +847,13 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
   Widget build(BuildContext context) {
     // 1. Student Profile Data
     final profileState = context.watch<ProfileBloc>().state;
-    StudentProfileModel? profile;
     if (profileState is StudentProfileLoaded) {
-      profile = profileState.profile;
+      _cachedProfile = profileState.profile;
+    } else if (profileState is ProfileUpdateSuccess &&
+        profileState.updatedProfile is StudentProfileModel) {
+      _cachedProfile = profileState.updatedProfile as StudentProfileModel;
     }
+    final StudentProfileModel? profile = _cachedProfile;
 
     // 2. Attendance Data
     final attendanceState = context.watch<AttendanceBloc>().state;
@@ -837,18 +1058,16 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
       classSubtitle += ' • Roll #${profile.rollNumber}';
     }
 
-    String initials = 'S';
-    if (studentName.trim().isNotEmpty) {
-      final parts = studentName.trim().split(RegExp(r'\s+'));
-      if (parts.length >= 2 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
-        initials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-      } else if (parts.isNotEmpty && parts[0].isNotEmpty) {
-        initials = parts[0][0].toUpperCase();
-      }
-    }
+    final profileAvatarUrl = profile?.avatarUrl?.trim();
+    final userAvatarUrl = widget.user.avatarUrl?.trim();
+    final resolvedAvatarUrl =
+        (profileAvatarUrl != null && profileAvatarUrl.isNotEmpty)
+            ? profileAvatarUrl
+            : (userAvatarUrl != null && userAvatarUrl.isNotEmpty)
+                ? userAvatarUrl
+                : null;
 
     return Container(
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: AppColors.headerGradient,
         borderRadius: BorderRadius.circular(16),
@@ -864,127 +1083,130 @@ class _StudentDashboardViewState extends State<StudentDashboardView> with Single
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const Key('hero_profile_card_tap'),
+          borderRadius: BorderRadius.circular(16),
+          splashColor: Colors.white.withValues(alpha: 0.14),
+          highlightColor: Colors.white.withValues(alpha: 0.08),
+          onTap: () => _navigateToProfile(context),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // School Name and Session Badge at top
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.account_balance_outlined,
-                      size: 14,
-                      color: AppColors.indigo300,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        schoolName.toUpperCase(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // School Name and Session Badge at top
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.account_balance_outlined,
+                            size: 14,
+                            color: AppColors.indigo300,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              schoolName.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.6,
+                                color: AppColors.indigo200,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            ),
+                            child: const Text(
+                              '2026-2027',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      // Student Name
+                      Text(
+                        studentName,
                         style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.6,
-                          color: AppColors.indigo200,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                      ),
-                      child: const Text(
-                        '2026-2027',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
                           color: Colors.white,
+                          letterSpacing: -0.3,
                         ),
                       ),
+                      const SizedBox(height: 3),
+                      // Class & Section Subtitle
+                      Text(
+                        classSubtitle,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.slate300,
+                        ),
+                      ),
+                      if (profile?.admissionNumber != null && profile!.admissionNumber.trim().isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.indigo500.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: AppColors.indigo400.withValues(alpha: 0.4)),
+                          ),
+                          child: Text(
+                            'Adm: ${profile.admissionNumber}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.indigo100,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                // Unified profile photo / monogram avatar
+                UserAvatar(
+                  name: studentName,
+                  avatarUrl: resolvedAvatarUrl,
+                  radius: 24,
+                  fontSize: 16,
+                  backgroundGradient: AppColors.indigoGradient,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.35),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.indigo500.withValues(alpha: 0.4),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                // Student Name
-                Text(
-                  studentName,
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                // Class & Section Subtitle
-                Text(
-                  classSubtitle,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.slate300,
-                  ),
-                ),
-                if (profile?.admissionNumber != null && profile!.admissionNumber.trim().isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.indigo500.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: AppColors.indigo400.withValues(alpha: 0.4)),
-                    ),
-                    child: Text(
-                      'Adm: ${profile.admissionNumber}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.indigo100,
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
-          const SizedBox(width: 14),
-          // Monogram avatar with indigo gradient
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              gradient: AppColors.indigoGradient,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.35),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.indigo500.withValues(alpha: 0.4),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              initials,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -45,12 +45,17 @@ router.get('/timetable/substitutions', AdminController.getSubstitutions);
 router.post('/timetable/substitutions', AdminController.assignSubstitution);
 router.delete('/timetable/substitutions/:id', AdminController.deleteSubstitution);
 
+// Media Photo Upload & Profile Photo Management
+router.post('/upload/photo', AdminController.uploadPhoto);
+
 // Student Directory & Profile Endpoints
 router.get('/students', AdminController.getStudentsList);
 router.post('/students', AdminController.createStudent);
 router.post('/students/bulk-upload', AdminController.bulkUploadStudents);
 router.get('/students/:id', AdminController.getStudentDetails);
 router.patch('/students/:id', AdminController.updateStudent);
+router.patch('/students/:id/photo', AdminController.updateStudentPhoto);
+router.delete('/students/:id/photo', AdminController.deleteStudentPhoto);
 router.post('/students/:id/reset-password', AdminController.resetStudentPassword);
 
 // Staff Directory & Management Endpoints (CRUD)
@@ -58,6 +63,8 @@ router.get('/staff', AdminController.getAllStaff);
 router.post('/staff', AdminController.createStaff);
 router.post('/staff/bulk-upload', AdminController.bulkUploadStaff);
 router.patch('/staff/:id', AdminController.updateStaff);
+router.patch('/staff/:id/photo', AdminController.updateStaffPhoto);
+router.delete('/staff/:id/photo', AdminController.deleteStaffPhoto);
 router.post('/staff/:id/reset-password', AdminController.resetStaffPassword);
 router.delete('/staff/:id', AdminController.deleteStaff);
 

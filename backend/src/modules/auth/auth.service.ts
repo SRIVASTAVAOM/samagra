@@ -90,15 +90,16 @@ export class AuthService {
     };
 
     const schoolBranding = {
+      ...user.branding_config,
       name: user.school_name || 'SAMAGRA Partner School',
       code: user.school_code || 'SCHOOL',
       platformBrand: 'SAMAGRA',
       affiliation: user.branding_config?.affiliation || 'Affiliated to CBSE, New Delhi',
       logoUrl: user.branding_config?.logoUrl || '/logo-icon.png',
-      tagline: 'The Complete School Platform',
-      address: user.branding_config?.address || '',
-      phone: user.branding_config?.phone || '',
-      ...user.branding_config,
+      tagline: user.branding_config?.tagline || 'The Complete School Platform',
+      address: user.school_address || user.branding_config?.address || '',
+      phone: user.school_phone || user.branding_config?.phone || '',
+      email: user.school_email || user.branding_config?.email || '',
     };
 
     return {
@@ -145,15 +146,16 @@ export class AuthService {
     };
 
     const schoolBranding = {
+      ...user.branding_config,
       name: user.school_name || 'SAMAGRA Partner School',
       code: user.school_code || 'SCHOOL',
       platformBrand: 'SAMAGRA',
       affiliation: user.branding_config?.affiliation || 'Affiliated to CBSE, New Delhi',
       logoUrl: user.branding_config?.logoUrl || '/logo-icon.png',
-      tagline: 'The Complete School Platform',
-      address: user.branding_config?.address || '',
-      phone: user.branding_config?.phone || '',
-      ...user.branding_config,
+      tagline: user.branding_config?.tagline || 'The Complete School Platform',
+      address: user.school_address || user.branding_config?.address || '',
+      phone: user.school_phone || user.branding_config?.phone || '',
+      email: user.school_email || user.branding_config?.email || '',
     };
 
     return {

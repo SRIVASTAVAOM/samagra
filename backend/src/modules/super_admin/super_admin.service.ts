@@ -194,14 +194,25 @@ export class SuperAdminService {
         throw new Error('ADMIN_EMAIL_OR_IDENTIFIER_EXISTS');
       }
 
-      // 1. Insert School
+      // 1. Insert School (sync contact_email/contact_phone and branding_config with onboarding data)
+      const cleanEmail = data.adminEmail.trim();
+      const cleanPhone = data.adminPhone ? data.adminPhone.trim() : null;
+      const cleanAddress = data.address ? data.address.trim() : null;
+      const initialBranding = {
+        ...(cleanAddress ? { address: cleanAddress } : {}),
+        ...(cleanPhone ? { phone: cleanPhone } : {}),
+        ...(cleanEmail ? { email: cleanEmail } : {}),
+      };
+
       const schoolRes = await client.query(`
         INSERT INTO schools (
           name, code, status, plan, max_students, 
-          subscription_expires_at, admin_name, admin_email, admin_phone, address
+          subscription_expires_at, admin_name, admin_email, admin_phone,
+          contact_email, contact_phone, address, branding_config
         ) VALUES (
           $1, $2, 'ACTIVE', $3, $4,
-          CURRENT_TIMESTAMP + INTERVAL '1 year', $5, $6, $7, $8
+          CURRENT_TIMESTAMP + INTERVAL '1 year', $5, $6, $7,
+          $8, $9, $10, $11::jsonb
         ) RETURNING *;
       `, [
         data.name.trim(),
@@ -209,9 +220,12 @@ export class SuperAdminService {
         data.plan || 'PRO',
         data.maxStudents || 1000,
         data.adminName.trim(),
-        data.adminEmail.trim(),
-        data.adminPhone ? data.adminPhone.trim() : null,
-        data.address ? data.address.trim() : null,
+        cleanEmail,
+        cleanPhone,
+        cleanEmail,
+        cleanPhone,
+        cleanAddress,
+        JSON.stringify(initialBranding),
       ]);
       const school = schoolRes.rows[0];
 
@@ -344,17 +358,58 @@ export class SuperAdminService {
     return rows[0];
   }
 
-  static async updateSchoolConfig(id: string, data: { name?: string; branding?: any; features?: any; menuConfig?: any }) {
-    const current = await pool.query('SELECT menu_config, branding_config FROM schools WHERE id = $1', [id]);
+  static async updateSchoolConfig(
+    id: string,
+    data: {
+      name?: string;
+      contactEmail?: string;
+      contactPhone?: string;
+      address?: string;
+      branding?: any;
+      features?: any;
+      menuConfig?: any;
+    }
+  ) {
+    const cleanOrNull = (val: unknown): string | null => {
+      if (typeof val !== 'string') return null;
+      const trimmed = val.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    };
+
+    const nextName = cleanOrNull(data.name ?? data.branding?.name);
+    const nextEmail = cleanOrNull(data.contactEmail ?? data.branding?.email);
+    const nextPhone = cleanOrNull(data.contactPhone ?? data.branding?.phone);
+    const nextAddress = cleanOrNull(data.address ?? data.branding?.address);
+
+    if (nextEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+      const err: any = new Error('Invalid contact email format');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const current = await pool.query(
+      'SELECT name, contact_email, contact_phone, address, menu_config, branding_config FROM schools WHERE id = $1',
+      [id]
+    );
     if (current.rows.length === 0) {
       throw new Error('SCHOOL_NOT_FOUND');
     }
-    const currentBranding = current.rows[0].branding_config || {};
-    const currentMenu = current.rows[0].menu_config || {};
+    const existing = current.rows[0];
+    const currentBranding = existing.branding_config || {};
+    const currentMenu = existing.menu_config || {};
+
+    const resolvedName = nextName ?? existing.name;
+    const resolvedEmail = nextEmail ?? existing.contact_email;
+    const resolvedPhone = nextPhone ?? existing.contact_phone;
+    const resolvedAddress = nextAddress ?? existing.address;
 
     const mergedBranding = {
       ...currentBranding,
       ...(data.branding || {}),
+      ...(resolvedName ? { name: resolvedName } : {}),
+      ...(resolvedAddress ? { address: resolvedAddress } : {}),
+      ...(resolvedPhone ? { phone: resolvedPhone } : {}),
+      ...(resolvedEmail ? { email: resolvedEmail } : {}),
     };
 
     const mergedMenu = {
@@ -368,14 +423,25 @@ export class SuperAdminService {
 
     const query = `
       UPDATE schools
-      SET name = COALESCE($1, name),
-          branding_config = $2,
-          menu_config = $3,
+      SET name = $1,
+          contact_email = $2,
+          contact_phone = $3,
+          address = $4,
+          branding_config = $5,
+          menu_config = $6,
           updated_at = NOW()
-      WHERE id = $4
-      RETURNING id, name, code, branding_config, menu_config;
+      WHERE id = $7
+      RETURNING id, name, code, contact_email, contact_phone, address, branding_config, menu_config;
     `;
-    const { rows } = await pool.query(query, [data.name, JSON.stringify(mergedBranding), JSON.stringify(mergedMenu), id]);
+    const { rows } = await pool.query(query, [
+      resolvedName,
+      resolvedEmail,
+      resolvedPhone,
+      resolvedAddress,
+      JSON.stringify(mergedBranding),
+      JSON.stringify(mergedMenu),
+      id,
+    ]);
     return rows[0];
   }
 

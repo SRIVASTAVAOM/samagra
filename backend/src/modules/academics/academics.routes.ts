@@ -18,7 +18,7 @@ router.get('/class-roster/:classId/:sectionId', AcademicsController.getClassRost
 router.get('/my-roster', requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']), AcademicsController.getMyRoster);
 router.get('/my-allocations', requireRole(['TEACHER', 'ADMIN', 'SUPER_ADMIN']), AcademicsController.getMyAllocations);
 router.get('/subject-teachers', requireRole(['STUDENT']), AcademicsController.getSubjectTeachers);
-router.get('/classmates-birthdays', requireRole(['STUDENT']), AcademicsController.getClassmatesBirthdays);
+router.get('/classmates-birthdays', requireRole(['STUDENT', 'TEACHER']), AcademicsController.getClassmatesBirthdays);
 
 export default router;
 

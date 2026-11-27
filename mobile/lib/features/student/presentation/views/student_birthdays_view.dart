@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/user_avatar.dart';
 import '../../../academics/bloc/academics_bloc.dart';
 import '../../../academics/bloc/academics_event.dart';
 import '../../../academics/bloc/academics_state.dart';
 import '../../../academics/models/classmate_birthday_model.dart';
 
 class StudentBirthdaysView extends StatefulWidget {
-  const StudentBirthdaysView({super.key});
+  final String title;
+  final String emptyMessage;
+  final bool autoLoad;
+
+  const StudentBirthdaysView({
+    super.key,
+    this.title = "Today's Birthdays",
+    this.emptyMessage = 'No classmates have a birthday today',
+    this.autoLoad = true,
+  });
 
   @override
   State<StudentBirthdaysView> createState() => _StudentBirthdaysViewState();
@@ -17,7 +27,9 @@ class _StudentBirthdaysViewState extends State<StudentBirthdaysView> {
   @override
   void initState() {
     super.initState();
-    context.read<AcademicsBloc>().add(LoadClassmatesBirthdaysEvent());
+    if (widget.autoLoad) {
+      context.read<AcademicsBloc>().add(LoadClassmatesBirthdaysEvent());
+    }
   }
 
   @override
@@ -33,9 +45,9 @@ class _StudentBirthdaysViewState extends State<StudentBirthdaysView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Classmates Birthdays',
-                style: TextStyle(
+              Text(
+                widget.title,
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primaryText,
@@ -91,16 +103,20 @@ class _StudentBirthdaysViewState extends State<StudentBirthdaysView> {
                 final birthdays = state.birthdays;
                 if (birthdays.isEmpty) {
                   return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.cake_outlined, size: 48, color: AppColors.secondaryText),
-                        SizedBox(height: 12),
-                        Text(
-                          'No birthdays found for this class',
-                          style: TextStyle(color: AppColors.secondaryText),
-                        ),
-                      ],
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.cake_outlined, size: 48, color: AppColors.secondaryText),
+                          const SizedBox(height: 12),
+                          Text(
+                            widget.emptyMessage,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.secondaryText),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }
@@ -124,6 +140,13 @@ class _StudentBirthdaysViewState extends State<StudentBirthdaysView> {
   }
 
   Widget _buildBirthdayCard(ClassmateBirthdayModel b) {
+    final displayName = b.fullName.isNotEmpty ? b.fullName : 'Student';
+    final rollLabel = (b.rollNumber != null && b.rollNumber!.trim().isNotEmpty)
+        ? b.rollNumber!
+        : '-';
+    final birthdayLabel =
+        b.birthdayFormatted.trim().isNotEmpty ? b.birthdayFormatted.trim() : 'Today';
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -133,13 +156,10 @@ class _StudentBirthdaysViewState extends State<StudentBirthdaysView> {
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.scaffoldBackground,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Icon(Icons.cake_outlined, size: 20, color: AppColors.primaryText),
+          UserAvatar(
+            name: displayName,
+            avatarUrl: b.avatarUrl,
+            radius: 22,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -147,7 +167,7 @@ class _StudentBirthdaysViewState extends State<StudentBirthdaysView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  b.fullName,
+                  displayName,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -156,26 +176,33 @@ class _StudentBirthdaysViewState extends State<StudentBirthdaysView> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Roll No: ${b.rollNumber ?? "N/A"}  •  Adm: ${b.admissionNumber}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
+                  'Roll No: $rollLabel',
+                  style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
                 ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: AppColors.scaffoldBackground,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(color: AppColors.border),
             ),
-            child: Text(
-              b.birthdayFormatted,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primaryAccent,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cake_outlined, size: 13, color: AppColors.primaryAccent),
+                const SizedBox(width: 4),
+                Text(
+                  birthdayLabel,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryAccent,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

@@ -69,6 +69,41 @@ class _ExamDatesheetViewState extends State<ExamDatesheetView> {
             return const Center(child: CircularProgressIndicator(strokeWidth: 2));
           }
 
+          if (state is ExamsError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 42, color: AppColors.error),
+                    const SizedBox(height: 12),
+                    Text(
+                      state.message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppColors.secondaryText, fontSize: 14),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        context.read<ExamsBloc>().add(
+                              LoadExamDatesheetsEvent(widget.examId, classId: widget.classId),
+                            );
+                      },
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Retry'),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.border),
+                        foregroundColor: AppColors.primaryText,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           if (state is ExamDatesheetsLoaded) {
             final datesheets = state.datesheets;
             if (datesheets.isEmpty) {

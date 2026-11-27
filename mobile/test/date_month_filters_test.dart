@@ -66,6 +66,9 @@ class DummyStudentFeaturesRepo implements StudentFeaturesRepository {
   Future<List<NoticeModel>> getNotices() async => noticesList;
 
   @override
+  Future<List<NoticeModel>> getTeacherNotices() async => noticesList;
+
+  @override
   Future<void> dismissNotice(String noticeId) async {
     noticesList.removeWhere((n) => n.id == noticeId);
   }

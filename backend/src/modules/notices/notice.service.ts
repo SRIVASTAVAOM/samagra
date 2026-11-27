@@ -16,7 +16,151 @@ export interface NoticeItem {
 const noticeIdempotencyCache = new Map<string, { result: any; expiresAt: number }>();
 
 export class NoticeService {
+  static async ensureTodayBirthdayNotices(
+    schoolId: string,
+    classId: string,
+    sectionId: string
+  ): Promise<void> {
+    if (!schoolId || !classId || !sectionId) return;
+
+    const celebrantsRes = await pool.query(
+      `SELECT sp.id, sp.first_name, sp.last_name, sp.roll_number,
+              TO_CHAR((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date, 'YYYY-MM-DD') AS ist_today
+       FROM student_profiles sp
+       JOIN users u ON sp.user_id = u.id
+       JOIN classes c ON sp.current_class_id = c.id
+       WHERE u.school_id = $1
+         AND c.school_id = $1
+         AND sp.current_class_id = $2
+         AND sp.current_section_id = $3
+         AND sp.is_active = TRUE
+         AND sp.date_of_birth IS NOT NULL
+         AND TO_CHAR(sp.date_of_birth, 'MM-DD') = TO_CHAR((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date, 'MM-DD');`,
+      [schoolId, classId, sectionId]
+    );
+
+    if (celebrantsRes.rows.length === 0) return;
+
+    const istToday = celebrantsRes.rows[0].ist_today as string;
+    const lockKey = `birthday-notice:${schoolId}:${classId}:${sectionId}:${istToday}`;
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1));', [lockKey]);
+
+      const classmatesRes = await client.query(
+        `SELECT sp.id
+         FROM student_profiles sp
+         JOIN users u ON sp.user_id = u.id
+         WHERE u.school_id = $1
+           AND sp.current_class_id = $2
+           AND sp.current_section_id = $3
+           AND sp.is_active = TRUE;`,
+        [schoolId, classId, sectionId]
+      );
+
+      for (const celebrant of celebrantsRes.rows) {
+        const fullName = [celebrant.first_name, celebrant.last_name]
+          .filter((part: string | null | undefined) => Boolean(part && part.trim()))
+          .join(' ')
+          .trim() || 'Classmate';
+        const rollSuffix = celebrant.roll_number ? ` (Roll No: ${celebrant.roll_number})` : '';
+
+        const studentTitle = `Classmate Birthday: ${fullName}`;
+        const studentContent = `Wish ${fullName}${rollSuffix} a very Happy Birthday today!`;
+
+        for (const classmate of classmatesRes.rows) {
+          if (classmate.id === celebrant.id) continue; // Avoid self-spam
+
+          const existingStudentNotice = await client.query(
+            `SELECT 1 FROM notices
+             WHERE school_id = $1
+               AND target_role = 'STUDENT'
+               AND target_class_id = $2
+               AND target_section_id = $3
+               AND target_student_id = $4
+               AND title = $5
+               AND (published_at AT TIME ZONE 'Asia/Kolkata')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+             LIMIT 1;`,
+            [schoolId, classId, sectionId, classmate.id, studentTitle]
+          );
+
+          if (existingStudentNotice.rows.length === 0) {
+            await client.query(
+              `INSERT INTO notices (
+                school_id, title, content, target_role,
+                target_class_id, target_section_id, target_student_id,
+                priority, channel, published_at
+              ) VALUES ($1, $2, $3, 'STUDENT', $4, $5, $6, 'INFO', 'IN_APP', CURRENT_TIMESTAMP);`,
+              [schoolId, studentTitle, studentContent, classId, sectionId, classmate.id]
+            );
+          }
+        }
+
+        const teacherTitle = `Student Birthday: ${fullName}`;
+        const teacherContent = `${fullName}${rollSuffix} in your homeroom class has a birthday today!`;
+        const existingTeacherNotice = await client.query(
+          `SELECT 1 FROM notices
+           WHERE school_id = $1
+             AND target_role = 'TEACHER'
+             AND target_class_id = $2
+             AND target_section_id = $3
+             AND target_student_id IS NULL
+             AND title = $4
+             AND (published_at AT TIME ZONE 'Asia/Kolkata')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+           LIMIT 1;`,
+          [schoolId, classId, sectionId, teacherTitle]
+        );
+
+        if (existingTeacherNotice.rows.length === 0) {
+          await client.query(
+            `INSERT INTO notices (
+              school_id, title, content, target_role,
+              target_class_id, target_section_id, target_student_id,
+              priority, channel, published_at
+            ) VALUES ($1, $2, $3, 'TEACHER', $4, $5, NULL, 'INFO', 'IN_APP', CURRENT_TIMESTAMP);`,
+            [schoolId, teacherTitle, teacherContent, classId, sectionId]
+          );
+        }
+      }
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   static async getStudentNotices(user: TokenPayload): Promise<NoticeItem[]> {
+    let classId = user.classId || null;
+    let sectionId = user.sectionId || null;
+    let studentProfileId = user.profileId || null;
+
+    if (!classId || !sectionId || !studentProfileId) {
+      const profileRes = await pool.query(
+        `SELECT sp.id, sp.current_class_id, sp.current_section_id
+         FROM student_profiles sp
+         JOIN users u ON sp.user_id = u.id
+         WHERE u.school_id = $1 AND (sp.id::text = $2 OR sp.user_id::text = $3)
+         LIMIT 1;`,
+        [user.schoolId, user.profileId || user.userId, user.userId]
+      );
+      if (profileRes.rows.length > 0) {
+        studentProfileId = profileRes.rows[0].id;
+        classId = classId || profileRes.rows[0].current_class_id;
+        sectionId = sectionId || profileRes.rows[0].current_section_id;
+      }
+    }
+
+    if (user.schoolId && classId && sectionId) {
+      await NoticeService.ensureTodayBirthdayNotices(user.schoolId, classId, sectionId).catch((err) => {
+        console.warn('[Birthday Notice Warning - Student]:', err?.message);
+      });
+    }
+
     const query = `
       SELECT 
         n.id, n.title, n.content, n.target_role, n.priority, n.channel,
@@ -38,9 +182,82 @@ export class NoticeService {
     `;
     const { rows } = await pool.query(query, [
       user.schoolId,
-      user.classId || null,
-      user.sectionId || null,
-      user.profileId || null,
+      classId,
+      sectionId,
+      studentProfileId,
+      user.userId,
+    ]);
+    return rows;
+  }
+
+  static async getTeacherNotices(user: TokenPayload): Promise<NoticeItem[]> {
+    const scopeRes = await pool.query(
+      `SELECT DISTINCT sa.class_id, sa.section_id, sa.assignment_type
+       FROM staff_assignments sa
+       JOIN staff_profiles sp ON sa.staff_id = sp.id
+       JOIN users u ON sp.user_id = u.id
+       WHERE u.school_id = $1
+         AND (sp.id::text = $2 OR sp.user_id::text = $3)
+         AND sa.class_id IS NOT NULL
+         AND sa.section_id IS NOT NULL
+       UNION
+       SELECT DISTINCT tsa.class_id, tsa.section_id, 'SUBJECT_TEACHER' AS assignment_type
+       FROM teacher_subject_allocations tsa
+       JOIN staff_profiles sp ON tsa.staff_id = sp.id
+       JOIN users u ON sp.user_id = u.id
+       WHERE u.school_id = $1
+         AND (sp.id::text = $2 OR sp.user_id::text = $3);`,
+      [user.schoolId, user.profileId || user.userId, user.userId]
+    );
+
+    const homerooms = scopeRes.rows.filter((r: any) => r.assignment_type === 'CLASS_TEACHER');
+    for (const hr of homerooms) {
+      await NoticeService.ensureTodayBirthdayNotices(user.schoolId, hr.class_id, hr.section_id).catch((err) => {
+        console.warn('[Birthday Notice Warning - Teacher]:', err?.message);
+      });
+    }
+
+    const query = `
+      SELECT 
+        n.id, n.title, n.content, n.target_role, n.priority, n.channel,
+        n.target_class_id, n.target_section_id, n.target_student_id,
+        n.published_at, n.created_at
+      FROM notices n
+      WHERE n.school_id = $1
+        AND (n.target_role = 'ALL' OR n.target_role = 'TEACHER')
+        AND (
+          n.target_class_id IS NULL
+          OR EXISTS (
+            SELECT 1
+            FROM staff_assignments sa
+            JOIN staff_profiles sp ON sa.staff_id = sp.id
+            JOIN users u ON sp.user_id = u.id
+            WHERE u.school_id = $1
+              AND (sp.id::text = $2 OR sp.user_id::text = $3)
+              AND sa.class_id = n.target_class_id
+              AND (n.target_section_id IS NULL OR sa.section_id = n.target_section_id)
+            UNION ALL
+            SELECT 1
+            FROM teacher_subject_allocations tsa
+            JOIN staff_profiles sp ON tsa.staff_id = sp.id
+            JOIN users u ON sp.user_id = u.id
+            WHERE u.school_id = $1
+              AND (sp.id::text = $2 OR sp.user_id::text = $3)
+              AND tsa.class_id = n.target_class_id
+              AND (n.target_section_id IS NULL OR tsa.section_id = n.target_section_id)
+          )
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM notice_dismissals nd
+          WHERE nd.notice_id = n.id
+            AND nd.user_id::text = $3
+        )
+      ORDER BY n.published_at DESC;
+    `;
+    const { rows } = await pool.query(query, [
+      user.schoolId,
+      user.profileId || user.userId,
       user.userId,
     ]);
     return rows;

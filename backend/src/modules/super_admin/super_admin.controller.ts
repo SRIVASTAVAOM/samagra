@@ -180,14 +180,30 @@ export class SuperAdminController {
   static async updateSchoolConfig(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const { name, branding, features, menuConfig } = req.body;
-      const updated = await SuperAdminService.updateSchoolConfig(id, { name, branding, features, menuConfig });
+      const { name, contactEmail, contactPhone, address, branding, features, menuConfig } = req.body;
+      const updated = await SuperAdminService.updateSchoolConfig(id, {
+        name,
+        contactEmail,
+        contactPhone,
+        address,
+        branding,
+        features,
+        menuConfig,
+      });
       res.status(200).json({
         success: true,
         message: 'School configuration updated successfully',
         data: updated,
       });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'SCHOOL_NOT_FOUND') {
+        res.status(404).json({ success: false, error: 'School not found' });
+        return;
+      }
+      if (error.statusCode === 400) {
+        res.status(400).json({ success: false, error: error.message });
+        return;
+      }
       next(error);
     }
   }

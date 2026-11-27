@@ -79,6 +79,19 @@ class _StudentResultViewState extends State<StudentResultView> {
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: AppColors.secondaryText, fontSize: 14),
                     ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        context.read<ExamsBloc>().add(LoadStudentResultEvent(widget.examId));
+                      },
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Retry'),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.border),
+                        foregroundColor: AppColors.primaryText,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -141,9 +154,9 @@ class _StudentResultViewState extends State<StudentResultView> {
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: AppColors.successBorder),
                     ),
-                    child: const Text(
-                      'APPROVED',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.success),
+                    child: Text(
+                      card.status.toUpperCase(),
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.success),
                     ),
                   ),
                 ],

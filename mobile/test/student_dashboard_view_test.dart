@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/dio_client.dart';
 import 'package:mobile/core/storage/secure_storage_service.dart';
+import 'package:mobile/core/widgets/user_avatar.dart';
 import 'package:mobile/features/attendance/bloc/attendance_bloc.dart';
 import 'package:mobile/features/attendance/bloc/attendance_state.dart';
 import 'package:mobile/features/attendance/models/student_attendance_record_model.dart';
@@ -443,6 +444,101 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
 
       expect(find.text('Customize Quick Links'), findsNothing);
+    });
+
+    testWidgets('Tapping hero card student name or avatar navigates to My Profile tab',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 3500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      int? tappedTab;
+      int? tappedServicesSub;
+
+      await tester.pumpWidget(
+        createTestWidget(
+          onNavigateToTab: (tab, {academicSubTab, servicesSubTab}) {
+            tappedTab = tab;
+            tappedServicesSub = servicesSubTab;
+          },
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('Aarav Sharma'));
+      await tester.pump();
+      expect(tappedTab, equals(4));
+      expect(tappedServicesSub, equals(0));
+
+      tappedTab = null;
+      tappedServicesSub = null;
+
+      await tester.tap(find.byType(UserAvatar));
+      await tester.pump();
+      expect(tappedTab, equals(4));
+      expect(tappedServicesSub, equals(0));
+    });
+
+    testWidgets(
+        'Hero card displays profile avatarUrl when loaded and preserves cached profile across transient states',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 3500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(createTestWidget());
+      await tester.pump();
+
+      const loadedProfile = StudentProfileModel(
+        id: 'std-101',
+        admissionNumber: 'ADM-2026',
+        rollNumber: '14',
+        firstName: 'Aarav',
+        lastName: 'Sharma',
+        gender: 'Male',
+        dateOfBirth: '2010-04-12',
+        admissionDate: '2020-04-01',
+        avatarUrl: 'https://cdn.example.com/aarav.jpg',
+        className: 'Grade 10',
+        sectionName: 'Section B',
+        schoolName: 'Delhi Public International School',
+      );
+
+      profileBloc.emit(const StudentProfileLoaded(loadedProfile));
+      await tester.pump();
+
+      var avatarWidget = tester.widget<UserAvatar>(find.byType(UserAvatar));
+      expect(avatarWidget.avatarUrl, equals('https://cdn.example.com/aarav.jpg'));
+
+      // Transient ProfileUpdating state must preserve cached avatarUrl and schoolName
+      profileBloc.emit(ProfileUpdating());
+      await tester.pump();
+
+      avatarWidget = tester.widget<UserAvatar>(find.byType(UserAvatar));
+      expect(avatarWidget.avatarUrl, equals('https://cdn.example.com/aarav.jpg'));
+      expect(find.text('DELHI PUBLIC INTERNATIONAL SCHOOL'), findsOneWidget);
+    });
+
+    testWidgets('Tapping hero card without onNavigateToTab pushes StudentProfileView safely',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 3500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(createTestWidget(onNavigateToTab: null));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byType(UserAvatar));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('My Profile'), findsOneWidget);
     });
   });
 }

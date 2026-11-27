@@ -41,6 +41,8 @@ import {
   FileText,
   Layers,
   Plus,
+  Camera,
+  Trash2,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ClassItem } from '@/lib/types';
@@ -153,25 +155,43 @@ export default function StudentsDirectoryPage() {
   const [editForm, setEditForm] = useState({
     first_name: '',
     last_name: '',
+    admission_number: '',
     roll_number: '',
     current_class_id: '',
     current_section_id: '',
     phone: '',
     emergency_phone: '',
+    email: '',
     father_name: '',
     mother_name: '',
+    guardian_name: '',
     gender: '',
     date_of_birth: '',
+    admission_date: '',
     blood_group: '',
     medical_notes: '',
+    address: '',
+    caste: '',
+    religion: '',
+    nationality: '',
+    student_aadhar: '',
+    aadhar_father: '',
+    aadhar_mother: '',
+    father_pan: '',
+    pan_mother: '',
+    photo_url: '',
+    can_reupload_photo: false,
+    photo_self_edit_used: false,
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Student Credentials State
+  // Student Credentials & Photo Management State
   const [showStudentPassword, setShowStudentPassword] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [resettingPassword, setResettingPassword] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
+  const [editPhotoUploading, setEditPhotoUploading] = useState(false);
+  const [togglingReupload, setTogglingReupload] = useState(false);
 
   // Active View Tab on Students Page ('directory' | 'admission' | 'bulk')
   const [activeTab, setActiveTab] = useState<'directory' | 'admission' | 'bulk'>('directory');
@@ -585,7 +605,12 @@ export default function StudentsDirectoryPage() {
             fat_name: rowObj.fat_name || rowObj.father_name || rowObj.father || '',
             mother_name: rowObj.mot_name || rowObj.mother_name || rowObj.mother || '',
             mot_name: rowObj.mot_name || rowObj.mother_name || rowObj.mother || '',
+            guardian_name: rowObj.guardian_name || rowObj.guard_name || '',
             blood_group: rowObj.blood_group || rowObj.bloodgroup || '',
+            medical_notes: rowObj.medical_notes || '',
+            photo_url: rowObj.photo_url || rowObj.photo_stu || '',
+            email: rowObj.stu_email || rowObj.email || '',
+            stu_email: rowObj.stu_email || rowObj.email || '',
             password: rowObj.password || 'Student@123',
             address: rowObj.address || rowObj.address_co || '',
             caste: rowObj.caste || rowObj.category || '',
@@ -690,11 +715,17 @@ export default function StudentsDirectoryPage() {
         roll_no: admissionForm.roll_number.trim() || null,
         phone: admissionForm.phone.trim() || admissionForm.fat_mobile.trim() || null,
         mobile: admissionForm.phone.trim() || admissionForm.fat_mobile.trim() || null,
-        emergency_phone: admissionForm.fat_mobile.trim() || admissionForm.phone.trim() || null,
+        emergency_phone:
+          admissionForm.emergency_phone.trim() ||
+          admissionForm.fat_mobile.trim() ||
+          admissionForm.phone.trim() ||
+          null,
         father_name: admissionForm.father_name.trim() || null,
         fat_name: admissionForm.father_name.trim() || null,
         mother_name: admissionForm.mother_name.trim() || null,
         mot_name: admissionForm.mother_name.trim() || null,
+        guardian_name: admissionForm.guard_name.trim() || null,
+        photo_url: admissionForm.photo_stu.trim() || null,
         email: admissionForm.email.trim() || null,
         stu_email: admissionForm.email.trim() || null,
         address: admissionForm.address.trim() || null,
@@ -909,18 +940,101 @@ export default function StudentsDirectoryPage() {
     setEditForm({
       first_name: student.first_name || '',
       last_name: student.last_name || '',
+      admission_number: student.admission_number || '',
       roll_number: student.roll_number || '',
       current_class_id: student.class_id || student.current_class_id || '',
       current_section_id: student.section_id || student.current_section_id || '',
       phone: student.phone || '',
       emergency_phone: student.emergency_phone || '',
+      email: student.email || '',
       father_name: student.father_name || '',
       mother_name: student.mother_name || '',
+      guardian_name: student.guardian_name || student.extra_data?.guard_name || '',
       gender: student.gender || 'Other',
       date_of_birth: student.date_of_birth ? String(student.date_of_birth).split('T')[0] : '',
+      admission_date: student.admission_date ? String(student.admission_date).split('T')[0] : '',
       blood_group: student.blood_group || '',
       medical_notes: student.medical_notes || '',
+      address: student.address || '',
+      caste: student.caste || '',
+      religion: student.religion || '',
+      nationality: student.nationality || '',
+      student_aadhar: student.student_aadhar || '',
+      aadhar_father: student.aadhar_father || '',
+      aadhar_mother: student.aadhar_mother || '',
+      father_pan: student.father_pan || '',
+      pan_mother: student.pan_mother || '',
+      photo_url: student.photo_url || '',
+      can_reupload_photo: Boolean(student.can_reupload_photo),
+      photo_self_edit_used: Boolean(student.photo_self_edit_used),
     });
+  };
+
+  // Upload photo inside Edit Student Modal
+  const handleEditPhotoUpload = async (file: File) => {
+    if (!editingStudent) return;
+    try {
+      setEditPhotoUploading(true);
+      const uploaded = await api.admin.uploadPhoto(file);
+      const updated = await api.admin.updateStudentPhoto(editingStudent.id, uploaded.photoUrl);
+      const newUrl = updated?.photo_url || uploaded.photoUrl;
+      setEditForm((prev) => ({ ...prev, photo_url: newUrl }));
+      setStudents((prev) =>
+        prev.map((s) => (s.id === editingStudent.id ? { ...s, photo_url: newUrl, avatar_url: newUrl } : s))
+      );
+      if (selectedStudent && selectedStudent.id === editingStudent.id) {
+        setSelectedStudent((prev: any) => (prev ? { ...prev, photo_url: newUrl, avatar_url: newUrl } : prev));
+      }
+      showToast('Student photo uploaded and saved!');
+    } catch (err: any) {
+      alert(err?.message || 'Failed to upload student photo');
+    } finally {
+      setEditPhotoUploading(false);
+    }
+  };
+
+  const handleRemoveEditPhoto = async () => {
+    if (!editingStudent) return;
+    try {
+      setEditPhotoUploading(true);
+      await api.admin.deleteStudentPhoto(editingStudent.id);
+      setEditForm((prev) => ({ ...prev, photo_url: '' }));
+      setStudents((prev) =>
+        prev.map((s) => (s.id === editingStudent.id ? { ...s, photo_url: null, avatar_url: null } : s))
+      );
+      if (selectedStudent && selectedStudent.id === editingStudent.id) {
+        setSelectedStudent((prev: any) => (prev ? { ...prev, photo_url: null, avatar_url: null } : prev));
+      }
+      showToast('Student photo removed!');
+    } catch (err: any) {
+      alert(err?.message || 'Failed to remove student photo');
+    } finally {
+      setEditPhotoUploading(false);
+    }
+  };
+
+  // One-click Admin toggle for granting / revoking Student one-time photo re-upload
+  const handleTogglePhotoReupload = async (student: any) => {
+    try {
+      setTogglingReupload(true);
+      const nextAllowed = !Boolean(student.can_reupload_photo);
+      const updated = await api.admin.updateStudent(student.id, {
+        can_reupload_photo: nextAllowed,
+      });
+      setStudents((prev) =>
+        prev.map((s) => (s.id === student.id ? { ...s, ...updated } : s))
+      );
+      setSelectedStudent((prev: any) => (prev && prev.id === student.id ? { ...prev, ...updated } : prev));
+      showToast(
+        nextAllowed
+          ? 'Photo re-upload permission granted to student!'
+          : 'Photo re-upload permission revoked.'
+      );
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update photo re-upload permission');
+    } finally {
+      setTogglingReupload(false);
+    }
   };
 
   // Submit Edit Student
@@ -933,17 +1047,32 @@ export default function StudentsDirectoryPage() {
       const updated = await api.admin.updateStudent(editingStudent.id, {
         first_name: editForm.first_name.trim(),
         last_name: editForm.last_name.trim(),
+        admission_number: editForm.admission_number.trim() || undefined,
         roll_number: editForm.roll_number.trim() || null,
         current_class_id: editForm.current_class_id || null,
         current_section_id: editForm.current_section_id || null,
         phone: editForm.phone.trim() || null,
         emergency_phone: editForm.emergency_phone.trim() || null,
+        email: editForm.email.trim() || null,
         father_name: editForm.father_name.trim() || null,
         mother_name: editForm.mother_name.trim() || null,
+        guardian_name: editForm.guardian_name.trim() || null,
         gender: editForm.gender || null,
         date_of_birth: editForm.date_of_birth || null,
+        admission_date: editForm.admission_date || null,
         blood_group: editForm.blood_group || null,
         medical_notes: editForm.medical_notes.trim() || null,
+        address: editForm.address.trim() || null,
+        caste: editForm.caste.trim() || null,
+        religion: editForm.religion.trim() || null,
+        nationality: editForm.nationality.trim() || null,
+        student_aadhar: editForm.student_aadhar.trim() || null,
+        aadhar_father: editForm.aadhar_father.trim() || null,
+        aadhar_mother: editForm.aadhar_mother.trim() || null,
+        father_pan: editForm.father_pan.trim() || null,
+        pan_mother: editForm.pan_mother.trim() || null,
+        photo_url: editForm.photo_url.trim() || null,
+        can_reupload_photo: Boolean(editForm.can_reupload_photo),
       });
 
       // Update state locally
@@ -957,7 +1086,7 @@ export default function StudentsDirectoryPage() {
               ...updated,
               first_name: editForm.first_name,
               last_name: editForm.last_name,
-              full_name: `${editForm.first_name} ${editForm.last_name}`,
+              full_name: `${editForm.first_name} ${editForm.last_name}`.trim(),
               roll_number: editForm.roll_number,
               class_id: editForm.current_class_id,
               class_name: classObj ? classObj.name : s.class_name,
@@ -965,6 +1094,7 @@ export default function StudentsDirectoryPage() {
               section_name: secObj ? secObj.name : s.section_name,
               father_name: editForm.father_name,
               mother_name: editForm.mother_name,
+              guardian_name: editForm.guardian_name,
               phone: editForm.phone,
               emergency_phone: editForm.emergency_phone,
               blood_group: editForm.blood_group,
@@ -1594,9 +1724,17 @@ export default function StudentsDirectoryPage() {
                     <tr key={s.id} className="hover:bg-slate-50/80 transition">
                       <td className="p-3.5 pl-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs uppercase shrink-0">
-                            {s.first_name?.[0] || 'S'}
-                          </div>
+                          {s.photo_url ? (
+                            <img
+                              src={s.photo_url}
+                              alt={s.full_name || s.first_name || 'Student'}
+                              className="w-8 h-8 rounded-full object-cover border border-indigo-200 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                              {s.first_name?.[0] || 'S'}
+                            </div>
+                          )}
                           <div>
                             <div className="font-bold text-slate-900 text-xs">
                               {s.full_name || `${s.first_name || ''} ${s.last_name || ''}`}
@@ -3064,9 +3202,17 @@ export default function StudentsDirectoryPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-lg uppercase shadow-xs">
-                  {selectedStudent.first_name?.[0] || 'S'}
-                </div>
+                {selectedStudent.photo_url ? (
+                  <img
+                    src={selectedStudent.photo_url}
+                    alt={`${selectedStudent.first_name || ''} ${selectedStudent.last_name || ''}`}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-indigo-200 shadow-xs"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-lg uppercase shadow-xs">
+                    {selectedStudent.first_name?.[0] || 'S'}
+                  </div>
+                )}
                 <div>
                   <h3 className="font-bold text-slate-900 text-base">
                     {selectedStudent.first_name} {selectedStudent.last_name}
@@ -3170,14 +3316,24 @@ export default function StudentsDirectoryPage() {
                 <span className="text-slate-400 font-medium">Father / Guardian</span>
                 <div className="font-semibold text-slate-900">{selectedStudent.father_name || '—'}</div>
                 <div className="text-slate-500">Mother: {selectedStudent.mother_name || '—'}</div>
+                {(selectedStudent.guardian_name || selectedStudent.extra_data?.guard_name) && (
+                  <div className="text-slate-500">
+                    Guardian: {selectedStudent.guardian_name || selectedStudent.extra_data?.guard_name}
+                  </div>
+                )}
               </div>
 
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                <span className="text-slate-400 font-medium">Emergency Contact</span>
+                <span className="text-slate-400 font-medium">Emergency &amp; Contact</span>
                 <div className="font-mono font-semibold text-slate-900">
                   {selectedStudent.emergency_phone || selectedStudent.phone || '—'}
                 </div>
                 <div className="text-slate-500">Primary Phone: {selectedStudent.phone || '—'}</div>
+                {selectedStudent.email && (
+                  <div className="text-slate-500 truncate" title={selectedStudent.email}>
+                    Email: {selectedStudent.email}
+                  </div>
+                )}
               </div>
 
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
@@ -3199,10 +3355,50 @@ export default function StudentsDirectoryPage() {
               </div>
 
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1 sm:col-span-2">
-                <span className="text-slate-400 font-medium">Admission &amp; Enrollment</span>
+                <span className="text-slate-400 font-medium">Address, Demographics &amp; Documents</span>
                 <div className="font-semibold text-slate-900">
-                  Enrolled on: {selectedStudent.admission_date ? String(selectedStudent.admission_date).split('T')[0] : 'Standard Admission'}
+                  {selectedStudent.address || 'No residential address recorded'}
                 </div>
+                <div className="text-slate-500 flex flex-wrap gap-x-4 gap-y-1">
+                  <span>Enrolled: {selectedStudent.admission_date ? String(selectedStudent.admission_date).split('T')[0] : 'Standard Admission'}</span>
+                  {selectedStudent.caste && <span>Category: {selectedStudent.caste}</span>}
+                  {selectedStudent.religion && <span>Religion: {selectedStudent.religion}</span>}
+                  {selectedStudent.nationality && <span>Nationality: {selectedStudent.nationality}</span>}
+                  {selectedStudent.student_aadhar && <span>Aadhar: {selectedStudent.student_aadhar}</span>}
+                </div>
+              </div>
+
+              {/* Profile Photo Permission Control */}
+              <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200/80 sm:col-span-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Student Self Photo Upload Status</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600">
+                    {selectedStudent.can_reupload_photo
+                      ? 'Re-upload Approved: Student can upload a new profile photo once.'
+                      : selectedStudent.photo_self_edit_used
+                      ? 'One-time upload used & locked. Approve re-upload to let the student change their photo.'
+                      : 'Eligible: Student has not yet used their one-time photo upload.'}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={togglingReupload}
+                  onClick={() => handleTogglePhotoReupload(selectedStudent)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition cursor-pointer shrink-0 disabled:opacity-50 ${
+                    selectedStudent.can_reupload_photo
+                      ? 'bg-rose-100 text-rose-800 hover:bg-rose-200'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  {togglingReupload
+                    ? 'Updating...'
+                    : selectedStudent.can_reupload_photo
+                    ? 'Revoke Re-Upload'
+                    : 'Allow Photo Re-Upload'}
+                </button>
               </div>
             </div>
 
@@ -3258,6 +3454,73 @@ export default function StudentsDirectoryPage() {
 
             {/* Form */}
             <form onSubmit={handleSaveEdit} className="space-y-4">
+              {/* Photo Management & Re-Upload Approval */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    {editForm.photo_url ? (
+                      <img
+                        src={editForm.photo_url}
+                        alt={editForm.first_name || 'Student'}
+                        className="w-12 h-12 rounded-full object-cover border border-indigo-200"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-base uppercase">
+                        {editForm.first_name?.[0] || 'S'}
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-xs font-bold text-slate-800">Student Profile Photo</div>
+                      <div className="text-[11px] text-slate-500">
+                        {editForm.photo_self_edit_used
+                          ? 'Student has already used their one-time upload.'
+                          : 'Student can upload once from mobile.'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold cursor-pointer transition">
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>{editPhotoUploading ? 'Uploading...' : 'Upload Photo'}</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        disabled={editPhotoUploading}
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleEditPhotoUpload(file);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                    {editForm.photo_url && (
+                      <button
+                        type="button"
+                        disabled={editPhotoUploading}
+                        onClick={handleRemoveEditPhoto}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-semibold cursor-pointer transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 pt-2 border-t border-slate-200/70 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editForm.can_reupload_photo}
+                    onChange={(e) => setEditForm({ ...editForm, can_reupload_photo: e.target.checked })}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="font-semibold text-slate-700">
+                    Allow Student Photo Re-Upload (Admin Re-Approval)
+                  </span>
+                </label>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                 {/* First Name */}
                 <div className="space-y-1">
@@ -3279,6 +3542,17 @@ export default function StudentsDirectoryPage() {
                     value={editForm.last_name}
                     onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                  />
+                </div>
+
+                {/* Admission Number */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Admission Number</label>
+                  <input
+                    type="text"
+                    value={editForm.admission_number}
+                    onChange={(e) => setEditForm({ ...editForm, admission_number: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
                   />
                 </div>
 
@@ -3426,6 +3700,140 @@ export default function StudentsDirectoryPage() {
                     <option value="O+">O+</option>
                     <option value="O-">O-</option>
                   </select>
+                </div>
+
+                {/* Email */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Email Address</label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    placeholder="student@school.edu"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                  />
+                </div>
+
+                {/* Guardian Name */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Guardian Name</label>
+                  <input
+                    type="text"
+                    value={editForm.guardian_name}
+                    onChange={(e) => setEditForm({ ...editForm, guardian_name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                  />
+                </div>
+
+                {/* Admission Date */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Admission Date</label>
+                  <input
+                    type="date"
+                    value={editForm.admission_date}
+                    onChange={(e) => setEditForm({ ...editForm, admission_date: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium bg-white"
+                  />
+                </div>
+
+                {/* Caste / Category */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Category / Caste</label>
+                  <input
+                    type="text"
+                    value={editForm.caste}
+                    onChange={(e) => setEditForm({ ...editForm, caste: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                  />
+                </div>
+
+                {/* Religion */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Religion</label>
+                  <input
+                    type="text"
+                    value={editForm.religion}
+                    onChange={(e) => setEditForm({ ...editForm, religion: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                  />
+                </div>
+
+                {/* Nationality */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Nationality</label>
+                  <input
+                    type="text"
+                    value={editForm.nationality}
+                    onChange={(e) => setEditForm({ ...editForm, nationality: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                  />
+                </div>
+
+                {/* Residential Address */}
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="font-semibold text-slate-700">Residential Address</label>
+                  <input
+                    type="text"
+                    value={editForm.address}
+                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                    placeholder="House No, Street, City, Pincode"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                  />
+                </div>
+
+                {/* Student Aadhar */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Student Aadhar</label>
+                  <input
+                    type="text"
+                    value={editForm.student_aadhar}
+                    onChange={(e) => setEditForm({ ...editForm, student_aadhar: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
+                  />
+                </div>
+
+                {/* Father Aadhar */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Father Aadhar</label>
+                  <input
+                    type="text"
+                    value={editForm.aadhar_father}
+                    onChange={(e) => setEditForm({ ...editForm, aadhar_father: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
+                  />
+                </div>
+
+                {/* Mother Aadhar */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Mother Aadhar</label>
+                  <input
+                    type="text"
+                    value={editForm.aadhar_mother}
+                    onChange={(e) => setEditForm({ ...editForm, aadhar_mother: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
+                  />
+                </div>
+
+                {/* Father PAN */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Father PAN</label>
+                  <input
+                    type="text"
+                    value={editForm.father_pan}
+                    onChange={(e) => setEditForm({ ...editForm, father_pan: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
+                  />
+                </div>
+
+                {/* Mother PAN */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Mother PAN</label>
+                  <input
+                    type="text"
+                    value={editForm.pan_mother}
+                    onChange={(e) => setEditForm({ ...editForm, pan_mother: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
+                  />
                 </div>
 
                 {/* Medical Notes */}

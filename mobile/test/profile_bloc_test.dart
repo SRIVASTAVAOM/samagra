@@ -41,6 +41,35 @@ class MockProfileRepository implements ProfileRepository {
       bloodGroup: bloodGroup ?? studentProfile!.bloodGroup,
       medicalNotes: medicalNotes ?? studentProfile!.medicalNotes,
       documentUrl: documentUrl ?? studentProfile!.documentUrl,
+      avatarUrl: studentProfile!.avatarUrl,
+      photoSelfEditUsed: studentProfile!.photoSelfEditUsed,
+      canReuploadPhoto: studentProfile!.canReuploadPhoto,
+      schoolName: studentProfile!.schoolName,
+    );
+  }
+
+  @override
+  Future<StudentProfileModel> uploadStudentPhoto(
+    List<int> bytes,
+    String fileName,
+  ) async {
+    if (shouldThrow) throw Exception('One-time profile photo upload limit reached');
+    return StudentProfileModel(
+      id: studentProfile!.id,
+      admissionNumber: studentProfile!.admissionNumber,
+      firstName: studentProfile!.firstName,
+      lastName: studentProfile!.lastName,
+      gender: studentProfile!.gender,
+      dateOfBirth: studentProfile!.dateOfBirth,
+      admissionDate: studentProfile!.admissionDate,
+      emergencyPhone: studentProfile!.emergencyPhone,
+      bloodGroup: studentProfile!.bloodGroup,
+      medicalNotes: studentProfile!.medicalNotes,
+      documentUrl: studentProfile!.documentUrl,
+      avatarUrl: 'https://cdn.example.com/$fileName',
+      photoSelfEditUsed: true,
+      canReuploadPhoto: false,
+      schoolName: studentProfile!.schoolName,
     );
   }
 
@@ -193,6 +222,109 @@ void main() {
       );
 
       bloc.add(LoadStaffProfileEvent());
+    });
+
+    test(
+        'emits [ProfileUpdating, ProfileUpdateSuccess, StudentProfileLoaded] on UploadStudentPhotoEvent',
+        () async {
+      mockRepo.studentProfile = const StudentProfileModel(
+        id: 'std-1',
+        admissionNumber: 'ADM2026001',
+        firstName: 'Aarav',
+        lastName: 'Sharma',
+        gender: 'Male',
+        dateOfBirth: '2010-05-15',
+        admissionDate: '2026-04-01',
+      );
+
+      expectLater(
+        bloc.stream,
+        emitsInOrder([
+          isA<ProfileUpdating>(),
+          isA<ProfileUpdateSuccess>(),
+          isA<StudentProfileLoaded>()
+              .having((s) => s.profile.avatarUrl, 'avatarUrl',
+                  'https://cdn.example.com/avatar.jpg')
+              .having((s) => s.profile.photoSelfEditUsed, 'photoSelfEditUsed', true)
+              .having((s) => s.profile.canUploadPhoto, 'canUploadPhoto', false),
+        ]),
+      );
+
+      bloc.add(const UploadStudentPhotoEvent(
+        bytes: [1, 2, 3, 4],
+        fileName: 'avatar.jpg',
+      ));
+    });
+
+    test('preserves loaded student profile after ProfileError on update failure',
+        () async {
+      mockRepo.studentProfile = const StudentProfileModel(
+        id: 'std-1',
+        admissionNumber: 'ADM2026001',
+        firstName: 'Aarav',
+        lastName: 'Sharma',
+        gender: 'Male',
+        dateOfBirth: '2010-05-15',
+        admissionDate: '2026-04-01',
+      );
+      bloc.add(LoadStudentProfileEvent());
+      await Future.delayed(const Duration(milliseconds: 20));
+
+      mockRepo.shouldThrow = true;
+
+      expectLater(
+        bloc.stream,
+        emitsInOrder([
+          isA<ProfileUpdating>(),
+          isA<ProfileError>(),
+          isA<StudentProfileLoaded>().having(
+            (s) => s.profile.admissionNumber,
+            'admissionNumber',
+            'ADM2026001',
+          ),
+        ]),
+      );
+
+      bloc.add(const UpdateStudentProfileEvent(emergencyPhone: '+91 9123456789'));
+    });
+
+    test('StudentProfileModel parses admission/bulk fields and photo flags dynamically', () {
+      final model = StudentProfileModel.fromJson({
+        'id': 'std-99',
+        'admission_number': 'ADM99',
+        'full_name': 'Kavya Nair',
+        'gender': 'FEMALE',
+        'date_of_birth': '2012-08-19',
+        'admission_date': '2025-04-01',
+        'address': '42 MG Road, Kochi',
+        'caste': 'General',
+        'religion': 'Hindu',
+        'nationality': 'Indian',
+        'email': 'kavya@school.edu',
+        'phone': '9876543210',
+        'photo_url': 'https://cdn.example.com/kavya.jpg',
+        'photo_self_edit_used': true,
+        'can_reupload_photo': false,
+        'extra_data': {'guard_name': 'Suresh Nair', 'house': 'Blue'},
+      });
+
+      expect(model.fullName, 'Kavya Nair');
+      expect(model.guardianName, 'Suresh Nair');
+      expect(model.address, '42 MG Road, Kochi');
+      expect(model.canUploadPhoto, false);
+
+      final reapproved = StudentProfileModel.fromJson({
+        'id': 'std-99',
+        'admission_number': 'ADM99',
+        'first_name': 'Kavya',
+        'last_name': 'Nair',
+        'gender': 'FEMALE',
+        'date_of_birth': '2012-08-19',
+        'admission_date': '2025-04-01',
+        'photo_self_edit_used': true,
+        'can_reupload_photo': true,
+      });
+      expect(reapproved.canUploadPhoto, true);
     });
   });
 }

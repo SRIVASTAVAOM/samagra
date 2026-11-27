@@ -602,9 +602,26 @@ export class AdminController {
   static async getTenantConfig(req: Request, res: Response): Promise<void> {
     try {
       const user = (req as any).user;
-      const schoolId = user.schoolId;
+      const schoolId = user?.schoolId;
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!schoolId || !uuidRegex.test(String(schoolId))) {
+        res.status(400).json({ success: false, error: 'Valid schoolId is required' });
+        return;
+      }
+
       const { rows } = await pool.query(
-        'SELECT id, name, code, contact_email, contact_phone, address, menu_config, branding_config FROM schools WHERE id = $1',
+        `SELECT
+          id,
+          name,
+          code,
+          COALESCE(NULLIF(TRIM(contact_email), ''), NULLIF(TRIM(branding_config->>'email'), ''), NULLIF(TRIM(admin_email), '')) AS contact_email,
+          COALESCE(NULLIF(TRIM(contact_phone), ''), NULLIF(TRIM(branding_config->>'phone'), ''), NULLIF(TRIM(admin_phone), '')) AS contact_phone,
+          COALESCE(NULLIF(TRIM(address), ''), NULLIF(TRIM(branding_config->>'address'), '')) AS address,
+          menu_config,
+          branding_config
+         FROM schools
+         WHERE id = $1`,
         [schoolId]
       );
       if (rows.length === 0) {
@@ -622,15 +639,17 @@ export class AdminController {
           contactPhone: s.contact_phone,
           address: s.address,
           branding: {
+            ...s.branding_config,
             name: s.name,
             code: s.code,
             platformBrand: 'SAMAGRA',
             affiliation: s.branding_config?.affiliation || 'Affiliated to CBSE, New Delhi',
             logoUrl: s.branding_config?.logoUrl || '/logo-icon.png',
-            tagline: 'The Complete School Platform',
-            address: s.address || '',
-            phone: s.contact_phone || '',
-            ...s.branding_config,
+            tagline: s.branding_config?.tagline || 'The Complete School Platform',
+            address: s.address || s.branding_config?.address || '',
+            phone: s.contact_phone || s.branding_config?.phone || '',
+            email: s.contact_email || s.branding_config?.email || '',
+            officeHours: s.branding_config?.officeHours || s.branding_config?.office_hours || '',
           },
           features: s.menu_config?.features || {
             fees: true,
@@ -652,42 +671,104 @@ export class AdminController {
   static async updateTenantConfig(req: Request, res: Response): Promise<void> {
     try {
       const user = (req as any).user;
-      const schoolId = user.schoolId;
-      const { name, contactEmail, contactPhone, address, branding, features } = req.body;
+      const schoolId = user?.schoolId;
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!schoolId || !uuidRegex.test(String(schoolId))) {
+        res.status(400).json({ success: false, error: 'Valid schoolId is required' });
+        return;
+      }
 
-      const current = await pool.query('SELECT menu_config, branding_config FROM schools WHERE id = $1', [schoolId]);
+      const { name, contactEmail, contactPhone, address, branding, features } = req.body || {};
+
+      const cleanOrNull = (val: unknown): string | null => {
+        if (typeof val !== 'string') return null;
+        const trimmed = val.trim();
+        return trimmed.length > 0 ? trimmed : null;
+      };
+
+      const rawName = cleanOrNull(name ?? branding?.name);
+      const rawEmail = cleanOrNull(contactEmail ?? branding?.email);
+      const rawPhone = cleanOrNull(contactPhone ?? branding?.phone);
+      const rawAddress = cleanOrNull(address ?? branding?.address);
+
+      if (rawEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
+        res.status(400).json({ success: false, error: 'Invalid contact email format' });
+        return;
+      }
+      if (rawPhone && rawPhone.length < 5) {
+        res.status(400).json({ success: false, error: 'Contact phone must be at least 5 characters' });
+        return;
+      }
+
+      const current = await pool.query(
+        'SELECT name, contact_email, contact_phone, address, menu_config, branding_config FROM schools WHERE id = $1',
+        [schoolId]
+      );
       if (current.rows.length === 0) {
         res.status(404).json({ success: false, error: 'School not found' });
         return;
       }
 
+      const existing = current.rows[0];
+      const nextName = rawName ?? existing.name;
+      const nextEmail = rawEmail ?? existing.contact_email;
+      const nextPhone = rawPhone ?? existing.contact_phone;
+      const nextAddress = rawAddress ?? existing.address;
+
+      const sanitizedBrandingPatch: Record<string, any> = {};
+      if (branding && typeof branding === 'object') {
+        for (const [k, v] of Object.entries(branding)) {
+          if (v !== undefined && !(typeof v === 'string' && v.trim() === '' && ['name', 'address', 'phone', 'email'].includes(k))) {
+            sanitizedBrandingPatch[k] = typeof v === 'string' ? v.trim() : v;
+          }
+        }
+      }
+
       const mergedBranding = {
-        ...current.rows[0].branding_config,
-        ...(branding || {}),
+        ...(existing.branding_config || {}),
+        ...sanitizedBrandingPatch,
+        ...(nextName ? { name: nextName } : {}),
+        ...(nextAddress ? { address: nextAddress } : {}),
+        ...(nextPhone ? { phone: nextPhone } : {}),
+        ...(nextEmail ? { email: nextEmail } : {}),
       };
 
       const mergedMenu = {
-        ...current.rows[0].menu_config,
+        ...(existing.menu_config || {}),
         features: {
-          ...(current.rows[0].menu_config?.features || {}),
-          ...(features || {}),
+          ...(existing.menu_config?.features || {}),
+          ...(features && typeof features === 'object' ? features : {}),
         },
       };
 
-      await pool.query(
+      const { rows: updatedRows } = await pool.query(
         `UPDATE schools 
-         SET name = COALESCE($1, name),
-             contact_email = COALESCE($2, contact_email),
-             contact_phone = COALESCE($3, contact_phone),
-             address = COALESCE($4, address),
+         SET name = $1,
+             contact_email = $2,
+             contact_phone = $3,
+             address = $4,
              branding_config = $5,
              menu_config = $6,
              updated_at = NOW()
-         WHERE id = $7`,
-        [name, contactEmail, contactPhone, address, JSON.stringify(mergedBranding), JSON.stringify(mergedMenu), schoolId]
+         WHERE id = $7
+         RETURNING id, name, code, contact_email, contact_phone, address, branding_config, menu_config`,
+        [
+          nextName,
+          nextEmail,
+          nextPhone,
+          nextAddress,
+          JSON.stringify(mergedBranding),
+          JSON.stringify(mergedMenu),
+          schoolId,
+        ]
       );
 
-      res.status(200).json({ success: true, message: 'Tenant configuration updated successfully' });
+      res.status(200).json({
+        success: true,
+        message: 'Tenant configuration updated successfully',
+        data: updatedRows[0],
+      });
     } catch (error: any) {
       res.status(error.statusCode || 500).json({ success: false, error: error.message });
     }

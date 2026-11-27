@@ -13,6 +13,7 @@ class UserModel extends Equatable {
   final String? wingId;
   final String? classId;
   final String? sectionId;
+  final String? avatarUrl;
 
   const UserModel({
     required this.id,
@@ -27,6 +28,7 @@ class UserModel extends Equatable {
     this.wingId,
     this.classId,
     this.sectionId,
+    this.avatarUrl,
   });
 
   String get displayName {
@@ -62,6 +64,7 @@ class UserModel extends Equatable {
       wingId: json['wingId'] as String?,
       classId: json['classId'] as String?,
       sectionId: json['sectionId'] as String?,
+      avatarUrl: (json['avatar_url'] ?? json['photo_url'] ?? json['photoUrl']) as String?,
     );
   }
 
@@ -79,6 +82,7 @@ class UserModel extends Equatable {
       'wingId': wingId,
       'classId': classId,
       'sectionId': sectionId,
+      'photoUrl': avatarUrl,
     };
   }
 
@@ -96,5 +100,6 @@ class UserModel extends Equatable {
         wingId,
         classId,
         sectionId,
+        avatarUrl,
       ];
 }

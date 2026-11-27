@@ -41,6 +41,7 @@ class StaffProfileModel extends Equatable {
   final List<StaffAllocationItem> allocations;
   final String? schoolName;
   final String? designation;
+  final String? avatarUrl;
   final Map<String, dynamic>? menuConfig;
   final Map<String, dynamic>? brandingConfig;
   final List<dynamic>? assignments;
@@ -60,6 +61,7 @@ class StaffProfileModel extends Equatable {
     required this.allocations,
     this.schoolName,
     this.designation,
+    this.avatarUrl,
     this.menuConfig,
     this.brandingConfig,
     this.assignments,
@@ -95,6 +97,7 @@ class StaffProfileModel extends Equatable {
           [],
       schoolName: json['school_name'] as String?,
       designation: json['designation'] as String? ?? json['qualification'] as String?,
+      avatarUrl: (json['avatar_url'] ?? json['photo_url'] ?? json['photoUrl']) as String?,
       menuConfig: json['menu_config'] as Map<String, dynamic>?,
       brandingConfig: json['branding_config'] as Map<String, dynamic>?,
       assignments: json['assignments'] as List<dynamic>?,
@@ -117,6 +120,7 @@ class StaffProfileModel extends Equatable {
         allocations,
         schoolName,
         designation,
+        avatarUrl,
         menuConfig,
         brandingConfig,
         assignments,

@@ -1689,7 +1689,19 @@ export class AdminRepository {
         sp.admission_date::text AS admission_date,
         sp.father_name,
         sp.mother_name,
+        COALESCE(sp.guardian_name, sp.extra_data->>'guard_name') AS guardian_name,
         sp.emergency_phone,
+        sp.blood_group,
+        sp.medical_notes,
+        sp.address,
+        sp.caste,
+        sp.religion,
+        sp.nationality,
+        sp.photo_url,
+        sp.photo_url AS avatar_url,
+        COALESCE(sp.photo_self_edit_used, FALSE) AS photo_self_edit_used,
+        COALESCE(sp.can_reupload_photo, FALSE) AS can_reupload_photo,
+        sp.photo_updated_at,
         COALESCE(sp.login_password, 'Student@123') AS password,
         u.identifier,
         u.email,
@@ -1745,6 +1757,20 @@ export class AdminRepository {
     return rows;
   }
 
+  private static async ensureStudentPhotoColumns() {
+    const stmts = [
+      'ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS document_url TEXT NULL;',
+      'ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS photo_url TEXT NULL;',
+      'ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS guardian_name VARCHAR(150) NULL;',
+      'ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS photo_self_edit_used BOOLEAN NOT NULL DEFAULT FALSE;',
+      'ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS can_reupload_photo BOOLEAN NOT NULL DEFAULT FALSE;',
+      'ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS photo_updated_at TIMESTAMPTZ NULL;',
+    ];
+    for (const stmt of stmts) {
+      await pool.query(stmt).catch(() => {});
+    }
+  }
+
   /**
    * 9. 360-degree Student Details
    */
@@ -1752,6 +1778,11 @@ export class AdminRepository {
     const query = `
       SELECT 
         sp.*,
+        sp.photo_url AS avatar_url,
+        COALESCE(sp.guardian_name, sp.extra_data->>'guard_name') AS guardian_name,
+        COALESCE(sp.photo_self_edit_used, FALSE) AS photo_self_edit_used,
+        COALESCE(sp.can_reupload_photo, FALSE) AS can_reupload_photo,
+        (NOT COALESCE(sp.photo_self_edit_used, FALSE) OR COALESCE(sp.can_reupload_photo, FALSE)) AS can_upload_photo,
         u.identifier, u.email, u.phone, u.is_active,
         c.name AS class_name, s.name AS section_name
       FROM student_profiles sp
@@ -1760,12 +1791,27 @@ export class AdminRepository {
       LEFT JOIN sections s ON sp.current_section_id = s.id
       WHERE sp.id = $1 AND u.school_id = $2;
     `;
-    const { rows } = await pool.query(query, [studentId, schoolId]);
-    return rows[0] || null;
+    try {
+      const { rows } = await pool.query(query, [studentId, schoolId]);
+      return rows[0] || null;
+    } catch (err: any) {
+      if (
+        err.message &&
+        (err.message.includes('photo_self_edit_used') ||
+          err.message.includes('can_reupload_photo') ||
+          err.message.includes('guardian_name') ||
+          err.message.includes('photo_url'))
+      ) {
+        await this.ensureStudentPhotoColumns();
+        const { rows } = await pool.query(query, [studentId, schoolId]);
+        return rows[0] || null;
+      }
+      throw err;
+    }
   }
 
   /**
-   * 9b. Update Student Details
+   * 9b. Update Student Details (Full Admin Control)
    */
   static async updateStudent(
     schoolId: string,
@@ -1773,22 +1819,40 @@ export class AdminRepository {
     updates: {
       first_name?: string;
       last_name?: string;
+      admission_number?: string;
       roll_number?: string | null;
       emergency_phone?: string | null;
       blood_group?: string | null;
       medical_notes?: string | null;
+      document_url?: string | null;
       father_name?: string | null;
       mother_name?: string | null;
+      guardian_name?: string | null;
       gender?: string | null;
       date_of_birth?: string | null;
+      admission_date?: string | null;
       current_class_id?: string | null;
       current_section_id?: string | null;
+      address?: string | null;
+      caste?: string | null;
+      religion?: string | null;
+      nationality?: string | null;
+      student_aadhar?: string | null;
+      aadhar_father?: string | null;
+      aadhar_mother?: string | null;
+      father_pan?: string | null;
+      pan_mother?: string | null;
+      photo_url?: string | null;
+      can_reupload_photo?: boolean;
+      photo_self_edit_used?: boolean;
+      extra_data?: Record<string, any>;
       phone?: string | null;
       email?: string | null;
+      is_active?: boolean;
     }
   ): Promise<any> {
     const checkQuery = `
-      SELECT sp.id, sp.user_id 
+      SELECT sp.id, sp.user_id, sp.admission_number
       FROM student_profiles sp
       JOIN users u ON sp.user_id = u.id
       WHERE sp.id = $1 AND u.school_id = $2;
@@ -1799,65 +1863,124 @@ export class AdminRepository {
     }
     const userId = checkRes.rows[0].user_id;
 
+    // Validate unique admission_number if changing
+    if (updates.admission_number !== undefined && updates.admission_number !== null) {
+      const trimmedAdm = updates.admission_number.trim();
+      if (!trimmedAdm) {
+        const err: any = new Error('Admission number cannot be empty');
+        err.statusCode = 400;
+        throw err;
+      }
+      if (trimmedAdm.toLowerCase() !== String(checkRes.rows[0].admission_number || '').toLowerCase()) {
+        const dupAdm = await pool.query(
+          'SELECT id FROM student_profiles WHERE LOWER(TRIM(admission_number)) = LOWER(TRIM($1)) AND id != $2',
+          [trimmedAdm, studentId]
+        );
+        if (dupAdm.rows.length > 0) {
+          const err: any = new Error(`Admission number '${trimmedAdm}' is already assigned to another student`);
+          err.statusCode = 400;
+          throw err;
+        }
+      }
+    }
+
+    // Validate unique phone / email on users if provided
+    if (updates.phone) {
+      const cleanPhone = updates.phone.trim();
+      const dupPhone = await pool.query('SELECT id FROM users WHERE phone = $1 AND id != $2', [cleanPhone, userId]);
+      if (dupPhone.rows.length > 0) {
+        const err: any = new Error(`Phone '${cleanPhone}' is already associated with another user account`);
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+    if (updates.email) {
+      const cleanEmail = updates.email.trim().toLowerCase();
+      const dupEmail = await pool.query(
+        'SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER($1) AND id != $2',
+        [cleanEmail, userId]
+      );
+      if (dupEmail.rows.length > 0) {
+        const err: any = new Error(`Email '${cleanEmail}' is already associated with another user account`);
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+
     const profileFields: string[] = [];
     const profileVals: any[] = [];
     let pIdx = 1;
 
-    if (updates.first_name !== undefined) {
-      profileFields.push(`first_name = $${pIdx++}`);
-      profileVals.push(updates.first_name);
+    const pushField = (col: string, val: any) => {
+      profileFields.push(`${col} = $${pIdx++}`);
+      profileVals.push(val);
+    };
+
+    if (updates.first_name !== undefined) pushField('first_name', updates.first_name);
+    if (updates.last_name !== undefined) pushField('last_name', updates.last_name);
+    if (updates.admission_number !== undefined && updates.admission_number !== null) {
+      pushField('admission_number', updates.admission_number.trim());
     }
-    if (updates.last_name !== undefined) {
-      profileFields.push(`last_name = $${pIdx++}`);
-      profileVals.push(updates.last_name);
+    if (updates.roll_number !== undefined) pushField('roll_number', updates.roll_number);
+    if (updates.emergency_phone !== undefined) pushField('emergency_phone', updates.emergency_phone);
+    if (updates.blood_group !== undefined) pushField('blood_group', updates.blood_group);
+    if (updates.medical_notes !== undefined) pushField('medical_notes', updates.medical_notes);
+    if (updates.document_url !== undefined) pushField('document_url', updates.document_url);
+    if (updates.father_name !== undefined) pushField('father_name', updates.father_name);
+    if (updates.mother_name !== undefined) pushField('mother_name', updates.mother_name);
+    if (updates.guardian_name !== undefined) pushField('guardian_name', updates.guardian_name);
+    if (updates.gender !== undefined) pushField('gender', updates.gender);
+    if (updates.date_of_birth !== undefined) pushField('date_of_birth', updates.date_of_birth);
+    if (updates.admission_date !== undefined) pushField('admission_date', updates.admission_date);
+    if (updates.current_class_id !== undefined) pushField('current_class_id', updates.current_class_id);
+    if (updates.current_section_id !== undefined) pushField('current_section_id', updates.current_section_id);
+    if (updates.address !== undefined) pushField('address', updates.address);
+    if (updates.caste !== undefined) pushField('caste', updates.caste);
+    if (updates.religion !== undefined) pushField('religion', updates.religion);
+    if (updates.nationality !== undefined) pushField('nationality', updates.nationality);
+    if (updates.student_aadhar !== undefined) pushField('student_aadhar', updates.student_aadhar);
+    if (updates.aadhar_father !== undefined) pushField('aadhar_father', updates.aadhar_father);
+    if (updates.aadhar_mother !== undefined) pushField('aadhar_mother', updates.aadhar_mother);
+    if (updates.father_pan !== undefined) pushField('father_pan', updates.father_pan);
+    if (updates.pan_mother !== undefined) pushField('pan_mother', updates.pan_mother);
+    if (updates.photo_url !== undefined) {
+      pushField('photo_url', updates.photo_url);
+      if (updates.photo_url) {
+        profileFields.push('photo_updated_at = CURRENT_TIMESTAMP');
+      }
     }
-    if (updates.roll_number !== undefined) {
-      profileFields.push(`roll_number = $${pIdx++}`);
-      profileVals.push(updates.roll_number);
+    if (updates.can_reupload_photo !== undefined) {
+      pushField('can_reupload_photo', Boolean(updates.can_reupload_photo));
     }
-    if (updates.emergency_phone !== undefined) {
-      profileFields.push(`emergency_phone = $${pIdx++}`);
-      profileVals.push(updates.emergency_phone);
+    if (updates.photo_self_edit_used !== undefined) {
+      pushField('photo_self_edit_used', Boolean(updates.photo_self_edit_used));
     }
-    if (updates.blood_group !== undefined) {
-      profileFields.push(`blood_group = $${pIdx++}`);
-      profileVals.push(updates.blood_group);
-    }
-    if (updates.medical_notes !== undefined) {
-      profileFields.push(`medical_notes = $${pIdx++}`);
-      profileVals.push(updates.medical_notes);
-    }
-    if (updates.father_name !== undefined) {
-      profileFields.push(`father_name = $${pIdx++}`);
-      profileVals.push(updates.father_name);
-    }
-    if (updates.mother_name !== undefined) {
-      profileFields.push(`mother_name = $${pIdx++}`);
-      profileVals.push(updates.mother_name);
-    }
-    if (updates.gender !== undefined) {
-      profileFields.push(`gender = $${pIdx++}`);
-      profileVals.push(updates.gender);
-    }
-    if (updates.date_of_birth !== undefined) {
-      profileFields.push(`date_of_birth = $${pIdx++}`);
-      profileVals.push(updates.date_of_birth);
-    }
-    if (updates.current_class_id !== undefined) {
-      profileFields.push(`current_class_id = $${pIdx++}`);
-      profileVals.push(updates.current_class_id);
-    }
-    if (updates.current_section_id !== undefined) {
-      profileFields.push(`current_section_id = $${pIdx++}`);
-      profileVals.push(updates.current_section_id);
+    if (updates.extra_data !== undefined && typeof updates.extra_data === 'object') {
+      profileFields.push(`extra_data = COALESCE(extra_data, '{}'::jsonb) || $${pIdx++}::jsonb`);
+      profileVals.push(JSON.stringify(updates.extra_data));
     }
 
     if (profileFields.length > 0) {
       profileVals.push(studentId);
-      await pool.query(
-        `UPDATE student_profiles SET ${profileFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${pIdx}`,
-        profileVals
-      );
+      const updateSql = `UPDATE student_profiles SET ${profileFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${pIdx}`;
+      try {
+        await pool.query(updateSql, profileVals);
+      } catch (err: any) {
+        if (
+          err.message &&
+          (err.message.includes('photo_self_edit_used') ||
+            err.message.includes('can_reupload_photo') ||
+            err.message.includes('guardian_name') ||
+            err.message.includes('photo_updated_at') ||
+            err.message.includes('document_url') ||
+            err.message.includes('photo_url'))
+        ) {
+          await this.ensureStudentPhotoColumns();
+          await pool.query(updateSql, profileVals);
+        } else {
+          throw err;
+        }
+      }
     }
 
     const userFields: string[] = [];
@@ -1865,11 +1988,19 @@ export class AdminRepository {
     let uIdx = 1;
     if (updates.phone !== undefined) {
       userFields.push(`phone = $${uIdx++}`);
-      userVals.push(updates.phone);
+      userVals.push(updates.phone ? updates.phone.trim() : null);
     }
     if (updates.email !== undefined) {
       userFields.push(`email = $${uIdx++}`);
-      userVals.push(updates.email);
+      userVals.push(updates.email ? updates.email.trim().toLowerCase() : null);
+    }
+    if (updates.admission_number !== undefined && updates.admission_number !== null) {
+      userFields.push(`identifier = $${uIdx++}`);
+      userVals.push(updates.admission_number.trim());
+    }
+    if (updates.is_active !== undefined) {
+      userFields.push(`is_active = $${uIdx++}`);
+      userVals.push(Boolean(updates.is_active));
     }
     if (userFields.length > 0) {
       userVals.push(userId);
@@ -1984,6 +2115,7 @@ export class AdminRepository {
    * 10b. Student Management: Create Single Student (New Admission Form)
    */
   static async createStudent(schoolId: string, data: any): Promise<any> {
+    await this.ensureStudentPhotoColumns();
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -2049,11 +2181,16 @@ export class AdminRepository {
         ? String(data.fat_mobile).trim()
         : data.mobile2
         ? String(data.mobile2).trim()
+        : data.mot_mobile
+        ? String(data.mot_mobile).trim()
         : phone;
       const fatherName = data.father_name || data.fat_name || null;
       const motherName = data.mother_name || data.mot_name || null;
+      const guardianName = data.guardian_name || data.guard_name || null;
       const bloodGroup = data.blood_group || null;
       const medicalNotes = data.medical_notes || null;
+      const rawPhoto = data.photo_url || data.avatar_url || data.photo_stu || null;
+      const photoUrl = rawPhoto && String(rawPhoto).trim() !== '' ? String(rawPhoto).trim() : null;
       const password = data.password || 'Student@123';
       const address = data.address || null;
       const caste = data.caste || data.category || null;
@@ -2153,10 +2290,15 @@ export class AdminRepository {
       }
 
       const passwordHash = await bcrypt.hash(password, 10);
+      const studentEmail =
+        data.email || data.stu_email
+          ? String(data.email || data.stu_email).trim().toLowerCase()
+          : null;
+
       const userRes = await client.query(
         `INSERT INTO users (school_id, identifier, email, phone, password_hash, is_active)
          VALUES ($1, $2, $3, $4, $5, TRUE) RETURNING id`,
-        [schoolId, admissionNumber, data.email || data.stu_email ? (data.email || data.stu_email).trim().toLowerCase() : null, safeUserPhone, passwordHash]
+        [schoolId, admissionNumber, studentEmail, safeUserPhone, passwordHash]
       );
       const userId = userRes.rows[0].id;
 
@@ -2177,48 +2319,68 @@ export class AdminRepository {
         }
       }
 
-      const profileRes = await client.query(
-        `INSERT INTO student_profiles (
+      const insertCols = `
           user_id, admission_number, roll_number, first_name, last_name,
           current_class_id, current_section_id, gender, date_of_birth, admission_date,
-          emergency_phone, father_name, mother_name, blood_group, medical_notes, is_active, login_password,
+          emergency_phone, father_name, mother_name, guardian_name, blood_group, medical_notes,
+          photo_url, photo_updated_at, is_active, login_password,
           address, caste, religion, nationality, student_aadhar, aadhar_father, aadhar_mother,
-          father_pan, pan_mother, extra_data
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-          $11, $12, $13, $14, $15, TRUE, $16,
-          $17, $18, $19, $20, $21, $22, $23,
-          $24, $25, $26::jsonb
-        ) RETURNING id`,
-        [
-          userId,
-          admissionNumber,
-          rollNumber,
-          firstName,
-          lastName,
-          resolvedClassId,
-          resolvedSectionId,
-          gender,
-          dob,
-          admissionDate,
-          emergencyPhone,
-          fatherName,
-          motherName,
-          bloodGroup,
-          medicalNotes,
-          password,
-          address,
-          caste,
-          religion,
-          nationality,
-          studentAadhar,
-          aadharFather,
-          aadharMother,
-          fatherPan,
-          panMother,
-          JSON.stringify(extraData),
-        ]
-      );
+          father_pan, pan_mother, extra_data`;
+      const insertVals = [
+        userId,
+        admissionNumber,
+        rollNumber,
+        firstName,
+        lastName,
+        resolvedClassId,
+        resolvedSectionId,
+        gender,
+        dob,
+        admissionDate,
+        emergencyPhone,
+        fatherName,
+        motherName,
+        guardianName,
+        bloodGroup,
+        medicalNotes,
+        photoUrl,
+        photoUrl ? new Date().toISOString() : null,
+        password,
+        address,
+        caste,
+        religion,
+        nationality,
+        studentAadhar,
+        aadharFather,
+        aadharMother,
+        fatherPan,
+        panMother,
+        JSON.stringify(extraData),
+      ];
+      const insertSql = `INSERT INTO student_profiles (${insertCols}) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+        $11, $12, $13, $14, $15, $16, $17, $18, TRUE, $19,
+        $20, $21, $22, $23, $24, $25, $26,
+        $27, $28, $29::jsonb
+      ) RETURNING id`;
+      let profileRes;
+      try {
+        profileRes = await client.query(insertSql, insertVals);
+      } catch (err: any) {
+        if (
+          err.message &&
+          (err.message.includes('guardian_name') ||
+            err.message.includes('photo_url') ||
+            err.message.includes('photo_updated_at'))
+        ) {
+          await client.query('ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS guardian_name VARCHAR(150) NULL;').catch(() => {});
+          await client.query('ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS photo_url TEXT NULL;').catch(() => {});
+          await client.query('ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS photo_updated_at TIMESTAMPTZ NULL;').catch(() => {});
+          profileRes = await client.query(insertSql, insertVals);
+        } else {
+          throw err;
+        }
+      }
       const profileId = profileRes.rows[0].id;
 
       await client.query('COMMIT');
@@ -2237,17 +2399,28 @@ export class AdminRepository {
         section_id: resolvedSectionId,
         section_name: resolvedSectionName,
         phone: phone,
+        email: studentEmail,
         emergency_phone: emergencyPhone,
         father_name: fatherName,
         mother_name: motherName,
+        guardian_name: guardianName,
         gender: gender,
         date_of_birth: dob,
         dob: dob,
         admission_date: admissionDate,
+        blood_group: bloodGroup,
+        medical_notes: medicalNotes,
+        photo_url: photoUrl,
+        avatar_url: photoUrl,
         address: address,
         caste: caste,
         religion: religion,
+        nationality: nationality,
         student_aadhar: studentAadhar,
+        aadhar_father: aadharFather,
+        aadhar_mother: aadharMother,
+        father_pan: fatherPan,
+        pan_mother: panMother,
         password: password,
         extra_data: extraData,
       };
@@ -2392,14 +2565,20 @@ export class AdminRepository {
           );
           if (ayRes.rows.length > 0) {
             await client.query(
+              `INSERT INTO class_subjects (class_id, subject_id)
+               VALUES ($1, $2)
+               ON CONFLICT DO NOTHING;`,
+              [data.class_id, data.subject_id]
+            );
+            await client.query(
               `DELETE FROM teacher_subject_allocations 
                WHERE class_id = $1 AND section_id = $2 AND subject_id = $3`,
               [data.class_id, data.section_id, data.subject_id]
             );
             await client.query(
-              `INSERT INTO teacher_subject_allocations (school_id, academic_year_id, class_id, section_id, subject_id, teacher_id)
-               VALUES ($1, $2, $3, $4, $5, $6)`,
-              [schoolId, ayRes.rows[0].id, data.class_id, data.section_id, data.subject_id, staffRes.rows[0].id]
+              `INSERT INTO teacher_subject_allocations (staff_id, class_id, section_id, subject_id, academic_year_id)
+               VALUES ($1, $2, $3, $4, $5)`,
+              [staffRes.rows[0].id, data.class_id, data.section_id, data.subject_id, ayRes.rows[0].id]
             );
           }
         }
@@ -2892,7 +3071,9 @@ export class AdminRepository {
     `;
     const { rows } = await pool.query(query, [
       data.status,
-      data.resolution_notes || null,
+      data.resolution_notes !== undefined && data.resolution_notes.trim() !== ''
+        ? data.resolution_notes.trim()
+        : null,
       complaintId,
       schoolId,
     ]);
@@ -2903,6 +3084,7 @@ export class AdminRepository {
    * 17. Bulk Upload Students with Auto-Class/Section Resolution
    */
   static async bulkUploadStudents(schoolId: string, students: any[]): Promise<any> {
+    await this.ensureStudentPhotoColumns();
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -3002,10 +3184,18 @@ export class AdminRepository {
           ? String(row.fat_mobile).trim()
           : row.mot_mobile
           ? String(row.mot_mobile).trim()
+          : row.mobile2
+          ? String(row.mobile2).trim()
           : phone;
+        const rawEmail = row.stu_email || row.email || null;
+        const email = rawEmail && String(rawEmail).trim() !== '' ? String(rawEmail).trim().toLowerCase() : null;
         const fatherName = row.fat_name || row.father_name || row.father || null;
         const motherName = row.mot_name || row.mother_name || row.mother || null;
-        const bloodGroup = row.blood_group || null;
+        const guardianName = row.guardian_name || row.guard_name || null;
+        const bloodGroup = row.blood_group || row.bloodgroup || null;
+        const medicalNotes = row.medical_notes || row.medicalNotes || null;
+        const rawPhoto = row.photo_url || row.avatar_url || row.photo_stu || null;
+        const photoUrl = rawPhoto && String(rawPhoto).trim() !== '' ? String(rawPhoto).trim() : null;
         const password = row.password || 'Student@123';
 
         // Additional legacy ERP profile fields
@@ -3068,14 +3258,25 @@ export class AdminRepository {
           }
         }
 
+        let safeUserEmail = email;
+        if (safeUserEmail) {
+          const emailCheck = await client.query(
+            'SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) AND LOWER(TRIM(identifier)) != LOWER(TRIM($2))',
+            [safeUserEmail, admissionNumber]
+          );
+          if (emailCheck.rows.length > 0) {
+            safeUserEmail = null; // Avoid unique email collision during bulk upload
+          }
+        }
+
         if (existingUserRes.rows.length > 0) {
           const userId = existingUserRes.rows[0].user_id;
           let profileId = existingUserRes.rows[0].profile_id;
 
           // Keep user account active and attached to this school
           await client.query(
-            'UPDATE users SET school_id = $1, phone = COALESCE($2, phone), is_active = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-            [schoolId, safeUserPhone, userId]
+            'UPDATE users SET school_id = $1, phone = COALESCE($2, phone), email = COALESCE($3, email), is_active = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $4',
+            [schoolId, safeUserPhone, safeUserEmail, userId]
           );
 
           if (!profileId) {
@@ -3103,7 +3304,10 @@ export class AdminRepository {
                 emergency_phone = COALESCE($9, emergency_phone),
                 father_name = COALESCE($10, father_name),
                 mother_name = COALESCE($11, mother_name),
+                guardian_name = COALESCE($25, guardian_name),
                 blood_group = COALESCE($12, blood_group),
+                medical_notes = COALESCE($26, medical_notes),
+                photo_url = COALESCE($27, photo_url),
                 admission_date = COALESCE($13, admission_date),
                 address = COALESCE($15, address),
                 caste = COALESCE($16, caste),
@@ -3143,6 +3347,9 @@ export class AdminRepository {
                 fatherPan,
                 panMother,
                 JSON.stringify(extraData),
+                guardianName,
+                medicalNotes,
+                photoUrl,
               ]
             );
           } else {
@@ -3150,12 +3357,13 @@ export class AdminRepository {
               `INSERT INTO student_profiles (
                 user_id, admission_number, roll_number, first_name, last_name,
                 current_class_id, current_section_id, gender, date_of_birth, admission_date,
-                emergency_phone, father_name, mother_name, blood_group, is_active, login_password,
+                emergency_phone, father_name, mother_name, guardian_name, blood_group, medical_notes, photo_url,
+                is_active, login_password,
                 address, caste, religion, nationality, student_aadhar, aadhar_father, aadhar_mother,
                 father_pan, pan_mother, extra_data
               ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, TRUE, $15,
+                $11, $12, $13, $26, $14, $27, $28, TRUE, $15,
                 $16, $17, $18, $19, $20, $21, $22,
                 $23, $24, $25::jsonb
               )`,
@@ -3185,6 +3393,9 @@ export class AdminRepository {
                 fatherPan,
                 panMother,
                 JSON.stringify(extraData),
+                guardianName,
+                medicalNotes,
+                photoUrl,
               ]
             );
           }
@@ -3192,14 +3403,15 @@ export class AdminRepository {
         } else {
           const passwordHash = await bcrypt.hash(password, 10);
           const userInsert = await client.query(
-            `INSERT INTO users (school_id, identifier, phone, password_hash, is_active)
-             VALUES ($1, $2, $3, $4, TRUE)
+            `INSERT INTO users (school_id, identifier, email, phone, password_hash, is_active)
+             VALUES ($1, $2, $3, $4, $5, TRUE)
              ON CONFLICT (identifier) DO UPDATE SET
                school_id = EXCLUDED.school_id,
+               email = COALESCE(EXCLUDED.email, users.email),
                phone = COALESCE(EXCLUDED.phone, users.phone),
                updated_at = CURRENT_TIMESTAMP
              RETURNING id`,
-            [schoolId, admissionNumber, safeUserPhone, passwordHash]
+            [schoolId, admissionNumber, safeUserEmail, safeUserPhone, passwordHash]
           );
           const newUserId = userInsert.rows[0].id;
 
@@ -3230,7 +3442,10 @@ export class AdminRepository {
                 emergency_phone = COALESCE($9, emergency_phone),
                 father_name = COALESCE($10, father_name),
                 mother_name = COALESCE($11, mother_name),
+                guardian_name = COALESCE($25, guardian_name),
                 blood_group = COALESCE($12, blood_group),
+                medical_notes = COALESCE($26, medical_notes),
+                photo_url = COALESCE($27, photo_url),
                 admission_date = COALESCE($13, admission_date),
                 address = COALESCE($15, address),
                 caste = COALESCE($16, caste),
@@ -3270,6 +3485,9 @@ export class AdminRepository {
                 fatherPan,
                 panMother,
                 JSON.stringify(extraData),
+                guardianName,
+                medicalNotes,
+                photoUrl,
               ]
             );
             updatedCount++;
@@ -3278,12 +3496,13 @@ export class AdminRepository {
               `INSERT INTO student_profiles (
                 user_id, admission_number, roll_number, first_name, last_name,
                 current_class_id, current_section_id, gender, date_of_birth, admission_date,
-                emergency_phone, father_name, mother_name, blood_group, is_active, login_password,
+                emergency_phone, father_name, mother_name, guardian_name, blood_group, medical_notes, photo_url,
+                is_active, login_password,
                 address, caste, religion, nationality, student_aadhar, aadhar_father, aadhar_mother,
                 father_pan, pan_mother, extra_data
               ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, TRUE, $15,
+                $11, $12, $13, $26, $14, $27, $28, TRUE, $15,
                 $16, $17, $18, $19, $20, $21, $22,
                 $23, $24, $25::jsonb
               )`,
@@ -3313,6 +3532,9 @@ export class AdminRepository {
                 fatherPan,
                 panMother,
                 JSON.stringify(extraData),
+                guardianName,
+                medicalNotes,
+                photoUrl,
               ]
             );
             createdCount++;
@@ -3479,14 +3701,20 @@ export class AdminRepository {
                   );
                   if (ayRes.rows.length > 0) {
                     await client.query(
+                      `INSERT INTO class_subjects (class_id, subject_id)
+                       VALUES ($1, $2)
+                       ON CONFLICT DO NOTHING;`,
+                      [classId, subjectId]
+                    );
+                    await client.query(
                       `DELETE FROM teacher_subject_allocations 
                        WHERE class_id = $1 AND section_id = $2 AND subject_id = $3`,
                       [classId, sectionId, subjectId]
                     );
                     await client.query(
-                      `INSERT INTO teacher_subject_allocations (school_id, academic_year_id, class_id, section_id, subject_id, teacher_id)
-                       VALUES ($1, $2, $3, $4, $5, $6)`,
-                      [schoolId, ayRes.rows[0].id, classId, sectionId, subjectId, staffId]
+                      `INSERT INTO teacher_subject_allocations (staff_id, class_id, section_id, subject_id, academic_year_id)
+                       VALUES ($1, $2, $3, $4, $5)`,
+                      [staffId, classId, sectionId, subjectId, ayRes.rows[0].id]
                     );
                   }
                 }
@@ -3980,10 +4208,10 @@ export class AdminRepository {
 
     const query = `
       UPDATE student_profiles
-      SET photo_url = $1, updated_at = CURRENT_TIMESTAMP
+      SET photo_url = $1, photo_updated_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
       WHERE (id = $2 OR user_id = $2)
         AND user_id IN (SELECT id FROM users WHERE school_id = $3)
-      RETURNING id, photo_url;
+      RETURNING id, photo_url, photo_updated_at;
     `;
     const { rows } = await pool.query(query, [photoUrl, studentId, schoolId]);
     return {

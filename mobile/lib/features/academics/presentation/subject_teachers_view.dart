@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/user_avatar.dart';
 import '../models/subject_teacher_item.dart';
 
 class SubjectTeachersView extends StatelessWidget {
@@ -84,21 +85,12 @@ class SubjectTeachersView extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.scaffoldBackground,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Text(
-                  item.subjectCode,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryText,
-                  ),
-                ),
+              UserAvatar(
+                name: (item.teacherName != null && item.teacherName!.trim().isNotEmpty)
+                    ? item.teacherName!
+                    : item.subjectName,
+                avatarUrl: item.avatarUrl,
+                radius: 20,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -107,6 +99,23 @@ class SubjectTeachersView extends StatelessWidget {
                   children: [
                     Row(
                       children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.scaffoldBackground,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Text(
+                            item.subjectCode,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primaryText,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             item.subjectName,
@@ -135,9 +144,9 @@ class SubjectTeachersView extends StatelessWidget {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
-                      item.teacherName != null
+                      item.teacherName != null && item.teacherName!.trim().isNotEmpty
                           ? 'Teacher: ${item.teacherName}'
                           : 'Teacher: Not Assigned Yet',
                       style: const TextStyle(
@@ -145,7 +154,19 @@ class SubjectTeachersView extends StatelessWidget {
                         color: AppColors.secondaryText,
                       ),
                     ),
-                    if (item.teacherPhone != null) ...[
+                    if (item.qualification != null &&
+                        item.qualification!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        item.qualification!,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.secondaryText,
+                        ),
+                      ),
+                    ],
+                    if (item.teacherPhone != null &&
+                        item.teacherPhone!.trim().isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         'Contact: ${item.teacherPhone}',
