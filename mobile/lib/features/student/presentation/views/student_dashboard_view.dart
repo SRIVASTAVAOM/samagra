@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/user_avatar.dart';
+import '../../../../core/widgets/school_header_badge.dart';
 import '../../../../core/widgets/samagra_back_button.dart';
 import '../../../academics/bloc/exams_bloc.dart';
 import '../../../academics/repositories/exams_repository.dart';
@@ -1171,29 +1172,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
                           ),
                           const SizedBox(width: 6),
                           Expanded(
-                            child: schoolName != null
-                                ? Text(
-                                    schoolName.toUpperCase(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.6,
-                                      color: AppColors.indigo200,
-                                    ),
-                                  )
-                                : Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Container(
-                                      height: 11,
-                                      width: 140,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                    ),
-                                  ),
+                            child: SchoolHeaderBadge(schoolName: schoolName),
                           ),
                           const SizedBox(width: 8),
                           Container(

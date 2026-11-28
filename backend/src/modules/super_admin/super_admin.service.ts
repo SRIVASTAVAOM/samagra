@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import { pool } from '../../config/db.config';
+import { buildSamagraIdentifier } from '../../utils/identifier.util';
 
 export interface OnboardSchoolInput {
   name: string;
@@ -187,8 +188,7 @@ export class SuperAdminService {
       }
 
       // Check if admin email or identifier exists
-      const codeSlug = cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const adminIdentifier = `admin.${codeSlug}@samagra.in`;
+      const adminIdentifier = buildSamagraIdentifier('admin', cleanCode, 'admin');
       const existingUser = await client.query(
         'SELECT id FROM users WHERE identifier = $1 OR email = $2',
         [adminIdentifier, data.adminEmail.trim()]

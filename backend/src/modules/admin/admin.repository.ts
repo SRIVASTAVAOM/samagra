@@ -1,4 +1,5 @@
 import { pool } from '../../config/db.config';
+import { buildSamagraIdentifier } from '../../utils/identifier.util';
 import bcrypt from 'bcrypt';
 import { invalidateUserStatusCache } from '../../middlewares/auth.middleware';
 
@@ -2330,12 +2331,12 @@ export class AdminRepository {
           : null;
 
       const schoolCodeRes = await client.query('SELECT code FROM schools WHERE id = $1 LIMIT 1', [schoolId]);
-      const codeSlug = (schoolCodeRes.rows[0]?.code || 'school').toString().toLowerCase().replace(/[^a-z0-9]/g, '') || 'school';
       const rawClientIdent = (data.identifier || data.username || '').toString().trim();
-      const admSlug = admissionNumber.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const studentIdentifier = rawClientIdent.includes('@')
-        ? rawClientIdent
-        : `${admSlug || 'student'}.${codeSlug}@samagra.in`;
+      const studentIdentifier = buildSamagraIdentifier(
+        rawClientIdent.includes('@') ? rawClientIdent : admissionNumber,
+        schoolCodeRes.rows[0]?.code || 'school',
+        'student'
+      );
 
       const userRes = await client.query(
         `INSERT INTO users (school_id, identifier, email, phone, password_hash, is_active)
@@ -2525,10 +2526,11 @@ export class AdminRepository {
       const passwordHash = await bcrypt.hash(password, 12);
 
       const staffSchoolRes = await client.query('SELECT code FROM schools WHERE id = $1 LIMIT 1', [schoolId]);
-      const staffCodeSlug = (staffSchoolRes.rows[0]?.code || 'school').toString().toLowerCase().replace(/[^a-z0-9]/g, '') || 'school';
-      const rawStaffIdent = (identifier || '').toString().trim();
-      const staffBaseSlug = rawStaffIdent.toLowerCase().replace(/[^a-z0-9]/g, '') || 'staff';
-      const staffIdentifier = rawStaffIdent.includes('@') ? rawStaffIdent : `${staffBaseSlug}.${staffCodeSlug}@samagra.in`;
+      const staffIdentifier = buildSamagraIdentifier(
+        identifier,
+        staffSchoolRes.rows[0]?.code || 'school',
+        'staff'
+      );
 
       const userRes = await client.query(
         `INSERT INTO users (school_id, identifier, email, phone, password_hash, is_active)
