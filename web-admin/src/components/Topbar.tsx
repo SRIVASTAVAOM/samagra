@@ -110,7 +110,15 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           <>
             {/* Dynamic School Badge */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-900 font-bold truncate max-w-[220px]">
-              <School className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              {branding.logoUrl && branding.logoUrl !== '/samagra-mark.png' && branding.logoUrl !== '/logo-icon.png' ? (
+                <img
+                  src={branding.logoUrl}
+                  alt={branding.name || 'School Logo'}
+                  className="w-4 h-4 rounded-full object-cover shrink-0"
+                />
+              ) : (
+                <School className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              )}
               <span className="truncate">{branding.name}</span>
             </div>
 

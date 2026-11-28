@@ -2329,10 +2329,18 @@ export class AdminRepository {
           ? String(data.email || data.stu_email).trim().toLowerCase()
           : null;
 
+      const schoolCodeRes = await client.query('SELECT code FROM schools WHERE id = $1 LIMIT 1', [schoolId]);
+      const codeSlug = (schoolCodeRes.rows[0]?.code || 'school').toString().toLowerCase().replace(/[^a-z0-9]/g, '') || 'school';
+      const rawClientIdent = (data.identifier || data.username || '').toString().trim();
+      const admSlug = admissionNumber.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const studentIdentifier = rawClientIdent.includes('@')
+        ? rawClientIdent
+        : `${admSlug || 'student'}.${codeSlug}@samagra.in`;
+
       const userRes = await client.query(
         `INSERT INTO users (school_id, identifier, email, phone, password_hash, is_active)
          VALUES ($1, $2, $3, $4, $5, TRUE) RETURNING id`,
-        [schoolId, admissionNumber, studentEmail, safeUserPhone, passwordHash]
+        [schoolId, studentIdentifier, studentEmail, safeUserPhone, passwordHash]
       );
       const userId = userRes.rows[0].id;
 
@@ -2516,12 +2524,18 @@ export class AdminRepository {
       const password = (data.password && data.password.trim()) ? data.password.trim() : 'Staff@123';
       const passwordHash = await bcrypt.hash(password, 12);
 
+      const staffSchoolRes = await client.query('SELECT code FROM schools WHERE id = $1 LIMIT 1', [schoolId]);
+      const staffCodeSlug = (staffSchoolRes.rows[0]?.code || 'school').toString().toLowerCase().replace(/[^a-z0-9]/g, '') || 'school';
+      const rawStaffIdent = (identifier || '').toString().trim();
+      const staffBaseSlug = rawStaffIdent.toLowerCase().replace(/[^a-z0-9]/g, '') || 'staff';
+      const staffIdentifier = rawStaffIdent.includes('@') ? rawStaffIdent : `${staffBaseSlug}.${staffCodeSlug}@samagra.in`;
+
       const userRes = await client.query(
         `INSERT INTO users (school_id, identifier, email, phone, password_hash, is_active)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
         [
           schoolId,
-          identifier,
+          staffIdentifier,
           cleanEmail,
           cleanPhone,
           passwordHash,

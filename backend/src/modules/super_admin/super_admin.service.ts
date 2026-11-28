@@ -11,6 +11,8 @@ export interface OnboardSchoolInput {
   adminPhone?: string;
   adminPassword?: string;
   address?: string;
+  logoUrl?: string;
+  branding_config?: Record<string, any>;
 }
 
 export class SuperAdminService {
@@ -185,7 +187,8 @@ export class SuperAdminService {
       }
 
       // Check if admin email or identifier exists
-      const adminIdentifier = `admin_${cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+      const codeSlug = cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const adminIdentifier = `admin.${codeSlug}@samagra.in`;
       const existingUser = await client.query(
         'SELECT id FROM users WHERE identifier = $1 OR email = $2',
         [adminIdentifier, data.adminEmail.trim()]
@@ -198,10 +201,12 @@ export class SuperAdminService {
       const cleanEmail = data.adminEmail.trim();
       const cleanPhone = data.adminPhone ? data.adminPhone.trim() : null;
       const cleanAddress = data.address ? data.address.trim() : null;
+      const cleanLogoUrl = (data.logoUrl || data.branding_config?.logoUrl || '').toString().trim() || null;
       const initialBranding = {
         ...(cleanAddress ? { address: cleanAddress } : {}),
         ...(cleanPhone ? { phone: cleanPhone } : {}),
         ...(cleanEmail ? { email: cleanEmail } : {}),
+        ...(cleanLogoUrl ? { logoUrl: cleanLogoUrl } : {}),
       };
 
       const schoolRes = await client.query(`

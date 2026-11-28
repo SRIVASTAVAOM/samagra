@@ -94,6 +94,17 @@ class _AdminShellState extends State<AdminShell> {
               ),
             ),
           ),
+          const SizedBox(height: 16),
+          const Center(
+            child: Text(
+              'Powered by Samagra',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.secondaryText,
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
           ListTile(
             leading: const Icon(Icons.logout_rounded, color: Colors.red),

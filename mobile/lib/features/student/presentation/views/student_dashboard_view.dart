@@ -1087,7 +1087,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
   ) {
     final schoolName = (profile?.schoolName?.trim().isNotEmpty == true)
         ? profile!.schoolName!.trim()
-        : null;
+        : (widget.user.schoolName?.trim().isNotEmpty == true ? widget.user.schoolName!.trim() : null);
 
     final studentName = (profile?.fullName.trim().isNotEmpty == true)
         ? profile!.fullName
@@ -2491,7 +2491,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
                 .isNotEmpty ==
             true
         ? profile!.menuConfig!['company_footer'] as String
-        : 'Powered by School ERP SaaS';
+        : 'Powered by Samagra';
 
     return Center(
       child: Padding(

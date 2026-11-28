@@ -14,6 +14,8 @@ class UserModel extends Equatable {
   final String? classId;
   final String? sectionId;
   final String? avatarUrl;
+  final String? schoolName;
+  final String? schoolLogoUrl;
 
   const UserModel({
     required this.id,
@@ -29,6 +31,8 @@ class UserModel extends Equatable {
     this.classId,
     this.sectionId,
     this.avatarUrl,
+    this.schoolName,
+    this.schoolLogoUrl,
   });
 
   String get displayName {
@@ -65,6 +69,8 @@ class UserModel extends Equatable {
       classId: json['classId'] as String?,
       sectionId: json['sectionId'] as String?,
       avatarUrl: (json['avatar_url'] ?? json['photo_url'] ?? json['photoUrl']) as String?,
+      schoolName: (json['schoolName'] ?? json['school_name'] ?? (json['school'] is Map ? (json['school']['name']) : null)) as String?,
+      schoolLogoUrl: (json['schoolLogoUrl'] ?? (json['school'] is Map && json['school']['branding'] is Map ? json['school']['branding']['logoUrl'] : null)) as String?,
     );
   }
 

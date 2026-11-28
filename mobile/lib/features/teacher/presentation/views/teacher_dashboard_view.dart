@@ -218,7 +218,7 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
     final rawSchoolName = profile?.schoolName?.trim();
     final schoolName = (rawSchoolName != null && rawSchoolName.isNotEmpty)
         ? rawSchoolName
-        : null;
+        : (widget.user.schoolName?.trim().isNotEmpty == true ? widget.user.schoolName!.trim() : null);
 
     final teacherName = (profile?.firstName != null && profile!.firstName.trim().isNotEmpty)
         ? '${profile.firstName} ${profile.lastName}'.trim()
@@ -1463,7 +1463,7 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
     final footer = profile?.menuConfig?['company_footer']?.toString().trim();
     final footerText = (footer != null && footer.isNotEmpty)
         ? footer
-        : 'Powered by School ERP SaaS';
+        : 'Powered by Samagra';
 
     return Container(
       width: double.infinity,

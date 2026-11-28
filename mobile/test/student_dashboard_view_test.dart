@@ -294,14 +294,14 @@ void main() {
       expect(find.text('Leaves'), findsOneWidget);
 
       // 5. Footer
-      expect(find.text('Powered by School ERP SaaS'), findsOneWidget);
+      expect(find.text('Powered by Samagra'), findsOneWidget);
 
       // Verify strict vertical ordering top-to-bottom
       final headerTop = tester.getTopLeft(find.text('DELHI PUBLIC INTERNATIONAL SCHOOL')).dy;
       final overviewTop = tester.getTopLeft(find.text('Attendance')).dy;
       final noticesTop = tester.getTopLeft(find.text('Notices & Circulars')).dy;
       final quickLinksTop = tester.getTopLeft(find.text('Quick Links')).dy;
-      final footerTop = tester.getTopLeft(find.text('Powered by School ERP SaaS')).dy;
+      final footerTop = tester.getTopLeft(find.text('Powered by Samagra')).dy;
 
       expect(headerTop < overviewTop, isTrue, reason: 'Header must be above Overview');
       expect(overviewTop < noticesTop, isTrue, reason: 'Overview must be above Notices');

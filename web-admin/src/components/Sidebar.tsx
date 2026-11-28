@@ -315,6 +315,19 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
               <LogOut size={15} />
             </button>
           </div>
+          <div
+            style={{
+              marginTop: 8,
+              textAlign: 'center',
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              color: 'rgba(255,255,255,0.35)',
+              textTransform: 'uppercase',
+            }}
+          >
+            Powered by Samagra
+          </div>
         </div>
       </aside>
     </>
