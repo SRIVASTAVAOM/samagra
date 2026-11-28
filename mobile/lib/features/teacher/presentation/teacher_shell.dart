@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/samagra_back_button.dart';
 import '../../academics/bloc/academics_bloc.dart';
 import '../../academics/bloc/academics_event.dart';
 import '../../academics/bloc/academics_state.dart';
@@ -8,6 +9,7 @@ import '../../academics/models/student_roster_item.dart';
 import '../../academics/presentation/student_roster_view.dart';
 import '../../academics/repository/academics_repository.dart';
 import '../../attendance/bloc/attendance_bloc.dart';
+import '../../attendance/bloc/attendance_event.dart';
 import '../../attendance/presentation/teacher_attendance_marking_view.dart';
 import '../../attendance/presentation/teacher_own_attendance_view.dart';
 import '../../attendance/repository/attendance_repository.dart';
@@ -22,6 +24,7 @@ import '../../homework/presentation/teacher_homework_manage_view.dart';
 import '../../homework/repository/homework_repository.dart';
 import '../../leaves/bloc/leaves_bloc.dart';
 import '../../leaves/bloc/leaves_event.dart';
+import '../../leaves/bloc/leaves_state.dart';
 import '../../leaves/presentation/teacher_leave_view.dart';
 import '../../leaves/repository/leaves_repository.dart';
 import '../../materials/bloc/materials_bloc.dart';
@@ -51,6 +54,26 @@ class TeacherShell extends StatefulWidget {
   State<TeacherShell> createState() => _TeacherShellState();
 }
 
+class _TeacherNavigationLocation {
+  final int selectedIndex;
+  final int attendanceSubTab;
+  final int classesSubTab;
+  final int leavesInitialTab;
+
+  const _TeacherNavigationLocation({
+    required this.selectedIndex,
+    required this.attendanceSubTab,
+    required this.classesSubTab,
+    required this.leavesInitialTab,
+  });
+
+  bool matches(_TeacherNavigationLocation other) =>
+      selectedIndex == other.selectedIndex &&
+      attendanceSubTab == other.attendanceSubTab &&
+      classesSubTab == other.classesSubTab &&
+      leavesInitialTab == other.leavesInitialTab;
+}
+
 class _TeacherShellState extends State<TeacherShell> {
   int _selectedIndex = 0;
   int _attendanceSubTab = 0; // 0: Mark Class, 1: My Own Attendance
@@ -58,6 +81,8 @@ class _TeacherShellState extends State<TeacherShell> {
   int _leavesInitialTab = 0; // 0: My Leaves, 1: Student Leave Requests
   int _rosterSegment = 0; // 0: Homeroom (Class Teacher), 1: All Taught Students / By Subject-Class
   String? _selectedClassSectionFilter; // e.g. '${classId}-${sectionId}' for All Taught view
+  final List<_TeacherNavigationLocation> _navigationHistory = [];
+  bool _handlingSystemBack = false;
 
   TeacherAllocationsResponse? _allocations;
   TeacherAllocationItem? _selectedAllocation;
@@ -65,11 +90,44 @@ class _TeacherShellState extends State<TeacherShell> {
   AcademicsBloc? _academicsBloc;
 
   void _navigateToTab(int tabIndex, {int? attendanceSubTab, int? classesSubTab, int? leavesSubTab}) {
+    final nextLocation = _TeacherNavigationLocation(
+      selectedIndex: tabIndex,
+      attendanceSubTab: attendanceSubTab ?? _attendanceSubTab,
+      classesSubTab: classesSubTab ?? _classesSubTab,
+      leavesInitialTab: leavesSubTab ?? _leavesInitialTab,
+    );
+    if (!nextLocation.matches(_currentLocation)) {
+      _navigationHistory.add(_currentLocation);
+    }
     setState(() {
       _selectedIndex = tabIndex;
       if (attendanceSubTab != null) _attendanceSubTab = attendanceSubTab;
       if (classesSubTab != null) _classesSubTab = classesSubTab;
       if (leavesSubTab != null) _leavesInitialTab = leavesSubTab;
+    });
+  }
+
+  _TeacherNavigationLocation get _currentLocation => _TeacherNavigationLocation(
+        selectedIndex: _selectedIndex,
+        attendanceSubTab: _attendanceSubTab,
+        classesSubTab: _classesSubTab,
+        leavesInitialTab: _leavesInitialTab,
+      );
+
+  bool get _canNavigateBack => _navigationHistory.isNotEmpty;
+
+  void _navigateBack() {
+    if (_navigationHistory.isEmpty || _handlingSystemBack) return;
+    _handlingSystemBack = true;
+    final previous = _navigationHistory.removeLast();
+    setState(() {
+      _selectedIndex = previous.selectedIndex;
+      _attendanceSubTab = previous.attendanceSubTab;
+      _classesSubTab = previous.classesSubTab;
+      _leavesInitialTab = previous.leavesInitialTab;
+    });
+    Future<void>.delayed(const Duration(milliseconds: 250), () {
+      if (mounted) _handlingSystemBack = false;
     });
   }
 
@@ -204,7 +262,7 @@ class _TeacherShellState extends State<TeacherShell> {
         BlocProvider(
           create: (ctx) => AttendanceBloc(
             repository: ctx.read<AttendanceRepository>(),
-          ),
+          )..add(const LoadStaffOwnAttendanceEvent()),
         ),
         BlocProvider(
           create: (ctx) => LeavesBloc(
@@ -241,17 +299,26 @@ class _TeacherShellState extends State<TeacherShell> {
       ],
       child: Builder(
         builder: (context) {
-          return Scaffold(
-            backgroundColor: AppColors.scaffoldBackground,
-            appBar: AppBar(
-              leading: Padding(
-                padding: const EdgeInsets.only(left: 14, top: 10, bottom: 10, right: 2),
-                child: Image.asset(
-                  'assets/images/logo_icon.png',
-                  fit: BoxFit.contain,
-                ),
-              ),
-              leadingWidth: 44,
+          return PopScope<Object?>(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop && !Navigator.of(context).canPop()) {
+                _navigateBack();
+              }
+            },
+            child: Scaffold(
+              backgroundColor: AppColors.scaffoldBackground,
+              appBar: AppBar(
+              leading: _selectedIndex != 0 && _canNavigateBack
+                  ? SamagraBackButton(onPressed: _navigateBack)
+                  : Padding(
+                      padding: const EdgeInsets.only(left: 14, top: 10, bottom: 10, right: 2),
+                      child: Image.asset(
+                        'assets/images/logo_icon.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+              leadingWidth: 56,
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -265,6 +332,57 @@ class _TeacherShellState extends State<TeacherShell> {
                 ],
               ),
               actions: [
+                BlocBuilder<LeavesBloc, LeavesState>(
+                  builder: (context, state) {
+                    int unreadCount = 0;
+                    if (state is ClassStudentLeavesLoaded) {
+                      unreadCount =
+                          state.leaves.where((leave) => leave.status == 'PENDING').length;
+                    }
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        IconButton(
+                          tooltip: 'Pending Leave Requests',
+                          icon: const Icon(
+                            Icons.notifications_outlined,
+                            size: 22,
+                            color: AppColors.primaryText,
+                          ),
+                          onPressed: () => _navigateToTab(
+                            3,
+                            leavesSubTab: 1,
+                          ),
+                        ),
+                        if (unreadCount > 0)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                color: AppColors.error,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                unreadCount > 9 ? '9+' : '$unreadCount',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
                 IconButton(
                   tooltip: 'Sign Out',
                   icon: const Icon(Icons.logout,
@@ -283,8 +401,7 @@ class _TeacherShellState extends State<TeacherShell> {
               ),
               child: NavigationBar(
                 selectedIndex: _selectedIndex,
-                onDestinationSelected: (idx) =>
-                    setState(() => _selectedIndex = idx),
+                onDestinationSelected: (idx) => _navigateToTab(idx),
                 destinations: const [
                   NavigationDestination(
                     icon: Icon(Icons.dashboard_outlined),
@@ -314,6 +431,7 @@ class _TeacherShellState extends State<TeacherShell> {
                 ],
               ),
             ),
+          ),
           );
         },
       ),
@@ -401,11 +519,11 @@ class _TeacherShellState extends State<TeacherShell> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primaryText
+              ? AppColors.primaryAccent
               : AppColors.scaffoldBackground,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? AppColors.primaryText : AppColors.border,
+            color: isSelected ? AppColors.primaryAccent : AppColors.border,
           ),
         ),
         child: Text(

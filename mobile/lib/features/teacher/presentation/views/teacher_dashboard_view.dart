@@ -12,6 +12,8 @@ import '../../../profiles/bloc/profile_bloc.dart';
 import '../../../profiles/bloc/profile_event.dart';
 import '../../../profiles/bloc/profile_state.dart';
 import '../../../profiles/models/staff_profile_model.dart';
+import '../../../attendance/bloc/attendance_bloc.dart';
+import '../../../attendance/bloc/attendance_state.dart';
 import '../../../student/models/student_features_model.dart';
 import '../../../student/repository/student_features_repository.dart';
 
@@ -180,7 +182,7 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
     final rawSchoolName = profile?.schoolName?.trim();
     final schoolName = (rawSchoolName != null && rawSchoolName.isNotEmpty)
         ? rawSchoolName
-        : 'Delhi Public International School';
+        : 'SAMAGRA';
 
     final teacherName = (profile?.firstName != null && profile!.firstName.trim().isNotEmpty)
         ? '${profile.firstName} ${profile.lastName}'.trim()
@@ -246,23 +248,6 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.6,
                           color: AppColors.indigo200,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                      ),
-                      child: const Text(
-                        '2026-2027',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -430,14 +415,43 @@ class _TeacherDashboardViewState extends State<TeacherDashboardView> {
                               ],
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'Present',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryText,
-                                letterSpacing: -0.5,
-                              ),
+                            BlocBuilder<AttendanceBloc, AttendanceState>(
+                              builder: (context, attendanceState) {
+                                if (attendanceState is StaffAttendanceHistoryLoaded &&
+                                    attendanceState.records.isNotEmpty) {
+                                  final today = DateTime.now();
+                                  final todayKey =
+                                      '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+                                  final todayRecords = attendanceState.records.where(
+                                    (record) => record.attendanceDate.startsWith(todayKey),
+                                  );
+                                  final status = todayRecords.isNotEmpty
+                                      ? todayRecords.first.status
+                                      : 'Not Logged';
+                                  return Text(
+                                    status == 'PRESENT'
+                                        ? 'Present'
+                                        : status == 'ABSENT'
+                                            ? 'Absent'
+                                            : status,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primaryText,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  );
+                                }
+                                return const Text(
+                                  'Not Logged',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryText,
+                                    letterSpacing: -0.5,
+                                  ),
+                                );
+                              },
                             ),
                             const SizedBox(height: 4),
                             Text(

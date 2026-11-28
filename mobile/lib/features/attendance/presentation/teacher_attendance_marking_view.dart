@@ -175,10 +175,9 @@ class _TeacherAttendanceMarkingViewState
             ),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final title = Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
@@ -198,8 +197,8 @@ class _TeacherAttendanceMarkingViewState
                           ),
                         ),
                       ],
-                    ),
-                    OutlinedButton.icon(
+                    );
+                    final dateButton = OutlinedButton.icon(
                       onPressed: _selectDate,
                       icon: const Icon(Icons.calendar_month_outlined, size: 16),
                       label: Text(_selectedDate),
@@ -207,12 +206,35 @@ class _TeacherAttendanceMarkingViewState
                         side: const BorderSide(color: AppColors.border),
                         foregroundColor: AppColors.primaryText,
                       ),
-                    ),
-                  ],
+                    );
+                    if (constraints.maxWidth < 420) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          title,
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: dateButton,
+                          ),
+                        ],
+                      );
+                    }
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(child: title),
+                        dateButton,
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 // Stats preview
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _buildStatChip(
                       label: 'Total',
@@ -235,7 +257,6 @@ class _TeacherAttendanceMarkingViewState
                           .length,
                       color: const Color(0xFFB91C1C),
                     ),
-                    const Spacer(),
                     BlocBuilder<AttendanceBloc, AttendanceState>(
                       builder: (context, state) {
                         final isSaving = state is AttendanceLoading;

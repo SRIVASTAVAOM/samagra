@@ -90,21 +90,28 @@ class TeacherProfileView extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border),
+            gradient: AppColors.headerGradient,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.indigo500.withValues(alpha: 0.25)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1F0F172A),
+                blurRadius: 16,
+                offset: Offset(0, 6),
+              ),
+            ],
           ),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 26,
-                backgroundColor: AppColors.scaffoldBackground,
+                backgroundColor: AppColors.indigo500,
                 child: Text(
                   p.firstName.isNotEmpty ? p.firstName[0].toUpperCase() : 'T',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primaryText,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -118,7 +125,7 @@ class TeacherProfileView extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.primaryText,
+                        color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -126,7 +133,7 @@ class TeacherProfileView extends StatelessWidget {
                       'Emp Code: ${p.employeeCode}',
                       style: const TextStyle(
                         fontSize: 13,
-                        color: AppColors.secondaryText,
+                        color: AppColors.indigo100,
                       ),
                     ),
                     if (p.qualification != null) ...[
@@ -135,7 +142,7 @@ class TeacherProfileView extends StatelessWidget {
                         p.qualification!,
                         style: const TextStyle(
                           fontSize: 12,
-                          color: AppColors.secondaryText,
+                          color: AppColors.indigo200,
                         ),
                       ),
                     ],
@@ -151,7 +158,7 @@ class TeacherProfileView extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border),
           ),
           padding: const EdgeInsets.all(16),
@@ -206,7 +213,7 @@ class TeacherProfileView extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border),
           ),
           padding: const EdgeInsets.all(16),
@@ -273,7 +280,7 @@ class TeacherProfileView extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border),
           ),
           padding: const EdgeInsets.all(16),
