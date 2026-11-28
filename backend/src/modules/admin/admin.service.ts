@@ -155,7 +155,59 @@ export class AdminService {
       error.statusCode = 400;
       throw error;
     }
+
+    const rawAadhaar = (data.aadhaar || data.aadhar || data.aadhaar_no || data.aadhar_no || '').toString().trim();
+    if (rawAadhaar && !/^\d{12}$/.test(rawAadhaar)) {
+      const error: any = new Error('Aadhaar number must be exactly 12 digits');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const phoneFields = [data.primary_phone, data.phone, data.mobile, data.fat_mobile, data.mot_mobile];
+    for (const p of phoneFields) {
+      const rawPhone = (p || '').toString().trim();
+      if (rawPhone && !/^\d{10}$/.test(rawPhone)) {
+        const error: any = new Error('Phone number must be exactly 10 digits');
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
+    const rawPin = (data.pin || data.pincode || '').toString().trim();
+    if (rawPin && !/^\d{6}$/.test(rawPin)) {
+      const error: any = new Error('PIN code must be exactly 6 digits');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const rawEmail = (data.email || '').toString().trim();
+    if (rawEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
+      const error: any = new Error('Invalid email format');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const rawDob = (data.date_of_birth || data.dob || '').toString().trim();
+    if (rawDob) {
+      const parsedDob = new Date(rawDob);
+      if (!Number.isNaN(parsedDob.getTime()) && parsedDob > new Date()) {
+        const error: any = new Error('Date of birth cannot be in the future');
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
     return AdminRepository.createStudent(user.schoolId, data);
+  }
+
+  static async updateStudentUsername(user: TokenPayload, studentId: string, username: string): Promise<any> {
+    const clean = (username || '').trim();
+    if (!clean || clean.length < 2) {
+      const error: any = new Error('Login ID / Username must be at least 2 characters');
+      error.statusCode = 400;
+      throw error;
+    }
+    return AdminRepository.updateStudentUsername(user.schoolId, studentId, clean);
   }
 
   // Staff Management

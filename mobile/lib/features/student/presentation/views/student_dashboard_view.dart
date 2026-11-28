@@ -1086,8 +1086,8 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
     StudentProfileModel? profile,
   ) {
     final schoolName = (profile?.schoolName?.trim().isNotEmpty == true)
-        ? profile!.schoolName!
-        : 'Apex International School';
+        ? profile!.schoolName!.trim()
+        : null;
 
     final studentName = (profile?.fullName.trim().isNotEmpty == true)
         ? profile!.fullName
@@ -1171,17 +1171,29 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
                           ),
                           const SizedBox(width: 6),
                           Expanded(
-                            child: Text(
-                              schoolName.toUpperCase(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.6,
-                                color: AppColors.indigo200,
-                              ),
-                            ),
+                            child: schoolName != null
+                                ? Text(
+                                    schoolName.toUpperCase(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.6,
+                                      color: AppColors.indigo200,
+                                    ),
+                                  )
+                                : Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Container(
+                                      height: 11,
+                                      width: 140,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
                           ),
                           const SizedBox(width: 8),
                           Container(

@@ -20,6 +20,7 @@ class UploadMaterialEvent extends MaterialsEvent {
   final String subjectId;
   final String title;
   final String? description;
+  final String? materialType;
   final String fileName;
   final List<int> fileBytes;
   final String contentType;
@@ -30,6 +31,7 @@ class UploadMaterialEvent extends MaterialsEvent {
     required this.subjectId,
     required this.title,
     this.description,
+    this.materialType,
     required this.fileName,
     required this.fileBytes,
     required this.contentType,
@@ -122,6 +124,7 @@ class MaterialsBloc extends Bloc<MaterialsEvent, MaterialsState> {
         subjectId: event.subjectId,
         title: event.title,
         description: event.description,
+        materialType: event.materialType,
         fileName: event.fileName,
         fileSizeBytes: event.fileBytes.length,
         contentType: event.contentType,

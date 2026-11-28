@@ -104,7 +104,7 @@ export class HomeworkRepository {
       JOIN staff_profiles sp ON h.assigned_by_staff_id = sp.id
       ${studentId ? `LEFT JOIN student_homework_completions shc ON shc.homework_id = h.id AND shc.student_id = $3` : ''}
       WHERE h.class_id = $1 AND h.section_id = $2
-      ORDER BY h.due_date DESC, h.assigned_date DESC;
+      ORDER BY h.created_at DESC, h.due_date DESC;
     `;
 
     const params = studentId ? [classId, sectionId, studentId] : [classId, sectionId];
@@ -133,7 +133,7 @@ export class HomeworkRepository {
       JOIN subjects sub ON h.subject_id = sub.id
       JOIN staff_profiles sp ON h.assigned_by_staff_id = sp.id
       WHERE h.assigned_by_staff_id = $1
-      ORDER BY h.due_date DESC, h.assigned_date DESC;
+      ORDER BY h.created_at DESC, h.due_date DESC;
     `;
     const { rows } = await pool.query(query, [staffId]);
     return rows;

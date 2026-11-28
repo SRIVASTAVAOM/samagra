@@ -353,6 +353,21 @@ export class AdminController {
   }
 
   /**
+   * PATCH /api/v1/admin/students/:id/username
+   */
+  static async updateStudentUsername(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const { username } = req.body;
+      const result = await AdminService.updateStudentUsername(user, id, username);
+      res.status(200).json({ success: true, message: 'Student login ID updated successfully', data: result });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
    * POST /api/v1/admin/students (New Admission Form)
    */
   static async createStudent(req: Request, res: Response): Promise<void> {

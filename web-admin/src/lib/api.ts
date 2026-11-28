@@ -336,6 +336,13 @@ export const api = {
       });
     },
 
+    updateStudentUsername: async (id: string, username: string): Promise<any> => {
+      return request<any>(`/admin/students/${encodeURIComponent(id)}/username`, {
+        method: 'PATCH',
+        body: JSON.stringify({ username }),
+      });
+    },
+
     resetStaffPassword: async (id: string, password?: string): Promise<any> => {
       return request<any>(`/admin/staff/${encodeURIComponent(id)}/reset-password`, {
         method: 'POST',

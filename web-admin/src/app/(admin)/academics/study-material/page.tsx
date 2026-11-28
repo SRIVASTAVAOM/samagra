@@ -843,7 +843,7 @@ export default function StudyMaterialPage() {
               {/* Description */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Description / Topic Notes
+                  {formData.material_type} Description / Topic Notes
                 </label>
                 <textarea
                   rows={3}
@@ -1044,7 +1044,7 @@ export default function StudyMaterialPage() {
               {/* Description */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Description / Topic Notes
+                  {formData.material_type} Description / Topic Notes
                 </label>
                 <textarea
                   rows={3}

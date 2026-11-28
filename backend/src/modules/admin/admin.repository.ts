@@ -2059,6 +2059,39 @@ export class AdminRepository {
   }
 
   /**
+   * 9d. Update Student Login ID / Identifier (scoped by school_id)
+   */
+  static async updateStudentUsername(schoolId: string, studentId: string, username: string): Promise<any> {
+    const checkQuery = `
+      SELECT sp.id, sp.user_id, u.identifier
+      FROM student_profiles sp
+      JOIN users u ON sp.user_id = u.id
+      WHERE sp.id = $1 AND u.school_id = $2;
+    `;
+    const checkRes = await pool.query(checkQuery, [studentId, schoolId]);
+    if (checkRes.rows.length === 0) {
+      const err: any = new Error('Student not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    const student = checkRes.rows[0];
+    const dupRes = await pool.query(
+      'SELECT id FROM users WHERE LOWER(TRIM(identifier)) = LOWER(TRIM($1)) AND id != $2 LIMIT 1',
+      [username, student.user_id]
+    );
+    if (dupRes.rows.length > 0) {
+      const err: any = new Error('This Login ID is already in use by another account');
+      err.statusCode = 409;
+      throw err;
+    }
+    await pool.query(
+      'UPDATE users SET identifier = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND school_id = $3',
+      [username, student.user_id, schoolId]
+    );
+    return { id: student.id, identifier: username, username };
+  }
+
+  /**
    * 10. Staff Management: Get All Staff
    */
   static async getAllStaff(schoolId: string, search?: string, isActive?: boolean): Promise<any[]> {
@@ -2252,10 +2285,11 @@ export class AdminRepository {
       let resolvedSectionName: string | null = null;
 
       const rawSection = (data.current_section_id || data.section_id || data.sec || data.section || data.section_name || '').toString().trim();
-      if (resolvedClassId && rawSection) {
-        const isSecUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawSection);
+      const effectiveSection = rawSection || 'A';
+      if (resolvedClassId && effectiveSection) {
+        const isSecUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(effectiveSection);
         if (isSecUuid) {
-          const secRes = await client.query('SELECT id, name FROM sections WHERE id = $1 AND class_id = $2', [rawSection, resolvedClassId]);
+          const secRes = await client.query('SELECT id, name FROM sections WHERE id = $1 AND class_id = $2', [effectiveSection, resolvedClassId]);
           if (secRes.rows.length > 0) {
             resolvedSectionId = secRes.rows[0].id;
             resolvedSectionName = secRes.rows[0].name;
@@ -2264,7 +2298,7 @@ export class AdminRepository {
         if (!resolvedSectionId) {
           const secRes = await client.query(
             'SELECT id, name FROM sections WHERE class_id = $1 AND LOWER(TRIM(name)) = LOWER(TRIM($2))',
-            [resolvedClassId, rawSection]
+            [resolvedClassId, effectiveSection]
           );
           if (secRes.rows.length > 0) {
             resolvedSectionId = secRes.rows[0].id;
@@ -2272,7 +2306,7 @@ export class AdminRepository {
           } else {
             const newSec = await client.query(
               'INSERT INTO sections (class_id, name) VALUES ($1, $2) RETURNING id, name',
-              [resolvedClassId, rawSection]
+              [resolvedClassId, effectiveSection]
             );
             resolvedSectionId = newSec.rows[0].id;
             resolvedSectionName = newSec.rows[0].name;
@@ -3753,9 +3787,9 @@ export class AdminRepository {
         s.id AS section_id,
         s.name AS section_name
       FROM classes c
-      JOIN sections s ON s.class_id = c.id
+      LEFT JOIN sections s ON s.class_id = c.id
       WHERE c.school_id = $1
-      ORDER BY c.name ASC, s.name ASC;
+      ORDER BY c.name ASC, s.name ASC NULLS LAST;
     `;
     const { rows: sectionsList } = await pool.query(classesQuery, [schoolId]);
 
@@ -3830,14 +3864,14 @@ export class AdminRepository {
 
     // Construct hierarchy
     const sectionsResult = sectionsList.map((sec: any) => {
-      const ct = ctMap.get(`${sec.class_id}_${sec.section_id}`) || null;
+      const ct = sec.section_id ? ctMap.get(`${sec.class_id}_${sec.section_id}`) || null : null;
       let relevantSubjects = classSubjects.filter((cs: any) => cs.class_id === sec.class_id);
       if (relevantSubjects.length === 0) {
         relevantSubjects = allSubjects;
       }
 
       const subjectsWithAlloc = relevantSubjects.map((sub: any) => {
-        const assigned = tsaMap.get(`${sec.class_id}_${sec.section_id}_${sub.subject_id}`) || null;
+        const assigned = sec.section_id ? tsaMap.get(`${sec.class_id}_${sec.section_id}_${sub.subject_id}`) || null : null;
         return {
           subject_id: sub.subject_id,
           subject_name: sub.subject_name,

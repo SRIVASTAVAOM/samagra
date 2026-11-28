@@ -28,6 +28,7 @@ class MaterialsRepository {
     required String subjectId,
     required String title,
     String? description,
+    String? materialType,
     required String fileName,
     required int fileSizeBytes,
     required String contentType,
@@ -42,6 +43,9 @@ class MaterialsRepository {
     };
     if (sectionId != null) payload['sectionId'] = sectionId;
     if (description != null) payload['description'] = description;
+    if (materialType != null && materialType.isNotEmpty) {
+      payload['materialType'] = materialType;
+    }
 
     final response = await _client.post(
       ApiEndpoints.presignedUploadUrl,
@@ -56,6 +60,30 @@ class MaterialsRepository {
     String contentType, {
     void Function(int sent, int total)? onProgress,
   }) async {
+    final uploadUri = Uri.tryParse(uploadUrl);
+    final apiUri = Uri.tryParse(_client.dio.options.baseUrl);
+    final isBackendFallback =
+        uploadUrl.contains('/api/v1/materials/upload') ||
+        (uploadUri != null &&
+            apiUri != null &&
+            uploadUri.host.isNotEmpty &&
+            uploadUri.host == apiUri.host);
+
+    if (isBackendFallback) {
+      await _client.dio.put(
+        uploadUrl,
+        data: fileBytes,
+        options: Options(
+          headers: {
+            'Content-Type': contentType,
+            'Content-Length': fileBytes.length,
+          },
+        ),
+        onSendProgress: onProgress,
+      );
+      return;
+    }
+
     await _storageDio.put(
       uploadUrl,
       data: fileBytes,

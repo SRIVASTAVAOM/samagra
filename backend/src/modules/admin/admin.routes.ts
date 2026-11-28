@@ -57,6 +57,7 @@ router.patch('/students/:id', AdminController.updateStudent);
 router.patch('/students/:id/photo', AdminController.updateStudentPhoto);
 router.delete('/students/:id/photo', AdminController.deleteStudentPhoto);
 router.post('/students/:id/reset-password', AdminController.resetStudentPassword);
+router.patch('/students/:id/username', AdminController.updateStudentUsername);
 
 // Staff Directory & Management Endpoints (CRUD)
 router.get('/staff', AdminController.getAllStaff);

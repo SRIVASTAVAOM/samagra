@@ -87,7 +87,7 @@ export default function AcademicAllocationsPage() {
       // Initialize draft state
       const initialDraft: typeof draftState = {};
       fetchedAllocations.forEach((sec) => {
-        const key = `${sec.class_id}_${sec.section_id}`;
+        const key = `${sec.class_id}_${sec.section_id || 'no-section'}`;
         const subTeachers: { [subject_id: string]: string } = {};
         sec.subjects.forEach((sub) => {
           subTeachers[sub.subject_id] = sub.assigned_teacher?.staff_id || '';
@@ -182,6 +182,10 @@ export default function AcademicAllocationsPage() {
 
   // Save allocations for a specific section
   const handleSaveSection = async (sec: SectionAllocationItem) => {
+    if (!sec.section_id) {
+      setErrorToast(`Class ${sec.class_name} has no section yet. Admit a student or add a section first.`);
+      return;
+    }
     const key = `${sec.class_id}_${sec.section_id}`;
     const draft = draftState[key];
     if (!draft) return;

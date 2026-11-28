@@ -61,6 +61,7 @@ const navSections: NavSection[] = [
     items: [
       { name: 'Student Directory',       href: '/students',                  icon: Users         },
       { name: 'Subject Master',          href: '/subjects',                  icon: Library       },
+      { name: 'Teacher Allocations',     href: '/academics/allocations',     icon: UserCog       },
       { name: 'Class Timetable',         href: '/timetable',                 icon: CalendarDays, badge: 'Sync' },
       { name: 'Report Cards',            href: '/reports/greensheet',        icon: FileSpreadsheet },
       { name: 'Student Attendance',      href: '/attendance/students',       icon: UserCheck     },

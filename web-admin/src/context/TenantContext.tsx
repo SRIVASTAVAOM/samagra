@@ -72,12 +72,30 @@ const TenantContext = createContext<TenantContextValue>({
 });
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
-  const [tenant, setTenant] = useState<TenantData | null>(null);
+  const [tenant, setTenant] = useState<TenantData | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const user = getCurrentUser();
+    if (user?.school) {
+      return {
+        id: user.school.id,
+        name: user.school.name || '',
+        code: user.school.code || '',
+        branding: { ...defaultBranding, ...(user.school.branding || {}), name: user.school.branding?.name || user.school.name || '' },
+        features: { ...defaultFeatures, ...(user.school.features || {}) },
+      };
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
 
   const refreshTenant = async () => {
     try {
       const user = getCurrentUser();
+      if (!user) {
+        setTenant(null);
+        setLoading(false);
+        return;
+      }
       
       // If logged in user is Super-Admin, configure dedicated Platform HQ tenant
       if (user?.roles?.includes('SUPER_ADMIN')) {
@@ -133,7 +151,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const features = useMemo(() => tenant?.features || defaultFeatures, [tenant]);
-  const branding = useMemo(() => tenant?.branding || defaultBranding, [tenant]);
+  const branding = useMemo(
+    () =>
+      tenant?.branding ||
+      (loading ? { ...defaultBranding, name: '', code: '' } : defaultBranding),
+    [tenant, loading]
+  );
 
   return (
     <TenantContext.Provider value={{ tenant, features, branding, loading, refreshTenant }}>
